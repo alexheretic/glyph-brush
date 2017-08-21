@@ -1,0 +1,23 @@
+[package]
+name = "gfx_glyph"
+version = "0.1.0"
+authors = ["Alex Butler <alexheretic@gmail.com>"]
+description = "Fast GPU cached text rendering using gfx-rs & rusttype"
+repository = "https://github.com/alexheretic/gfx-glyph"
+keywords = ["font", "ttf", "opentype", "truetype", "otf", "gamedev"]
+license = "Apache-2.0"
+
+[dependencies]
+log = "0.3"
+rusttype = "0.2"
+gfx = "0.16"
+gfx_core = "0.7"
+unicode-normalization = "0.1"
+ordered-float = "0.5"
+
+[dev-dependencies]
+pretty_env_logger = "0.1"
+approx = "0.1"
+gfx_window_glutin = "0.17"
+glutin = "0.9"
+time = "0.1"
