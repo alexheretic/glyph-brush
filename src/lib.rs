@@ -21,6 +21,7 @@ use gfx_core::memory::Typed;
 use std::i32;
 use std::error::Error;
 use std::collections::{HashMap, HashSet};
+use std::collections::hash_map::Entry;
 
 pub use section::*;
 pub use layout::*;
@@ -36,6 +37,8 @@ type TexForm = format::U8Norm;
 type TexSurface = <TexForm as format::Formatted>::Surface;
 type TexChannel = <TexForm as format::Formatted>::Channel;
 type TexFormView = <TexForm as format::Formatted>::View;
+type TexSurfaceHandle<R> = handle::Texture<R, TexSurface>;
+type TexShaderView<R> = handle::ShaderResourceView<R, TexFormView>;
 
 const FONT_CACHE_ID: usize = 0;
 const FONT_CACHE_POSITION_TOLERANCE: f32 = 1.0;
@@ -89,7 +92,7 @@ pub struct GlyphBrush<'a, R: gfx::Resources, F: gfx::Factory<R>>{
 
 impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
 
-    pub fn pixel_bounding_box<'a, S, L>(&self, section: S, layout: &L)
+    pub fn pixel_bounding_box<'a, S, L>(&mut self, section: S, layout: &L)
         -> Rect<i32>
         where L: GlyphPositioner + Hash,
               S: Into<Section<'a>>,
@@ -98,7 +101,10 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         let mut x = (i32::MAX, i32::MIN);
         let mut y = (i32::MAX, i32::MIN);
         let mut no_match = true;
-        for g in layout.calculate_glyphs(&self.font, &section) {
+
+        let section_hash = self.cache_glyphs(&section, layout);
+
+        for g in &self.calculate_glyph_cache[&section_hash].glyphs {
             no_match = false;
             if let Some(Rect{ min, max }) = g.pixel_bounding_box() {
                 if min.x < x.0 { x.0 = min.x; }
@@ -127,18 +133,25 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
               S: Into<Section<'a>>,
     {
         let section = section.into();
-        let section_hash = hash(&(&section, layout));
+        let section_hash = self.cache_glyphs(&section, layout);
+        self.section_buffer.push(section_hash);
+    }
 
-        if !self.calculate_glyph_cache.contains_key(&section_hash) {
-            let glyphed = GlyphedSection {
+    /// Returns the calculate_glyph_cache key for this sections glyphs
+    fn cache_glyphs<L>(&mut self, section: &Section, layout: &L) -> u64
+        where L: GlyphPositioner
+    {
+        let section_hash = hash(&(section, layout));
+
+        if let Entry::Vacant(entry) = self.calculate_glyph_cache.entry(section_hash) {
+            entry.insert(GlyphedSection {
                 color: section.color,
-                bounds: layout.bounds_rect(&section),
-                glyphs: layout.calculate_glyphs(&self.font, &section),
-            };
-            self.calculate_glyph_cache.insert(section_hash, glyphed);
+                bounds: layout.bounds_rect(section),
+                glyphs: layout.calculate_glyphs(&self.font, section),
+            });
         }
 
-        self.section_buffer.push(section_hash);
+        section_hash
     }
 
     pub fn draw_queued<C, T>(
@@ -162,7 +175,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                 let mut no_text = true;
 
                 for section_hash in &self.section_buffer {
-                    let GlyphedSection{ ref glyphs, .. } = self.calculate_glyph_cache[&section_hash];
+                    let GlyphedSection{ ref glyphs, .. } = self.calculate_glyph_cache[section_hash];
                     for glyph in glyphs {
                         self.font_cache.queue_glyph(FONT_CACHE_ID, glyph.clone());
                         no_text = false;
@@ -178,7 +191,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                 if let Err(err) = self.font_cache.cache_queued(|rect, tex_data| {
                     let offset = [rect.min.x as u16, rect.min.y as u16];
                     let size = [rect.width() as u16, rect.height() as u16];
-                    update_texture(&mut encoder, &tex, offset, size, &tex_data);
+                    update_texture(&mut encoder, &tex, offset, size, tex_data);
                 }) {
                     let (width, height) = self.font_cache.dimensions();
                     let (new_width, new_height) = (width * 2, height * 2);
@@ -216,7 +229,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
             let verts: Vec<GlyphVertex> = self.section_buffer.iter()
                 .flat_map(|section_hash| {
                     let GlyphedSection{ ref glyphs, color, bounds }
-                        = self.calculate_glyph_cache[&section_hash];
+                        = self.calculate_glyph_cache[section_hash];
                     text_vertices(
                         glyphs,
                         &self.font_cache,
@@ -457,8 +470,7 @@ fn text_vertices(glyphs: &[PositionedGlyph],
 
 // Creates a gfx texture with the given data
 fn create_texture<F, R>(factory: &mut F, width: u32, height: u32)
-    -> Result<(handle::Texture<R, TexSurface>, handle::ShaderResourceView<R, TexFormView>),
-              Box<Error>>
+    -> Result<(TexSurfaceHandle<R>, TexShaderView<R>), Box<Error>>
     where R: gfx::Resources, F: gfx::Factory<R>
 {
     let kind = texture::Kind::D2(

@@ -7,4 +7,4 @@ gfx_glyph
 </a>
 ================
 
-Fast GPU cached text rendering using gfx-rs & rusttype
+Fast GPU cached text rendering using [gfx-rs](https://github.com/gfx-rs/gfx) & [rusttype](https://github.com/dylanede/rusttype)

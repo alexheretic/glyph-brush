@@ -14,22 +14,20 @@ fn main() {
 
     if cfg!(target_os = "linux") {
         // winit wayland is currently still wip
-        if let Err(_) = env::var("WINIT_UNIX_BACKEND") {
+        if env::var("WINIT_UNIX_BACKEND").is_err() {
             env::set_var("WINIT_UNIX_BACKEND", "x11");
         }
-        // linux disables vsync sometimes on x11
-        if let Err(_) = env::var("vblank_mode") {
+        // disables vsync sometimes on x11
+        if env::var("vblank_mode").is_err() {
             env::set_var("vblank_mode", "0");
         }
     }
-    if cfg!(debug_assertions) {
-        if let Err(_) = env::var("yes_i_really_want_debug_mode") {
-            eprintln!("You should probably run an example called 'performance' in release mode, \
-                don't you think?\n    \
-                e.g. use `cargo run --example performance --release`\n\n\
-                If you really want to see debug performance set env var `yes_i_really_want_debug_mode`");
-            return;
-        }
+    if cfg!(debug_assertions) && env::var("yes_i_really_want_debug_mode").is_err() {
+        eprintln!("You should probably run an example called 'performance' in release mode, \
+            don't you think?\n    \
+            e.g. use `cargo run --example performance --release`\n\n\
+            If you really want to see debug performance set env var `yes_i_really_want_debug_mode`");
+        return;
     }
 
     let mut events_loop = glutin::EventsLoop::new();

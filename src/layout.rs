@@ -27,7 +27,7 @@ impl<'a> GlyphInfo<'a> {
 
 impl<'a, 'b> From<&'b Section<'a>> for GlyphInfo<'a> {
     fn from(section: &'b Section<'a>) -> Self {
-        let &Section{ ref text, screen_position, bounds, scale, ..} = section;
+        let Section { text, screen_position, bounds, scale, .. } = *section;
         Self {
             text,
             skip: 0,

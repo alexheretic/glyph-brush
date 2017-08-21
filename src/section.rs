@@ -27,14 +27,14 @@ impl<'a> Hash for Section<'a> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         use ordered_float::OrderedFloat;
 
-        let &Section {
-            ref text,
+        let Section {
+            text,
             screen_position: (screen_x, screen_y),
             bounds: (bound_w, bound_h),
             scale,
             color,
             layout,
-        } = self;
+        } = *self;
 
         let ord_floats: [OrderedFloat<f32>; 10] = [
             screen_x.into(),
