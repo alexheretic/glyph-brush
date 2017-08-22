@@ -4,7 +4,10 @@ cache:
   cargo: true
 rust:
 - stable
-- nightly
+## Note: disabled as rustdoc compile changes to include_bytes!
+## cause compile failure in 1.21 (easy to fix, but will cause failure in current stable)
+## TODO re-enable after 1.21 stable release
+# - nightly
 env:
 - RUST_BACKTRACE=full
 matrix:
