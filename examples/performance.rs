@@ -33,7 +33,7 @@ fn main() {
 
     let mut events_loop = glutin::EventsLoop::new();
     let window_builder = glutin::WindowBuilder::new()
-        .with_title("gfx_glyph rendering 100,000 glyphs - scroll to zoom, type to modify".to_string())
+        .with_title("gfx_glyph rendering 100,000 glyphs - scroll to size, type to modify".to_string())
         .with_dimensions(1024, 576);
     let context = glutin::ContextBuilder::new()
         .with_vsync(false);

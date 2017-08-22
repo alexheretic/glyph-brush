@@ -1,6 +1,6 @@
 [package]
 name = "gfx_glyph"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Alex Butler <alexheretic@gmail.com>"]
 description = "Fast GPU cached text rendering using gfx-rs & rusttype"
 repository = "https://github.com/alexheretic/gfx-glyph"
@@ -22,3 +22,4 @@ approx = "0.1"
 gfx_window_glutin = "0.17"
 glutin = "0.9"
 time = "0.1"
+cgmath = "0.15"

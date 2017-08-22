@@ -1,10 +1,20 @@
+//! An example of paragraph rendering
+//! Controls
+//!
+//! * Scroll to modify font size
+//! * Type to add/remove text
+//! * Ctrl-Scroll to zoom in/out using a transform, this is cheap but notice how rusttype can't
+//!   render at full quality without the correct pixel information.
+
 extern crate gfx;
 extern crate gfx_window_glutin;
 extern crate glutin;
 extern crate time;
 extern crate pretty_env_logger;
 extern crate gfx_glyph;
+extern crate cgmath;
 
+use cgmath::Matrix4;
 use glutin::GlContext;
 use gfx::{format, Device};
 use std::env;
@@ -24,7 +34,7 @@ fn main() {
 
     let mut events_loop = glutin::EventsLoop::new();
     let window_builder = glutin::WindowBuilder::new()
-        .with_title("gfx_glyph example - scroll to zoom, type to modify".to_string())
+        .with_title("gfx_glyph example - scroll to size, type to modify, ctrl-scroll to transform zoom".to_string())
         .with_dimensions(1024, 576);
     let context = glutin::ContextBuilder::new();
     let (window, mut device, mut factory, mut main_color, mut main_depth) =
@@ -44,6 +54,9 @@ fn main() {
 
     let mut running = true;
     let mut font_size = gfx_glyph::Scale::uniform(18.0 * window.hidpi_factor());
+    let mut zoom: f32 = 1.0;
+    let mut ctrl = false;
+
     while running {
         events_loop.poll_events(|event| {
             use glutin::*;
@@ -60,8 +73,13 @@ fn main() {
                     } => match keypress {
                         VirtualKeyCode::Escape => running = false,
                         VirtualKeyCode::Back => { text.pop(); },
+                        VirtualKeyCode::LControl | VirtualKeyCode::RControl => { ctrl = true },
                         _ => (),
                     },
+                    WindowEvent::KeyboardInput {
+                        input: KeyboardInput { state: ElementState::Released, .. },
+                        ..
+                    } => ctrl = false,
                     WindowEvent::ReceivedCharacter(c) => if c != '\u{7f}' && c != '\u{8}' {
                         text.push(c);
                     },
@@ -70,12 +88,25 @@ fn main() {
                         gfx_window_glutin::update_views(&window, &mut main_color, &mut main_depth);
                     },
                     WindowEvent::MouseWheel{ delta: MouseScrollDelta::LineDelta(_, y), .. } => {
-                        // increase/decrease font size with mouse wheel
-                        let mut size = font_size.x / window.hidpi_factor();
-                        if y < 0.0 { size += (size / 4.0).max(2.0) }
-                        else { size *= 4.0 / 5.0 };
-                        size = size.max(1.0);
-                        font_size = gfx_glyph::Scale::uniform(size * window.hidpi_factor());
+                        if ctrl {
+                            let old_zoom = zoom;
+                            // increase/decrease zoom
+                            if y < 0.0 { zoom += 0.1 }
+                            else { zoom -= 0.1 };
+                            zoom = zoom.min(1.0).max(0.1);
+                            if (zoom - old_zoom).abs() > 1e-2 {
+                                println!("zoom {:.1} -> {:.1}", old_zoom, zoom);
+                            }
+                        }
+                        else {
+                            // increase/decrease font size
+                            let mut size = font_size.x / window.hidpi_factor();
+                            if y < 0.0 { size += (size / 4.0).max(2.0) }
+                            else { size *= 4.0 / 5.0 };
+                            size = size.max(1.0);
+                            font_size = gfx_glyph::Scale::uniform(size * window.hidpi_factor());
+                        }
+
                     },
                     _ => {},
                 }
@@ -85,13 +116,14 @@ fn main() {
         encoder.clear(&main_color, [0.02, 0.02, 0.02, 1.0]);
 
         let (width, height, ..) = main_color.get_dimensions();
+        let scale = font_size;
 
         // The section is all the info needed for the glyph brush to render a 'section' of text
         // can use `..Section::default()` to skip the bits you don't care about
         // also see convenience variants StaticSection & OwnedSection
         let section = gfx_glyph::Section {
             text: &text,
-            scale: font_size,
+            scale,
             screen_position: (0.0, 0.0),
             bounds: (width as f32 / 3.15, height as f32),
             color: [0.9, 0.3, 0.3, 1.0],
@@ -111,7 +143,7 @@ fn main() {
         use gfx_glyph::*;
         glyph_brush.queue(Section {
             text: &text,
-            scale: font_size,
+            scale,
             screen_position: (width as f32 / 2.0, 0.0),
             bounds: (width as f32 / 3.15, height as f32),
             color: [0.3, 0.9, 0.3, 1.0],
@@ -119,11 +151,14 @@ fn main() {
 
         glyph_brush.queue(Section {
             text: &text,
-            scale: font_size,
+            scale,
             screen_position: (width as f32, 0.0),
             bounds: (width as f32 / 3.15, height as f32),
             color: [0.3, 0.3, 0.9, 1.0],
         }, &Layout::Wrap(GlyphGroup::Word, HorizontalAlign::Right));
+
+        // Here an example transform is used as a cheap zoom out (controlled with ctrl-scroll)
+        let transform = Matrix4::from_scale(zoom);
 
         // Finally once per frame you want to actually draw all the sections you've submitted
         // with `queue` calls.
@@ -131,7 +166,10 @@ fn main() {
         // Note: Drawing in the case the text is unchanged from the previous frame (a common case)
         // is essentially free as the vertices are reused &  gpu cache updating interaction
         // can be skipped.
-        glyph_brush.draw_queued(&mut encoder, &main_color).expect("draw");
+        glyph_brush.draw_queued_with_transform(
+            transform.into(),
+            &mut encoder,
+            &main_color).expect("draw");
 
         encoder.flush(&mut device);
         window.swap_buffers().unwrap();

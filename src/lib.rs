@@ -98,6 +98,13 @@ type TexShaderView<R> = handle::ShaderResourceView<R, TexFormView>;
 // Each brush is limited to a single font, so just use 0
 const FONT_CACHE_ID: usize = 0;
 
+const IDENTITY_MATRIX4: [[f32; 4]; 4] = [
+    [1.0, 0.0, 0.0, 0.0],
+    [0.0, 1.0, 0.0, 0.0],
+    [0.0, 0.0, 1.0, 0.0],
+    [0.0, 0.0, 0.0, 1.0],
+];
+
 // Inner module used to avoid public access
 mod gfx_structs {
     use super::*;
@@ -113,6 +120,7 @@ mod gfx_structs {
     gfx_pipeline_base!( glyph_pipe {
         vbuf: gfx::VertexBuffer<GlyphVertex>,
         font_tex: gfx::TextureSampler<TexFormView>,
+        transform: gfx::Global<[[f32; 4]; 4]>,
         out: gfx::RawRenderTarget,
     });
 
@@ -121,6 +129,7 @@ mod gfx_structs {
             glyph_pipe::Init {
                 vbuf: (),
                 font_tex: "font_tex",
+                transform: "transform",
                 out: ("Target0", format, state::ColorMask::all(), Some(preset::blend::ALPHA))
             }
         }
@@ -268,10 +277,26 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         section_hash
     }
 
-    /// Draws all queued sections onto a render target.
+    /// Draws all queued sections onto a render target, applying a position transform (e.g.
+    /// a projection).
     /// See [`queue`](struct.GlyphBrush.html#method.queue).
     pub fn draw_queued<C, T>(
         &mut self,
+        encoder: &mut gfx::Encoder<R, C>,
+        target: &gfx::handle::RenderTargetView<R, T>)
+        -> Result<(), String>
+        where C: gfx::CommandBuffer<R>,
+              T: format::RenderFormat,
+    {
+        self.draw_queued_with_transform(IDENTITY_MATRIX4, encoder, target)
+    }
+
+    /// Draws all queued sections onto a render target, applying a position transform (e.g.
+    /// a projection).
+    /// See [`queue`](struct.GlyphBrush.html#method.queue).
+    pub fn draw_queued_with_transform<C, T>(
+        &mut self,
+        transform: [[f32; 4]; 4],
         mut encoder: &mut gfx::Encoder<R, C>,
         target: &gfx::handle::RenderTargetView<R, T>)
         -> Result<(), String>
@@ -382,6 +407,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                         glyph_pipe::Data {
                             vbuf,
                             font_tex: (self.font_cache_tex.1.clone(), sampler),
+                            transform: transform,
                             out: target.raw().clone(),
                         }
                     },
@@ -395,7 +421,10 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
             self.draw_cache = Some(draw_cache);
         }
 
-        if let Some(DrawnGlyphBrush{ ref pso, ref slice, ref pipe_data, .. }) = self.draw_cache {
+        if let Some(&mut DrawnGlyphBrush{ ref pso, ref slice, ref mut pipe_data, .. }) =
+            self.draw_cache.as_mut()
+        {
+            pipe_data.transform = transform;
             encoder.draw(slice, &pso.1, pipe_data);
         }
 
@@ -535,10 +564,7 @@ impl<'a> GlyphBrushBuilder<'a> {
 
     /// Sets optimising drawing by reusing the last draw requesting an identical draw queue.
     ///
-    /// Improves performance. Can be disabled as a workaround to missing characters, as this
-    /// has been observed at lower position tolerances. The repeated draws can cure the missing
-    /// characters. This is probably an upstream bug. Without bugs it makes sense to use this
-    /// optimisation.
+    /// Improves performance.
     ///
     /// Defaults to `true`
     pub fn cache_glyph_drawing(mut self, cache: bool) -> Self {
