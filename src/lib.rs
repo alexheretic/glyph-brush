@@ -576,9 +576,7 @@ impl<'a> GlyphBrushBuilder<'a> {
     pub fn build<R, F>(self, mut factory: F) -> GlyphBrush<'a, R, F>
         where R: gfx::Resources, F: gfx::Factory<R>
     {
-        assert!(!self.font.is_empty(), "Empty font data");
-        let font = FontCollection::from_bytes(self.font as &[u8]).into_font()
-            .expect("Could not create rusttype::Font");
+        let font = font(self.font);
 
         let (cache_width, cache_height) = self.initial_cache_size;
         let font_cache_tex = create_texture(&mut factory, cache_width, cache_height).unwrap();
@@ -602,6 +600,13 @@ impl<'a> GlyphBrushBuilder<'a> {
             cache_glyph_drawing: self.cache_glyph_drawing,
         }
     }
+}
+
+/// Returns a Font from font bytes info, panics if not supported.
+pub fn font<'a>(font_bytes: &'a [u8]) -> Font<'a> {
+    assert!(!font_bytes.is_empty(), "Empty font data");
+    FontCollection::from_bytes(font_bytes as &[u8]).into_font()
+        .expect("Could not create rusttype::Font")
 }
 
 #[inline]
