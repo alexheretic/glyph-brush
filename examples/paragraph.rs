@@ -34,7 +34,8 @@ fn main() {
 
     let mut events_loop = glutin::EventsLoop::new();
     let window_builder = glutin::WindowBuilder::new()
-        .with_title("gfx_glyph example - scroll to size, type to modify, ctrl-scroll to transform zoom".to_string())
+        .with_title("gfx_glyph example - scroll to size, \
+            type to modify, ctrl-scroll to transform zoom".to_string())
         .with_dimensions(1024, 576);
     let context = glutin::ContextBuilder::new();
     let (window, mut device, mut factory, mut main_color, mut main_depth) =
@@ -43,9 +44,6 @@ fn main() {
     let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(include_bytes!("Arial Unicode.ttf"))
         // .initial_cache_size((1024, 1024))
         .gpu_cache_position_tolerance(0.2)
-        // lower position tolerance seems to cause missing-character render issues in rusttype
-        // currently. So disabling it cause every-frame re-draws which seem to be less flawed...
-        .cache_glyph_drawing(false)
         .build(factory.clone());
 
     let mut text: String = include_str!("lipsum.txt").into();
@@ -95,16 +93,20 @@ fn main() {
                             else { zoom -= 0.1 };
                             zoom = zoom.min(1.0).max(0.1);
                             if (zoom - old_zoom).abs() > 1e-2 {
-                                println!("zoom {:.1} -> {:.1}", old_zoom, zoom);
+                                println!("transform-zoom -> {:.1}", zoom);
                             }
                         }
                         else {
                             // increase/decrease font size
+                            let old_size = font_size.x;
                             let mut size = font_size.x / window.hidpi_factor();
                             if y < 0.0 { size += (size / 4.0).max(2.0) }
                             else { size *= 4.0 / 5.0 };
                             size = size.max(1.0);
                             font_size = gfx_glyph::Scale::uniform(size * window.hidpi_factor());
+                            if (font_size.x - old_size).abs() > 1e-2 {
+                                println!("font-size -> {:.1}", font_size.x);
+                            }
                         }
 
                     },
@@ -157,6 +159,9 @@ fn main() {
             color: [0.3, 0.3, 0.9, 1.0],
         }, &Layout::Wrap(GlyphGroup::Word, HorizontalAlign::Right));
 
+        // Note: Can be drawn simply with the below, when transforms are not needed:
+        // `glyph_brush.draw_queued(&mut encoder, &main_color).expect("draw");`
+
         // Here an example transform is used as a cheap zoom out (controlled with ctrl-scroll)
         let transform = Matrix4::from_scale(zoom);
 
@@ -164,7 +169,7 @@ fn main() {
         // with `queue` calls.
         //
         // Note: Drawing in the case the text is unchanged from the previous frame (a common case)
-        // is essentially free as the vertices are reused &  gpu cache updating interaction
+        // is essentially free as the vertices are reused & gpu cache updating interaction
         // can be skipped.
         glyph_brush.draw_queued_with_transform(
             transform.into(),
