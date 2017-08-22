@@ -8,6 +8,7 @@ extern crate gfx_glyph;
 use glutin::GlContext;
 use gfx::{format, Device};
 use std::env;
+use gfx_glyph::*;
 
 fn main() {
     pretty_env_logger::init().expect("log");
@@ -39,7 +40,7 @@ fn main() {
     let (window, mut device, mut factory, mut main_color, mut main_depth) =
         gfx_window_glutin::init::<format::Srgba8, format::Depth>(window_builder, context, &events_loop);
 
-    let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(include_bytes!("Arial Unicode.ttf"))
+    let mut glyph_brush = GlyphBrushBuilder::using_font(include_bytes!("Arial Unicode.ttf"))
         .build(factory.clone());
 
     let mut text: String = include_str!("100000_items.txt").into();
@@ -47,7 +48,7 @@ fn main() {
     let mut encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
 
     let mut running = true;
-    let mut font_size = gfx_glyph::Scale::uniform(25.0 * window.hidpi_factor());
+    let mut font_size = Scale::uniform(25.0 * window.hidpi_factor());
     let mut rate = LoopLimiter::builder().report_interval(0.5).build_with_target_rate(0);
     while running {
         rate.loop_start();
@@ -82,7 +83,7 @@ fn main() {
                         if y < 0.0 { size += (size / 4.0).max(2.0) }
                         else { size *= 4.0 / 5.0 };
                         size = size.max(1.0);
-                        font_size = gfx_glyph::Scale::uniform(size * window.hidpi_factor());
+                        font_size = Scale::uniform(size * window.hidpi_factor());
                     },
                     _ => {},
                 }
@@ -96,12 +97,12 @@ fn main() {
         // The section is all the info needed for the glyph brush to render a 'section' of text
         // can use `..Section::default()` to skip the bits you don't care about
         // also see convenience variants StaticSection & OwnedSection
-        let section = gfx_glyph::Section {
+        let section = Section {
             text: &text,
             scale: font_size,
             bounds: (width as f32, height as f32),
             color: [0.8, 0.8, 0.8, 1.0],
-            ..gfx_glyph::Section::default()
+            ..Section::default()
         };
 
         // the lib needs layout logic to render the glyphs, ie a gfx_glyph::GlyphPositioner
@@ -147,11 +148,10 @@ pub struct CustomContiguousParagraphLayout {}
 impl gfx_glyph::GlyphPositioner for CustomContiguousParagraphLayout {
 
     /// Calculate a sequence of positioned glyphs to render
-    fn calculate_glyphs<'a, G>(&self, font: &gfx_glyph::Font, section: G)
-        -> Vec<gfx_glyph::PositionedGlyph>
-        where G: Into<gfx_glyph::GlyphInfo<'a>>
+    fn calculate_glyphs<'a, G>(&self, font: &Font, section: G)
+        -> Vec<PositionedGlyph>
+        where G: Into<GlyphInfo<'a>>
     {
-        use gfx_glyph::*;
         let mut glyph_info = section.into();
         let original_screen_x = glyph_info.screen_position.0;
         let original_bound_w = glyph_info.bounds.0;
@@ -186,8 +186,7 @@ impl gfx_glyph::GlyphPositioner for CustomContiguousParagraphLayout {
         out
     }
     /// Bounds rectangle is the same as built-in left align
-    fn bounds_rect<'a, G: Into<gfx_glyph::GlyphInfo<'a>>>(&self, section: G) -> gfx_glyph::Rect<f32> {
-        use gfx_glyph::*;
+    fn bounds_rect<'a, G: Into<GlyphInfo<'a>>>(&self, section: G) -> Rect<f32> {
         Layout::SingleLine(HorizontalAlign::Left).bounds_rect(section)
     }
 }

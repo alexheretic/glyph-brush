@@ -4,21 +4,33 @@ use std::str::Chars;
 use std::fmt;
 use unicode_normalization::*;
 
+/// A specialised view on a [`Section`](struct.Section.html) for the purposes of calculating
+/// glyph positions. Used by a [`GlyphPositioner`](trait.GlyphPositioner.html).
+///
+/// See [`Layout`](enum.Layout.html) for built-in positioner logic.
 #[derive(Debug, Clone)]
 pub struct GlyphInfo<'a> {
+    /// Section text, use [`nfc_chars()`](struct.GlyphInfo.html#method.nfc_chars) instead in order
+    /// to respect skip settings, ie in leftover payloads.
     pub text: &'a str,
-    pub skip: usize,
+    skip: usize,
+    /// Position on screen to render text, in pixels from top-left.
     pub screen_position: (f32, f32),
+    /// Max (width, height) bounds, in pixels from top-left.
     pub bounds: (f32, f32),
+    /// Font scale
     pub scale: Scale,
 }
 
 impl<'a> GlyphInfo<'a> {
-    fn nfc_chars(&self) -> Skip<Recompositions<Chars<'a>>> {
+    /// Returns a unicode normalized char iterator.
+    pub fn nfc_chars(&self) -> Skip<Recompositions<Chars<'a>>> {
         self.text.nfc().skip(self.skip)
     }
 
-    fn skip(&self, skip: usize) -> GlyphInfo<'a> {
+    /// Returns a new GlyphInfo instance whose
+    /// [`nfc_chars()`](struct.GlyphInfo.html#method.nfc_chars) method will skip additional chars.
+    pub fn skip(&self, skip: usize) -> GlyphInfo<'a> {
         let mut clone = self.clone();
         clone.skip += skip;
         clone
@@ -38,36 +50,48 @@ impl<'a, 'b> From<&'b Section<'a>> for GlyphInfo<'a> {
     }
 }
 
+/// Logic to calculate glyph positioning based on [`Font`](type.Font.html) and
+/// [`GlyphInfo`](struct.GlyphInfo.html)
 pub trait GlyphPositioner: Hash {
-    /// Calculate a sequence of positioned glyphs to render
+    /// Calculate a sequence of positioned glyphs to render. Custom implementations should always
+    /// return the same result when called with the same arguments. If not consider disabling
+    /// [`cache_glyph_positioning`](struct.GlyphBrushBuilder.html#method.cache_glyph_positioning).
     fn calculate_glyphs<'a, G>(&self, font: &Font, section: G)
         -> Vec<PositionedGlyph>
         where G: Into<GlyphInfo<'a>>;
     /// Return a rectangle according to the requested render position and bounds appropriate
-    /// for the glyph layout
+    /// for the glyph layout.
     fn bounds_rect<'a, G>(&self, section: G) -> Rect<f32> where G: Into<GlyphInfo<'a>>;
 }
 
+/// Built-in [`GlyphPositioner`](trait.GlyphPositioner.html) implementations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Layout {
-    /// Renders a single line according to the inner alignment
-    /// new lines will end the line,
-    /// partially hitting the width bound will end the line
+    /// Renders a single line from left-to-right according to the inner alignment.
+    /// Newline characters will end the line, partially hitting the width bound will end the line.
     SingleLine(HorizontalAlign),
+    /// Renders multiple lines from left-to-right according to the inner alignment.
+    /// Newline characters will cause advancement to another line.
+    /// A characters hitting the width bound will also cause another line to start.
+    WrapCharacters(HorizontalAlign),
 }
 
+/// Describes horizontal alignment preference for positioning & bounds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HorizontalAlign {
-    /// Leftmost character is immediately to the right of the render position
+    /// Leftmost character is immediately to the right of the render position.<br/>
+    /// Bounds start from the render position and advance rightwards.
     Left,
-    /// Leftmost & rightmost characters are equidistant to the render position
+    /// Leftmost & rightmost characters are equidistant to the render position.<br/>
+    /// Bounds start from the render position and advance equally left & right.
     Center,
-    /// Rightmost character is immetiately to the left of the redner position
+    /// Rightmost character is immetiately to the left of the render position.<br/>
+    /// Bounds start from the render position and advance leftwards.
     Right,
 }
 
 impl Default for Layout {
-    fn default() -> Self { Layout::SingleLine(HorizontalAlign::Left) }
+    fn default() -> Self { Layout::WrapCharacters(HorizontalAlign::Left) }
 }
 
 impl GlyphPositioner for Layout {
@@ -83,15 +107,18 @@ impl GlyphPositioner for Layout {
             bounds: (bound_w, bound_h),
             .. } = section.into();
         match *self {
-            Layout::SingleLine(HorizontalAlign::Left) => Rect {
+            Layout::SingleLine(HorizontalAlign::Left) |
+            Layout::WrapCharacters(HorizontalAlign::Left) => Rect {
                 min: Point { x: screen_x, y: screen_y },
                 max: Point { x: screen_x + bound_w, y: screen_y + bound_h },
             },
-            Layout::SingleLine(HorizontalAlign::Center) => Rect {
+            Layout::SingleLine(HorizontalAlign::Center) |
+            Layout::WrapCharacters(HorizontalAlign::Center) => Rect {
                 min: Point { x: screen_x - bound_w / 2.0, y: screen_y },
                 max: Point { x: screen_x + bound_w / 2.0, y: screen_y + bound_h },
             },
-            Layout::SingleLine(HorizontalAlign::Right) => Rect {
+            Layout::SingleLine(HorizontalAlign::Right) |
+            Layout::WrapCharacters(HorizontalAlign::Right) => Rect {
                 min: Point { x: screen_x - bound_w, y: screen_y },
                 max: Point { x: screen_x, y: screen_y + bound_h },
             },
@@ -99,6 +126,7 @@ impl GlyphPositioner for Layout {
     }
 }
 
+#[derive(Clone)]
 pub enum LayoutLeftover<'a> {
     /// leftover text after a new line character
     AfterNewline(Point<f32>, GlyphInfo<'a>),
@@ -126,6 +154,7 @@ impl Layout {
     {
         match *self {
             Layout::SingleLine(h_align) => single_line(font, h_align, section),
+            Layout::WrapCharacters(h_align) => paragraph(font, h_align, section.clone()),
         }
     }
 }
@@ -201,7 +230,11 @@ fn single_line<'a>(
                 // leftwards by half the rightmost x distance from render position
                 let rightmost_x_offset = {
                     let last = &result[result.len()-1];
-                    last.position().x + last.unpositioned().h_metrics().advance_width - screen_x
+                    last.pixel_bounding_box()
+                        .map(|bb| bb.max.x as f32)
+                        .unwrap_or_else(|| last.position().x)
+                        + last.unpositioned().h_metrics().left_side_bearing
+                        - screen_x
                 };
                 let shift_left = {
                     if h_align == HorizontalAlign::Right { rightmost_x_offset }
@@ -221,45 +254,57 @@ fn single_line<'a>(
     (result, leftover)
 }
 
-// fn left_aligned<'a>(font: &'a Font,
-//                     scale: Scale,
-//                     screen_position: (f32, f32),
-//                     width: u32,
-//                     text: &str) -> Vec<PositionedGlyph<'static>> {
-//     use unicode_normalization::UnicodeNormalization;
-//     let mut result = Vec::new();
-//     let v_metrics = font.v_metrics(scale);
-//     let advance_height = v_metrics.ascent - v_metrics.descent + v_metrics.line_gap;
-//     let mut caret = point(screen_position.0, screen_position.1 + v_metrics.ascent);
-//     let mut last_glyph_id = None;
-//     for c in text.nfc() {
-//         if c.is_control() {
-//             if c == '\n' {
-//                 caret = point(0.0, caret.y + advance_height);
-//             }
-//             continue;
-//         }
-//         let base_glyph = if let Some(glyph) = font.glyph(c) {
-//             glyph
-//         }
-//         else { continue };
-//         if let Some(id) = last_glyph_id.take() {
-//             caret.x += font.pair_kerning(scale, id, base_glyph.id());
-//         }
-//         last_glyph_id = Some(base_glyph.id());
-//         let mut glyph = base_glyph.scaled(scale).positioned(caret);
-//         if let Some(bb) = glyph.pixel_bounding_box() {
-//             if bb.max.x > width as i32 {
-//                 caret = point(0.0, caret.y + advance_height);
-//                 glyph = glyph.into_unpositioned().positioned(caret);
-//                 last_glyph_id = None;
-//             }
-//         }
-//         caret.x += glyph.unpositioned().h_metrics().advance_width;
-//         result.push(glyph.standalone());
-//     }
-//     result
-// }
+fn paragraph<'a>(
+    font: &Font,
+    h_align: HorizontalAlign,
+    mut glyph_info: GlyphInfo<'a>)
+    -> (Vec<PositionedGlyph>, Option<LayoutLeftover<'a>>)
+{
+    // assert_eq!(h_align, HorizontalAlign::Left, "todo finish h_align impl"); // TODO
+
+    let v_metrics = font.v_metrics(glyph_info.scale);
+    let advance_height = v_metrics.ascent - v_metrics.descent + v_metrics.line_gap;
+
+    let mut out = vec![];
+    let mut paragraph_leftover = None;
+    loop {
+        let (glyphs, mut leftover) = Layout::SingleLine(h_align)
+            .calculate_glyphs_and_leftover(font, &glyph_info);
+        out.extend_from_slice(&glyphs);
+        if leftover.is_none() { break; }
+
+        paragraph_leftover = match leftover.take().unwrap() {
+            LayoutLeftover::AfterNewline(p, remaining_glyphs) => {
+                if remaining_glyphs.bounds.1 - advance_height < 0.0 {
+                    Some(LayoutLeftover::OutOfHeightBound(p, remaining_glyphs))
+                }
+                else {
+                    glyph_info = remaining_glyphs;
+                    glyph_info.screen_position.1 += advance_height;
+                    glyph_info.bounds.1 -= advance_height;
+                    None
+                }
+            },
+            LayoutLeftover::OutOfWidthBound(p, remaining_glyphs) => {
+                // use the next line when we run out of width
+                if remaining_glyphs.bounds.1 - advance_height < 0.0 {
+                    Some(LayoutLeftover::OutOfHeightBound(p, remaining_glyphs))
+                }
+                else {
+                    glyph_info = remaining_glyphs;
+                    glyph_info.screen_position.1 += advance_height;
+                    glyph_info.bounds.1 -= advance_height;
+                    None
+                }
+            },
+            leftover @ LayoutLeftover::OutOfHeightBound(..) => {
+                Some(leftover)
+            },
+        };
+        if paragraph_leftover.is_some() { break; }
+    }
+    (out, paragraph_leftover)
+}
 
 #[cfg(test)]
 mod layout_test {
@@ -329,8 +374,10 @@ mod layout_test {
         assert!(glyphs[10].position().x <= 0.0,
             "unexpected last position {:?}", glyphs[10].position());
 
-        let rightmost_x = glyphs[10].position().x + glyphs[10].unpositioned().h_metrics().advance_width;
-        assert_relative_eq!(rightmost_x, 0.0, epsilon = 1e-5);
+        // this is pretty approximate because of the pixel bounding box, but should be around 0
+        let rightmost_x = glyphs[10].pixel_bounding_box().unwrap().max.x as f32
+            + glyphs[10].unpositioned().h_metrics().left_side_bearing;
+        assert_relative_eq!(rightmost_x, 0.0, epsilon = 1e-1);
 
         assert_eq!(glyphs[0].id(), font.glyph('h').unwrap().id());
         assert_eq!(glyphs[1].id(), font.glyph('e').unwrap().id());
@@ -371,8 +418,11 @@ mod layout_test {
             "unexpected last glyph position {:?}", glyphs[10].position());
 
         let leftmost_x = glyphs[0].position().x;
-        let rightmost_x = glyphs[10].position().x + glyphs[10].unpositioned().h_metrics().advance_width;
-        assert_relative_eq!(rightmost_x, -leftmost_x);
+        // this is pretty approximate because of the pixel bounding box, but should be around
+        // the negation of the left
+        let rightmost_x = glyphs[10].pixel_bounding_box().unwrap().max.x as f32
+            + glyphs[10].unpositioned().h_metrics().left_side_bearing;
+        assert_relative_eq!(rightmost_x, -leftmost_x, epsilon = 1e-1);
 
         assert_eq!(glyphs[0].id(), font.glyph('h').unwrap().id());
         assert_eq!(glyphs[1].id(), font.glyph('e').unwrap().id());

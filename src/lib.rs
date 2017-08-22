@@ -1,3 +1,49 @@
+//! Fast GPU cached text rendering using gfx-rs & rusttype.
+//!
+//! Makes use of three kinds of caching to optimise frame performance.
+//!
+//! * Caching of glyph positioning output to avoid repeated cost of identical text
+//! rendering on sequential frames.
+//! * Caches draw calculations to avoid repeated cost of identical text rendering on
+//! sequential frames.
+//! * Uses rusttype's built-in GPU cache logic to maintain a GPU texture of rendered glyphs.
+//!
+//! # Example
+//!
+//! ```no_run
+//! # extern crate gfx;
+//! # extern crate gfx_window_glutin;
+//! # extern crate glutin;
+//! extern crate gfx_glyph;
+//! # use gfx_glyph::OwnedSection;
+//! use gfx_glyph::{Section, Layout, GlyphBrushBuilder};
+//! # fn main() {
+//! # let events_loop = glutin::EventsLoop::new();
+//! # let (window, mut device, mut gfx_factory, mut gfx_target, mut main_depth) =
+//! #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
+//! #         glutin::WindowBuilder::new(),
+//! #         glutin::ContextBuilder::new(),
+//! #         &events_loop);
+//! # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
+//!
+//! let arial = include_bytes!("examples/Arial Unicode.ttf");
+//! let mut glyph_brush = GlyphBrushBuilder::using_font(arial)
+//!     .build(gfx_factory.clone());
+//!
+//! # let owned_section = OwnedSection { text: "another".into(), ..OwnedSection::default() };
+//! # let some_other_section = &owned_section;
+//! let section = Section {
+//!     text: "Hello gfx_glyph",
+//!     ..Section::default()
+//! };
+//!
+//! glyph_brush.queue(section, &Layout::default());
+//! glyph_brush.queue(some_other_section, &Layout::default());
+//!
+//! glyph_brush.draw_queued(&mut gfx_encoder, &gfx_target).unwrap();
+//! # }
+//! ```
+
 #[cfg(test)] extern crate pretty_env_logger;
 #[cfg(test)] #[macro_use] extern crate approx;
 
@@ -26,11 +72,20 @@ use std::collections::hash_map::Entry;
 pub use section::*;
 pub use layout::*;
 
+/// Aliased type to allow lib usage without declaring underlying **rusttype** lib
 pub type Font<'a> = rusttype::Font<'a>;
+/// Aliased type to allow lib usage without declaring underlying **rusttype** lib
 pub type Scale = rusttype::Scale;
+/// Aliased type to allow lib usage without declaring underlying **rusttype** lib
 pub type Rect<T> = rusttype::Rect<T>;
+/// Aliased type to allow lib usage without declaring underlying **rusttype** lib
 pub type Point<T> = rusttype::Point<T>;
+/// Aliased type to allow lib usage without declaring underlying **rusttype** lib
 pub type PositionedGlyph = rusttype::PositionedGlyph<'static>;
+/// Aliased type to allow lib usage without declaring underlying **rusttype** lib
+pub type ScaledGlyph = rusttype::ScaledGlyph<'static>;
+/// Aliased type to allow lib usage without declaring underlying **rusttype** lib
+pub type Glyph = rusttype::Glyph<'static>;
 
 // Type for the generated glyph cache texture
 type TexForm = format::U8Norm;
@@ -40,33 +95,39 @@ type TexFormView = <TexForm as format::Formatted>::View;
 type TexSurfaceHandle<R> = handle::Texture<R, TexSurface>;
 type TexShaderView<R> = handle::ShaderResourceView<R, TexFormView>;
 
+// Each brush is limited to a single font, so just use 0
 const FONT_CACHE_ID: usize = 0;
-const FONT_CACHE_POSITION_TOLERANCE: f32 = 1.0;
-const FONT_CACHE_SCALE_TOLERANCE: f32 = 0.5;
 
-gfx_defines!{
-    vertex GlyphVertex {
-        pos: [f32; 2] = "pos",
-        tex_pos: [f32; 2] = "tex_pos",
-        color: [f32; 4] = "color",
+// Inner module used to avoid public access
+mod gfx_structs {
+    use super::*;
+
+    gfx_defines!{
+        vertex GlyphVertex {
+            pos: [f32; 2] = "pos",
+            tex_pos: [f32; 2] = "tex_pos",
+            color: [f32; 4] = "color",
+        }
     }
-}
 
-gfx_pipeline_base!( glyph_pipe {
-    vbuf: gfx::VertexBuffer<GlyphVertex>,
-    font_tex: gfx::TextureSampler<TexFormView>,
-    out: gfx::RawRenderTarget,
-});
+    gfx_pipeline_base!( glyph_pipe {
+        vbuf: gfx::VertexBuffer<GlyphVertex>,
+        font_tex: gfx::TextureSampler<TexFormView>,
+        out: gfx::RawRenderTarget,
+    });
 
-impl<'a> glyph_pipe::Init<'a> {
-    fn using_format(format: gfx::format::Format) -> Self {
-        glyph_pipe::Init {
-            vbuf: (),
-            font_tex: "font_tex",
-            out: ("Target0", format, state::ColorMask::all(), Some(preset::blend::ALPHA))
+    impl<'a> glyph_pipe::Init<'a> {
+        pub fn using_format(format: gfx::format::Format) -> Self {
+            glyph_pipe::Init {
+                vbuf: (),
+                font_tex: "font_tex",
+                out: ("Target0", format, state::ColorMask::all(), Some(preset::blend::ALPHA))
+            }
         }
     }
 }
+
+use gfx_structs::*;
 
 fn hash<H: Hash>(hashable: &H) -> u64 {
     let mut s = DefaultHasher::new();
@@ -74,6 +135,46 @@ fn hash<H: Hash>(hashable: &H) -> u64 {
     s.finish()
 }
 
+/// Object allowing glyph drawing, containing cache state. Manages glyph positioning cacheing,
+/// glyph draw caching & efficient GPU texture cache updating and re-sizing on demand.
+///
+/// Build using a [`GlyphBrushBuilder`](struct.GlyphBrushBuilder.html).
+///
+/// # Example
+///
+/// ```no_run
+/// # extern crate gfx;
+/// # extern crate gfx_window_glutin;
+/// # extern crate glutin;
+/// extern crate gfx_glyph;
+/// # use gfx_glyph::{OwnedSection, GlyphBrushBuilder};
+/// use gfx_glyph::{Section, Layout};
+/// # fn main() {
+/// # let events_loop = glutin::EventsLoop::new();
+/// # let (window, mut device, mut gfx_factory, mut gfx_target, mut main_depth) =
+/// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
+/// #         glutin::WindowBuilder::new(),
+/// #         glutin::ContextBuilder::new(),
+/// #         &events_loop);
+/// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
+///
+/// # let arial = include_bytes!("examples/Arial Unicode.ttf");
+/// # let mut glyph_brush = GlyphBrushBuilder::using_font(arial)
+/// #     .build(gfx_factory.clone());
+///
+/// # let owned_section = OwnedSection { text: "another".into(), ..OwnedSection::default() };
+/// # let some_other_section = &owned_section;
+/// let section = Section {
+///     text: "Hello gfx_glyph",
+///     ..Section::default()
+/// };
+///
+/// glyph_brush.queue(section, &Layout::default());
+/// glyph_brush.queue(some_other_section, &Layout::default());
+///
+/// glyph_brush.draw_queued(&mut gfx_encoder, &gfx_target).unwrap();
+/// # }
+/// ```
 pub struct GlyphBrush<'a, R: gfx::Resources, F: gfx::Factory<R>>{
     font: rusttype::Font<'a>,
     font_cache: rusttype::gpu_cache::Cache,
@@ -88,10 +189,18 @@ pub struct GlyphBrush<'a, R: gfx::Resources, F: gfx::Factory<R>>{
     // buffer of section-layout hashs (that must exist in the calculate_glyph_cache)
     // to be rendered on the next `draw_queued` call
     section_buffer: Vec<u64>,
+
+    // config
+    gpu_cache_scale_tolerance: f32,
+    gpu_cache_position_tolerance: f32,
+    cache_glyph_positioning: bool,
+    cache_glyph_drawing: bool,
 }
 
 impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
 
+    /// Returns the pixel bounding box for the input section & layout. The box is a conservative
+    /// whole number pixel rectangle that can contain the section.
     pub fn pixel_bounding_box<'a, S, L>(&mut self, section: S, layout: &L)
         -> Rect<i32>
         where L: GlyphPositioner + Hash,
@@ -128,6 +237,11 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         }
     }
 
+    /// Queues a section/layout to be drawn by the next call of
+    /// [`draw_queued`](struct.GlyphBrush.html#method.draw_queued). Can be called multiple times
+    /// to queue multiple sections for drawing.
+    ///
+    /// See [`Layout`](enum.Layout.html) for available built-in glyph positioning layouts.
     pub fn queue<'a, S, L>(&mut self, section: S, layout: &L)
         where L: GlyphPositioner,
               S: Into<Section<'a>>,
@@ -154,6 +268,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         section_hash
     }
 
+    /// Draws all queued sections onto a render target.
+    /// See [`queue`](struct.GlyphBrush.html#method.queue).
     pub fn draw_queued<C, T>(
         &mut self,
         mut encoder: &mut gfx::Encoder<R, C>,
@@ -167,7 +283,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
 
         let current_text_state = hash(&self.section_buffer);
 
-        if self.draw_cache.is_none() ||
+        if !self.cache_glyph_drawing ||
+            self.draw_cache.is_none() ||
             self.draw_cache.as_ref().unwrap().texture_updated ||
             self.draw_cache.as_ref().unwrap().last_text_state != current_text_state
         {
@@ -205,8 +322,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
 
                     let new_cache = Cache::new(new_width,
                                                new_height,
-                                               FONT_CACHE_SCALE_TOLERANCE,
-                                               FONT_CACHE_POSITION_TOLERANCE);
+                                               self.gpu_cache_scale_tolerance,
+                                               self.gpu_cache_position_tolerance);
 
                     match create_texture(&mut self.factory, new_width, new_height) {
                         Ok((new_tex, tex_view)) => {
@@ -241,7 +358,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
 
             let (vbuf, slice) = self.factory.create_vertex_buffer_with_slice(&verts, ());
 
-            let draw_cache = if let Some(mut cache) = self.draw_cache.take() {
+            let draw_cache = if self.draw_cache.is_some() {
+                let mut cache = self.draw_cache.take().unwrap();
                 cache.pipe_data.vbuf = vbuf;
                 cache.pipe_data.out = target.raw().clone();
                 if cache.pso.0 != T::get_format() {
@@ -287,12 +405,18 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     }
 
     fn clear_section_buffer(&mut self) {
-        // clear section_buffer & trim calculate_glyph_cache to active sections
-        let mut active = HashSet::with_capacity(self.section_buffer.len());
-        for h in self.section_buffer.drain(..) {
-            active.insert(h);
+        if self.cache_glyph_positioning {
+            // clear section_buffer & trim calculate_glyph_cache to active sections
+            let mut active = HashSet::with_capacity(self.section_buffer.len());
+            for h in self.section_buffer.drain(..) {
+                active.insert(h);
+            }
+            self.calculate_glyph_cache.retain(|key, _| active.contains(key));
         }
-        self.calculate_glyph_cache.retain(|key, _| active.contains(key));
+        else {
+            self.section_buffer.clear();
+            self.calculate_glyph_cache.clear();
+        }
     }
 
     fn pso_using(&mut self, format: gfx::format::Format) -> gfx::PipelineState<R, glyph_pipe::Meta> {
@@ -318,35 +442,113 @@ struct GlyphedSection {
     glyphs: Vec<PositionedGlyph>,
 }
 
+/// Builder for a [`GlyphBrush`](struct.GlyphBrush.html).
+///
+/// # Example
+///
+/// ```no_run
+/// # extern crate gfx;
+/// # extern crate gfx_window_glutin;
+/// # extern crate glutin;
+/// extern crate gfx_glyph;
+/// use gfx_glyph::GlyphBrushBuilder;
+/// # fn main() {
+/// # let events_loop = glutin::EventsLoop::new();
+/// # let (window, mut device, mut gfx_factory, mut gfx_target, mut main_depth) =
+/// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
+/// #         glutin::WindowBuilder::new(),
+/// #         glutin::ContextBuilder::new(),
+/// #         &events_loop);
+///
+/// let arial = include_bytes!("examples/Arial Unicode.ttf");
+/// let mut glyph_brush = GlyphBrushBuilder::using_font(arial)
+///     .build(gfx_factory.clone());
+/// # }
+/// ```
 #[derive(Debug)]
 pub struct GlyphBrushBuilder<'a> {
     font: &'a [u8],
     initial_cache_size: (u32, u32),
-    log_perf_stats: Option<&'static str>,
+    gpu_cache_scale_tolerance: f32,
+    gpu_cache_position_tolerance: f32,
+    cache_glyph_positioning: bool,
+    cache_glyph_drawing: bool,
 }
 
 impl<'a> GlyphBrushBuilder<'a> {
+    /// Specifies the font data used to render glyphs
     pub fn using_font(font: &'a [u8]) -> Self {
         GlyphBrushBuilder {
             font: font,
             initial_cache_size: (256, 256),
-            log_perf_stats: None,
+            gpu_cache_scale_tolerance: 0.5,
+            gpu_cache_position_tolerance: 1.0,
+            cache_glyph_positioning: true,
+            cache_glyph_drawing: true,
         }
     }
 
-    /// Initial size of 2D texture used as a gpu cache, pixels (width, height)
+    /// Initial size of 2D texture used as a gpu cache, pixels (width, height).
+    /// The GPU cache will automatically quadruple if insufficient.
+    ///
+    /// Defaults to `(256, 256)`
     pub fn initial_cache_size(mut self, size: (u32, u32)) -> Self {
         self.initial_cache_size = size;
         self
     }
 
-    pub fn log_perf_stats(mut self, name: &'static str) -> Self {
-        self.log_perf_stats = Some(name);
+    /// Sets the maximum allowed difference in scale used for judging whether to reuse an
+    /// existing glyph in the GPU cache.
+    ///
+    /// Defaults to `0.5`
+    ///
+    /// See rusttype docs for `rusttype::gpu_cache::Cache`
+    pub fn gpu_cache_scale_tolerance(mut self, tolerance: f32) -> Self {
+        self.gpu_cache_scale_tolerance = tolerance;
         self
     }
 
+    /// Sets the maximum allowed difference in subpixel position used for judging whether
+    /// to reuse an existing glyph in the GPU cache. Anything greater than or equal to
+    /// 1.0 means "don't care".
+    ///
+    /// Defaults to `1.0`
+    ///
+    /// See rusttype docs for `rusttype::gpu_cache::Cache`
+    pub fn gpu_cache_position_tolerance(mut self, tolerance: f32) -> Self {
+        self.gpu_cache_position_tolerance = tolerance;
+        self
+    }
+
+    /// Sets whether perform the calculation of glyph positioning according to the layout
+    /// every time, or use a cached result if the input `Section` and `GlyphPositioner` are the
+    /// same hash as a previous call.
+    ///
+    /// Improves performance. Should only disable if using a custom GlyphPositioner that is
+    /// impure according to it's inputs, so caching a previous call is not desired.
+    ///
+    /// Defaults to `true`
+    pub fn cache_glyph_positioning(mut self, cache: bool) -> Self {
+        self.cache_glyph_positioning = cache;
+        self
+    }
+
+    /// Sets optimising drawing by reusing the last draw requesting an identical draw queue.
+    ///
+    /// Improves performance. Can be disabled as a workaround to missing characters, as this
+    /// has been observed at lower position tolerances. The repeated draws can cure the missing
+    /// characters. This is probably an upstream bug. Without bugs it makes sense to use this
+    /// optimisation.
+    ///
+    /// Defaults to `true`
+    pub fn cache_glyph_drawing(mut self, cache: bool) -> Self {
+        self.cache_glyph_drawing = cache;
+        self
+    }
+
+    /// Builds a `GlyphBrush` using the input gfx factory
     pub fn build<R, F>(self, mut factory: F) -> GlyphBrush<'a, R, F>
-        where R: gfx::Resources, F: gfx::Factory<R> + Clone
+        where R: gfx::Resources, F: gfx::Factory<R>
     {
         assert!(!self.font.is_empty(), "Empty font data");
         let font = FontCollection::from_bytes(self.font as &[u8]).into_font()
@@ -359,14 +561,19 @@ impl<'a> GlyphBrushBuilder<'a> {
             font,
             font_cache: Cache::new(cache_width,
                                    cache_height,
-                                   FONT_CACHE_SCALE_TOLERANCE,
-                                   FONT_CACHE_POSITION_TOLERANCE),
+                                   self.gpu_cache_scale_tolerance,
+                                   self.gpu_cache_position_tolerance),
             font_cache_tex,
 
             factory,
             draw_cache: None,
             section_buffer: Vec::new(),
             calculate_glyph_cache: HashMap::new(),
+
+            gpu_cache_scale_tolerance: self.gpu_cache_scale_tolerance,
+            gpu_cache_position_tolerance: self.gpu_cache_position_tolerance,
+            cache_glyph_positioning: self.cache_glyph_positioning,
+            cache_glyph_drawing: self.cache_glyph_drawing,
         }
     }
 }

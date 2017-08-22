@@ -7,4 +7,36 @@ gfx_glyph
 </a>
 ================
 
-Fast GPU cached text rendering using [gfx-rs](https://github.com/gfx-rs/gfx) & [rusttype](https://github.com/dylanede/rusttype)
+Fast GPU cached text rendering using [gfx-rs](https://github.com/gfx-rs/gfx) & [rusttype](https://github.com/dylanede/rusttype).
+
+Makes use of three kinds of caching to optimise frame performance.
+
+* Caching of glyph positioning output to avoid repeated cost of identical text
+rendering on sequential frames.
+* Caches draw calculations to avoid repeated cost of identical text rendering on
+sequential frames.
+* Uses rusttype's built-in GPU cache logic to maintain a GPU texture of rendered glyphs.
+
+```rust
+extern crate gfx_glyph;
+use gfx_glyph::{Section, Layout, GlyphBrushBuilder};
+
+let arial = include_bytes!("examples/Arial Unicode.ttf");
+let mut glyph_brush = GlyphBrushBuilder::using_font(arial)
+    .build(gfx_factory.clone());
+
+let section = Section {
+    text: "Hello gfx_glyph",
+    ..Section::default()
+};
+
+glyph_brush.queue(section, &Layout::default());
+glyph_brush.queue(some_other_section, &Layout::default());
+
+glyph_brush.draw_queued(&mut gfx_encoder, &gfx_target).unwrap();
+```
+
+## Examples
+Have a look at
+* `cargo run --example paragraph --release`
+* `cargo run --example performance --release`

@@ -1,20 +1,31 @@
 use super::*;
 use std::f32;
 
+/// An object that, along with the [`GlyphPositioner`](trait.GlyphPositioner.html),
+/// contains all the info to render a section of text.
+///
+/// # Example
+///
+/// ```
+/// use gfx_glyph::Section;
+///
+/// let section = Section {
+///     text: "Hello gfx_glyph",
+///     ..Section::default()
+/// };
+/// ```
 #[derive(Debug, Clone)]
 pub struct Section<'a> {
-    /// text to render
+    /// Text to render
     pub text: &'a str,
-    /// position on screen to render text
+    /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
     pub screen_position: (f32, f32),
-    /// max (width, height) bounds
+    /// Max (width, height) bounds, in pixels from top-left. Defaults to unbounded.
     pub bounds: (f32, f32),
-    /// font scale
+    /// Font scale. Defaults to 16
     pub scale: Scale,
-    /// color of rendered text
+    /// Rgba color of rendered text. Defaults to black.
     pub color: [f32; 4],
-    /// Layout style of text within bounds
-    pub layout: Layout,
 }
 
 impl<'a> Default for Section<'a> {
@@ -33,7 +44,6 @@ impl<'a> Hash for Section<'a> {
             bounds: (bound_w, bound_h),
             scale,
             color,
-            layout,
         } = *self;
 
         let ord_floats: [OrderedFloat<f32>; 10] = [
@@ -49,7 +59,7 @@ impl<'a> Hash for Section<'a> {
             color[3].into(),
         ];
 
-        (text, ord_floats, layout).hash(state);
+        (text, ord_floats).hash(state);
     }
 }
 
@@ -61,11 +71,11 @@ impl<'a> Section<'a> {
             bounds: self.bounds,
             scale: self.scale,
             color: self.color,
-            layout: self.layout,
         }
     }
 }
 
+/// A section with owned text. See [`Section`](struct.Section.html)
 #[derive(Debug, Clone)]
 pub struct OwnedSection {
     pub text: String,
@@ -73,7 +83,6 @@ pub struct OwnedSection {
     pub bounds: (f32, f32),
     pub scale: Scale,
     pub color: [f32; 4],
-    pub layout: Layout,
 }
 
 impl Default for OwnedSection {
@@ -84,18 +93,19 @@ impl Default for OwnedSection {
 
 impl<'a> From<&'a OwnedSection> for Section<'a> {
     fn from(section: &'a OwnedSection) -> Self {
-        let &OwnedSection { ref text, screen_position, bounds, scale, color, layout } = section;
+        let &OwnedSection { ref text, screen_position, bounds, scale, color } = section;
         Self {
             text: text,
             screen_position,
             bounds,
             scale,
             color,
-            layout
         }
     }
 }
 
+/// A section with a static str reference, equalent to Section<'static>
+/// but may avoid edge case compile issues. See [`Section`](struct.Section.html)
 #[derive(Debug, Clone)]
 pub struct StaticSection {
     pub text: &'static str,
@@ -103,7 +113,6 @@ pub struct StaticSection {
     pub bounds: (f32, f32),
     pub scale: Scale,
     pub color: [f32; 4],
-    pub layout: Layout,
 }
 
 impl Default for StaticSection {
@@ -114,21 +123,19 @@ impl Default for StaticSection {
             bounds: (f32::INFINITY, f32::INFINITY),
             scale: Scale::uniform(16.0),
             color: [0.0, 0.0, 0.0, 1.0],
-            layout: Layout::default(),
         }
     }
 }
 
 impl<'a> From<&'a StaticSection> for Section<'static> {
     fn from(section: &'a StaticSection) -> Self {
-        let &StaticSection { text, screen_position, bounds, scale, color, layout } = section;
+        let &StaticSection { text, screen_position, bounds, scale, color } = section;
         Self {
             text: text,
             screen_position,
             bounds,
             scale,
             color,
-            layout,
         }
     }
 }
