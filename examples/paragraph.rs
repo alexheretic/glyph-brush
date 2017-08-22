@@ -12,11 +12,9 @@ use std::env;
 fn main() {
     pretty_env_logger::init().expect("log");
 
-    if cfg!(target_os = "linux") {
-        // winit wayland is currently still wip
-        if env::var("WINIT_UNIX_BACKEND").is_err() {
-            env::set_var("WINIT_UNIX_BACKEND", "x11");
-        }
+    // winit wayland is currently still wip
+    if cfg!(target_os = "linux") && env::var("WINIT_UNIX_BACKEND").is_err() {
+        env::set_var("WINIT_UNIX_BACKEND", "x11");
     }
 
     if cfg!(debug_assertions) && env::var("yes_i_really_want_debug_mode").is_err() {
@@ -101,7 +99,7 @@ fn main() {
 
         // the lib needs layout logic to render the glyphs, ie a gfx_glyph::GlyphPositioner
         // See the built-in ones at Layout::*
-        // Layout::default() is a left aligned paragraph style
+        // Layout::default() is a left aligned word wrapping style
         let layout = gfx_glyph::Layout::default();
 
         // Adds a section & layout to the queue for the next call to `draw_queued`, this
@@ -117,7 +115,7 @@ fn main() {
             screen_position: (width as f32 / 2.0, 0.0),
             bounds: (width as f32 / 3.15, height as f32),
             color: [0.3, 0.9, 0.3, 1.0],
-        }, &Layout::WrapCharacters(HorizontalAlign::Center));
+        }, &Layout::Wrap(GlyphGroup::Word, HorizontalAlign::Center));
 
         glyph_brush.queue(Section {
             text: &text,
@@ -125,7 +123,7 @@ fn main() {
             screen_position: (width as f32, 0.0),
             bounds: (width as f32 / 3.15, height as f32),
             color: [0.3, 0.3, 0.9, 1.0],
-        }, &Layout::WrapCharacters(HorizontalAlign::Right));
+        }, &Layout::Wrap(GlyphGroup::Word, HorizontalAlign::Right));
 
         // Finally once per frame you want to actually draw all the sections you've submitted
         // with `queue` calls.
