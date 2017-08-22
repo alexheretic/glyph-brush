@@ -27,7 +27,7 @@ let mut glyph_brush = GlyphBrushBuilder::using_font(arial)
 
 let section = Section {
     text: "Hello gfx_glyph",
-    ..Section::default()
+    ..Section::default() // color, position, etc
 };
 
 glyph_brush.queue(section, &Layout::default());
