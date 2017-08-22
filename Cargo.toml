@@ -4,8 +4,9 @@ version = "0.1.0"
 authors = ["Alex Butler <alexheretic@gmail.com>"]
 description = "Fast GPU cached text rendering using gfx-rs & rusttype"
 repository = "https://github.com/alexheretic/gfx-glyph"
-keywords = ["font", "ttf", "opentype", "truetype", "otf", "gamedev"]
+keywords = ["font", "ttf", "truetype", "gfx", "text"]
 license = "Apache-2.0"
+exclude = ["examples/*.ttf", "examples/*.txt"]
 
 [dependencies]
 log = "0.3"
