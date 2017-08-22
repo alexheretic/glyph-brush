@@ -36,6 +36,9 @@ glyph_brush.queue(some_other_section, &Layout::default());
 glyph_brush.draw_queued(&mut gfx_encoder, &gfx_target).unwrap();
 ```
 
+## Limitations
+The current implementation only supports OpenGL 3.0 or later. But other rendering languages (that are supported by gfx) should be easy enough to add. Send in your PRs!
+
 ## Examples
 Have a look at
 * `cargo run --example paragraph --release`
