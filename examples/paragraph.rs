@@ -155,7 +155,7 @@ fn main() {
             screen_position: (width as f32 / 2.0, 0.0),
             bounds: (width as f32 / 3.15, height as f32),
             color: [0.3, 0.9, 0.3, 1.0],
-        }, &Layout::Wrap(GlyphGroup::Word, HorizontalAlign::Center));
+        }, &Layout::Wrap(StandardLineBreaker, HorizontalAlign::Center));
 
         glyph_brush.queue(Section {
             text: &text,
@@ -163,7 +163,7 @@ fn main() {
             screen_position: (width as f32, 0.0),
             bounds: (width as f32 / 3.15, height as f32),
             color: [0.3, 0.3, 0.9, 1.0],
-        }, &Layout::Wrap(GlyphGroup::Word, HorizontalAlign::Right));
+        }, &Layout::Wrap(StandardLineBreaker, HorizontalAlign::Right));
 
         // Note: Can be drawn simply with the below, when transforms are not needed:
         // `glyph_brush.draw_queued(&mut encoder, &main_color).expect("draw");`

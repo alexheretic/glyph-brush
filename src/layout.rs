@@ -1,8 +1,10 @@
 use super::*;
+use std::iter;
 use std::iter::Skip;
 use std::str::Chars;
 use std::fmt;
 use unicode_normalization::*;
+use xi_unicode;
 
 /// A specialised view on a [`Section`](struct.Section.html) for the purposes of calculating
 /// glyph positions. Used by a [`GlyphPositioner`](trait.GlyphPositioner.html).
@@ -10,7 +12,7 @@ use unicode_normalization::*;
 /// See [`Layout`](enum.Layout.html) for built-in positioner logic.
 #[derive(Debug, Clone)]
 pub struct GlyphInfo<'a> {
-    /// Section text, use [`nfc_chars()`](struct.GlyphInfo.html#method.nfc_chars) instead in order
+    /// Section text, use [`remaining_chars()`](struct.GlyphInfo.html#method.remaining_chars) instead in order
     /// to respect skip settings, ie in leftover payloads.
     pub text: &'a str,
     skip: usize,
@@ -23,17 +25,27 @@ pub struct GlyphInfo<'a> {
 }
 
 impl<'a> GlyphInfo<'a> {
-    /// Returns a unicode normalized char iterator.
-    pub fn nfc_chars(&self) -> Skip<Recompositions<Chars<'a>>> {
+    /// Returns a unicode normalized char iterator, that respects the skipped chars
+    /// that have already been already processed
+    pub fn remaining_chars(&self) -> Skip<Recompositions<Chars<'a>>> {
         self.text.nfc().skip(self.skip)
     }
 
     /// Returns a new GlyphInfo instance whose
-    /// [`nfc_chars()`](struct.GlyphInfo.html#method.nfc_chars) method will skip additional chars.
+    /// [`remaining_chars()`](struct.GlyphInfo.html#method.remaining_chars) method will skip additional chars.
     pub fn skip(&self, skip: usize) -> GlyphInfo<'a> {
         let mut clone = self.clone();
         clone.skip += skip;
         clone
+    }
+
+    /// Returns a substring reference according the current skip value
+    pub fn substring(&self) -> &'a str {
+        let mut chars = self.text.chars();
+        if self.skip != 0 {
+            chars.nth(self.skip - 1);
+        }
+        chars.as_str()
     }
 }
 
@@ -64,34 +76,51 @@ pub trait GlyphPositioner: Hash {
     fn bounds_rect<'a, G>(&self, section: G) -> Rect<f32> where G: Into<GlyphInfo<'a>>;
 }
 
-/// Logic to link glyphs/characters together as a group for the purposes of wrapping.
-///
-/// See [`GlyphGroup`](enum.GlyphGroup.html) for built-in groupings.
-pub trait GlyphGrouper: fmt::Debug + Copy + Hash {
-    /// Returns if the input character is considered a separator
-    fn is_separated_by(&self, c: char) -> bool;
+/// Indicator that a character is a line break, soft or hard. Includes the offset position.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LineBreak {
+    /// Soft line break (offset).
+    Soft(usize),
+    /// Hard line break (offset).
+    Hard(usize),
+}
+
+impl LineBreak {
+    /// Returns the offset of the line break, the index after the breaking character.
+    pub fn offset(&self) -> usize {
+        match *self {
+            LineBreak::Soft(offset) | LineBreak::Hard(offset) => offset,
+        }
+    }
+}
+
+/// Producer of a [`LineBreak`](enum.LineBreak.html) iterator. Used to allow to the
+/// [`Layout`](enum.Layout.html) to be line break aware in a generic way.
+pub trait LineBreaker: fmt::Debug + Copy + Hash {
+    fn line_breaks<'a>(&self, glyph_info: &GlyphInfo<'a>) -> Box<Iterator<Item=LineBreak> + 'a>;
 }
 
 /// Built-in [`GlyphPositioner`](trait.GlyphPositioner.html) implementations.
 ///
-/// Takes generic [`GlyphGrouper`](trait.GlyphGrouper.html) to indicate the wrapping style,
-/// see [`GlyphGroup`](enum.GlyphGroup.html) for built-in groupings.
+/// Takes generic [`LineBreaker`](trait.LineBreaker.html) to indicate the wrapping style.
+/// See [`StandardLineBreaker`](struct.StandardLineBreaker.html),
+/// [`AnyCharLineBreaker`](struct.AnyCharLineBreaker.html).
 #[derive(Debug, Clone, Copy, Hash)]
-pub enum Layout<G: GlyphGrouper> {
+pub enum Layout<L: LineBreaker> {
     /// Renders a single line from left-to-right according to the inner alignment.
-    /// Newline characters will end the line, partially hitting the width bound will end the line.
-    SingleLine(G, HorizontalAlign),
+    /// Hard breaking will end the line, partially hitting the width bound will end the line.
+    SingleLine(L, HorizontalAlign),
     /// Renders multiple lines from left-to-right according to the inner alignment.
-    /// Newline characters will cause advancement to another line.
+    /// Hard breaking characters will cause advancement to another line.
     /// A characters hitting the width bound will also cause another line to start.
-    Wrap(G, HorizontalAlign),
+    Wrap(L, HorizontalAlign),
 }
 
-impl Default for Layout<GlyphGroup> {
-    fn default() -> Self { Layout::Wrap(GlyphGroup::Word, HorizontalAlign::Left) }
+impl Default for Layout<StandardLineBreaker> {
+    fn default() -> Self { Layout::Wrap(StandardLineBreaker, HorizontalAlign::Left) }
 }
 
-impl<Grouper: GlyphGrouper> GlyphPositioner for Layout<Grouper> {
+impl<L: LineBreaker> GlyphPositioner for Layout<L> {
     fn calculate_glyphs<'a, G: Into<GlyphInfo<'a>>>(&self, font: &Font, section: G)
         -> Vec<PositionedGlyph>
     {
@@ -123,25 +152,64 @@ impl<Grouper: GlyphGrouper> GlyphPositioner for Layout<Grouper> {
     }
 }
 
-/// Built-in [`GlyphGrouper`](trait.GlyphGrouper.html) implementations
+/// [`LineBreaker`](trait.LineBreaker.html) that follows Unicode Standard Annex #14. That
+/// effectively means it wraps words in a way that should work for most cases.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum GlyphGroup {
-    /// No glyph grouping
-    Character,
-    /// Groups glyphs into [alphanumeric, `'`, `_`, `.`] words
-    Word,
+pub struct StandardLineBreaker;
+
+impl LineBreaker for StandardLineBreaker {
+    fn line_breaks<'a>(&self, glyph_info: &GlyphInfo<'a>) -> Box<Iterator<Item=LineBreak> + 'a> {
+        Box::new(xi_unicode::LineBreakIterator::new(&glyph_info.substring())
+            .map(|(offset, hard)| {
+                if hard { LineBreak::Hard(offset) } else { LineBreak::Soft(offset)}
+            }))
+    }
 }
 
-impl GlyphGrouper for GlyphGroup {
-    fn is_separated_by(&self, c: char) -> bool {
-        match *self {
-            GlyphGroup::Character => true,
-            GlyphGroup::Word => !(
-                c.is_alphanumeric() ||
-                c == '\'' ||
-                c == '_' ||
-                c == '.'),
+/// [`LineBreaker`](trait.LineBreaker.html) that soft breaks on any character, and hard breaks
+/// similarly to [`StandardLineBreaker`](struct.StandardLineBreaker.html).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AnyCharLineBreaker;
+
+// Iterator that indicates all characters are soft line breaks, except hard ones which are hard.
+struct AnyCharLineBreakerIter<'a> {
+    chars: iter::Enumerate<Skip<Recompositions<Chars<'a>>>>,
+    breaks: xi_unicode::LineBreakIterator<'a>,
+    current_break: Option<(usize, bool)>,
+}
+
+impl<'a> Iterator for AnyCharLineBreakerIter<'a> {
+    type Item = LineBreak;
+
+    fn next(&mut self) -> Option<LineBreak> {
+        if let Some((index, _)) = self.chars.next() {
+            while self.current_break.is_some() {
+                if self.current_break.as_ref().unwrap().0 < index + 1 {
+                    self.current_break = self.breaks.next();
+                }
+                else { break; }
+            }
+            if let Some((break_index, true)) = self.current_break {
+                if break_index == index + 1 {
+                    return Some(LineBreak::Hard(break_index));
+                }
+            }
+            Some(LineBreak::Soft(index + 1))
         }
+        else { None }
+    }
+}
+
+impl LineBreaker for AnyCharLineBreaker {
+    fn line_breaks<'a>(&self, glyph_info: &GlyphInfo<'a>) -> Box<Iterator<Item=LineBreak> + 'a> {
+        let mut unicode_breaker = xi_unicode::LineBreakIterator::new(&glyph_info.substring());
+        let current_break = unicode_breaker.next();
+
+        Box::new(AnyCharLineBreakerIter {
+            chars: glyph_info.remaining_chars().enumerate(),
+            breaks: unicode_breaker,
+            current_break
+        })
     }
 }
 
@@ -162,8 +230,9 @@ pub enum HorizontalAlign {
 /// Container for glyphs leftover/unable to fit in a layout and/or within render bounds
 #[derive(Clone)]
 pub enum LayoutLeftover<'a> {
-    /// leftover text after a new line character
-    AfterNewline(Point<f32>, GlyphInfo<'a>),
+    /// leftover text after a new hard line break, indicated by the
+    /// [`LineBreaker`](trait.LineBreaker.html)
+    HardBreak(Point<f32>, GlyphInfo<'a>),
     /// text that would fall outside of the horizontal bound
     OutOfWidthBound(Point<f32>, GlyphInfo<'a>),
     /// text that would fall fully outside the vertical bound
@@ -175,22 +244,22 @@ pub enum LayoutLeftover<'a> {
 impl<'a> fmt::Debug for LayoutLeftover<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", match *self {
-            LayoutLeftover::AfterNewline(..) => "AfterNewline",
+            LayoutLeftover::HardBreak(..) => "HardBreak",
             LayoutLeftover::OutOfWidthBound(..) => "OutOfWidthBound",
             LayoutLeftover::OutOfHeightBound(..) => "OutOfHeightBound",
         })
     }
 }
 
-impl<G: GlyphGrouper> Layout<G> {
+impl<L: LineBreaker> Layout<L> {
     pub fn calculate_glyphs_and_leftover<'a>(&self, font: &Font, section: &GlyphInfo<'a>)
         -> (Vec<PositionedGlyph>, Option<LayoutLeftover<'a>>)
     {
         match *self {
-            Layout::SingleLine(grouping, h_align) =>
-                single_line(font, grouping, h_align, section),
-            Layout::Wrap(grouping, h_align) =>
-                paragraph(font, grouping, h_align, section.clone()),
+            Layout::SingleLine(line_breaker, h_align) =>
+                single_line(font, line_breaker, h_align, section),
+            Layout::Wrap(line_breaker, h_align) =>
+                paragraph(font, line_breaker, h_align, section.clone()),
         }
     }
 }
@@ -198,9 +267,9 @@ impl<G: GlyphGrouper> Layout<G> {
 /// Positions glyphs in a single line left to right with the screen position marking
 /// the top-left corner.
 /// Returns (positioned-glyphs, text that could not be positioned (outside bounds))
-fn single_line<'a, G: GlyphGrouper>(
+fn single_line<'a, L: LineBreaker>(
     font: &Font,
-    grouping: G,
+    line_breaker: L,
     h_align: HorizontalAlign,
     glyph_info: &GlyphInfo<'a>)
     -> (Vec<PositionedGlyph>, Option<LayoutLeftover<'a>>)
@@ -217,22 +286,33 @@ fn single_line<'a, G: GlyphGrouper>(
     let mut caret = point(screen_x, screen_y + v_metrics.ascent);
     let mut last_glyph_id = None;
     let mut vertically_hidden_tail_start = None;
-    let mut last_separator_index = None;
-    for (index, c) in glyph_info.nfc_chars().enumerate() {
-        if grouping.is_separated_by(c) {
-            last_separator_index = Some(index);
+
+    let mut line_breaks = line_breaker.line_breaks(glyph_info);
+    let mut previous_break = None;
+    let mut next_break = line_breaks.next();
+
+
+    for (index, c) in glyph_info.remaining_chars().enumerate() {
+        while next_break.is_some() {
+            if next_break.as_ref().unwrap().offset() < index + 1 {
+                previous_break = next_break.take();
+                next_break = line_breaks.next();
+            }
+            else { break; }
         }
-        if c.is_control() {
-            if c == '\n' {
-                leftover = Some(LayoutLeftover::AfterNewline(caret, glyph_info.skip(index+1)));
+
+        if let Some(LineBreak::Hard(offset)) = next_break {
+            if offset == index + 1 && offset != glyph_info.text.len() {
+                leftover = Some(LayoutLeftover::HardBreak(caret, glyph_info.skip(index + 1)));
                 break;
             }
-            continue;
         }
+
         let base_glyph = if let Some(glyph) = font.glyph(c) {
             glyph
         }
         else { continue };
+
         if let Some(id) = last_glyph_id.take() {
             caret.x += font.pair_kerning(scale, id, base_glyph.id());
         }
@@ -240,21 +320,23 @@ fn single_line<'a, G: GlyphGrouper>(
         let glyph = base_glyph.scaled(scale).positioned(caret);
         if let Some(bb) = glyph.pixel_bounding_box() {
             if bb.max.x as f32 > (screen_x + bound_w) {
-                if let Some(sep_idx) = last_separator_index {
-                    if sep_idx + 1 >= index {
-                        // recent separator means we can act like character grouping
+                if let Some(line_break) = next_break {
+                    if line_break.offset() == index + 1 {
+                        // current char is a breaking char
                         leftover = Some(LayoutLeftover::OutOfWidthBound(
                             caret,
                             glyph_info.skip(index)));
+                        break;
                     }
-                    else {
-                        while result.len() > sep_idx + 1 {
-                            result.pop();
-                        }
-                        leftover = Some(LayoutLeftover::OutOfWidthBound(
-                            caret,
-                            glyph_info.skip(sep_idx + 1)));
+                }
+
+                if let Some(line_break) = previous_break {
+                    while result.len() > line_break.offset() {
+                        result.pop();
                     }
+                    leftover = Some(LayoutLeftover::OutOfWidthBound(
+                        caret,
+                        glyph_info.skip(line_break.offset())));
                 }
                 else {
                     // there has been no separator
@@ -317,9 +399,9 @@ fn single_line<'a, G: GlyphGrouper>(
     (result, leftover)
 }
 
-fn paragraph<'a, G: GlyphGrouper>(
+fn paragraph<'a, L: LineBreaker>(
     font: &Font,
-    grouping: G,
+    line_breaker: L,
     h_align: HorizontalAlign,
     mut glyph_info: GlyphInfo<'a>)
     -> (Vec<PositionedGlyph>, Option<LayoutLeftover<'a>>)
@@ -330,13 +412,13 @@ fn paragraph<'a, G: GlyphGrouper>(
     let mut out = vec![];
     let mut paragraph_leftover = None;
     loop {
-        let (glyphs, mut leftover) = Layout::SingleLine(grouping, h_align)
+        let (glyphs, mut leftover) = Layout::SingleLine(line_breaker, h_align)
             .calculate_glyphs_and_leftover(font, &glyph_info);
         out.extend_from_slice(&glyphs);
         if leftover.is_none() { break; }
 
         paragraph_leftover = match leftover.take().unwrap() {
-            LayoutLeftover::AfterNewline(p, remaining_glyphs) => {
+            LayoutLeftover::HardBreak(p, remaining_glyphs) => {
                 if remaining_glyphs.bounds.1 - advance_height < 0.0 {
                     Some(LayoutLeftover::OutOfHeightBound(p, remaining_glyphs))
                 }
@@ -376,14 +458,14 @@ mod layout_test {
     const A_FONT: &[u8] = include_bytes!("../tests/DejaVuSansMono.ttf") as &[u8];
 
     #[test]
-    fn single_line_chars_left() {
+    fn single_line_chars_left_simple() {
         let _ = ::pretty_env_logger::init();
 
         let font = FontCollection::from_bytes(A_FONT)
             .into_font()
             .expect("Could not create rusttype::Font");
 
-        let (glyphs, leftover) = Layout::SingleLine(GlyphGroup::Character, HorizontalAlign::Left)
+        let (glyphs, leftover) = Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left)
             .calculate_glyphs_and_leftover(
                 &font,
                 &GlyphInfo::from(&Section {
@@ -420,7 +502,7 @@ mod layout_test {
             .into_font()
             .expect("Could not create rusttype::Font");
 
-        let (glyphs, leftover) = Layout::SingleLine(GlyphGroup::Character, HorizontalAlign::Right)
+        let (glyphs, leftover) = Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Right)
             .calculate_glyphs_and_leftover(
                 &font,
                 &GlyphInfo::from(&Section {
@@ -462,7 +544,7 @@ mod layout_test {
             .into_font()
             .expect("Could not create rusttype::Font");
 
-        let (glyphs, leftover) = Layout::SingleLine(GlyphGroup::Character, HorizontalAlign::Center)
+        let (glyphs, leftover) = Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Center)
             .calculate_glyphs_and_leftover(
                 &font,
                 &GlyphInfo::from(&Section {
@@ -500,14 +582,14 @@ mod layout_test {
     }
 
     #[test]
-    fn single_line_word_left() {
+    fn wrap_word_left() {
         let _ = ::pretty_env_logger::init();
 
         let font = FontCollection::from_bytes(A_FONT)
             .into_font()
             .expect("Could not create rusttype::Font");
 
-        let (glyphs, leftover) = Layout::SingleLine(GlyphGroup::Word, HorizontalAlign::Left)
+        let (glyphs, leftover) = Layout::SingleLine(StandardLineBreaker, HorizontalAlign::Left)
             .calculate_glyphs_and_leftover(
                 &font,
                 &GlyphInfo::from(&Section {
@@ -519,7 +601,7 @@ mod layout_test {
             );
 
         if let Some(LayoutLeftover::OutOfWidthBound(_, leftover)) = leftover {
-            assert_eq!(leftover.nfc_chars().collect::<String>(), "what's _happening_?");
+            assert_eq!(leftover.remaining_chars().collect::<String>(), "what's _happening_?");
         }
         else {
             assert!(false, "Unexpected leftover {:?}", leftover);
@@ -537,7 +619,7 @@ mod layout_test {
         assert_eq!(glyphs[4].id(), font.glyph('o').unwrap().id());
         assert_eq!(glyphs[5].id(), font.glyph(' ').unwrap().id());
 
-        let (glyphs, leftover) = Layout::SingleLine(GlyphGroup::Word, HorizontalAlign::Left)
+        let (glyphs, leftover) = Layout::SingleLine(StandardLineBreaker, HorizontalAlign::Left)
             .calculate_glyphs_and_leftover(
                 &font,
                 &GlyphInfo::from(&Section {
@@ -549,7 +631,7 @@ mod layout_test {
             );
 
         if let Some(LayoutLeftover::OutOfWidthBound(_, leftover)) = leftover {
-            assert_eq!(leftover.nfc_chars().collect::<String>(), "_happening_?");
+            assert_eq!(leftover.remaining_chars().collect::<String>(), "_happening_?");
         }
         else {
             assert!(false, "Unexpected leftover {:?}", leftover);
@@ -584,7 +666,7 @@ mod layout_test {
             .into_font()
             .expect("Could not create rusttype::Font");
 
-        let (glyphs, leftover) = Layout::SingleLine(GlyphGroup::Character, HorizontalAlign::Left)
+        let (glyphs, leftover) = Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left)
             .calculate_glyphs_and_leftover(
                 &font,
                 &GlyphInfo::from(&Section {
@@ -594,8 +676,8 @@ mod layout_test {
                 })
             );
 
-        if let Some(LayoutLeftover::AfterNewline(_, leftover)) = leftover {
-            assert_eq!(leftover.nfc_chars().collect::<String>(), "world");
+        if let Some(LayoutLeftover::HardBreak(_, leftover)) = leftover {
+            assert_eq!(leftover.remaining_chars().collect::<String>(), "world");
         }
         else {
             assert!(false, "Unexpected leftover {:?}", leftover);
@@ -620,7 +702,7 @@ mod layout_test {
             .into_font()
             .expect("Could not create rusttype::Font");
 
-        let (glyphs, leftover) = Layout::SingleLine(GlyphGroup::Character, HorizontalAlign::Left)
+        let (glyphs, leftover) = Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left)
             .calculate_glyphs_and_leftover(
                 &font,
                 &GlyphInfo::from(&Section {
@@ -647,7 +729,7 @@ mod layout_test {
         assert_eq!(glyphs[5].id(), font.glyph('d').unwrap().id());
 
         // letter `l` should be in the same place as when all the word is visible
-        let (all_glyphs, _) = Layout::SingleLine(GlyphGroup::Character, HorizontalAlign::Left)
+        let (all_glyphs, _) = Layout::SingleLine(StandardLineBreaker, HorizontalAlign::Left)
             .calculate_glyphs_and_leftover(
                 &font,
                 &GlyphInfo::from(&Section {
@@ -669,7 +751,7 @@ mod layout_test {
             .into_font()
             .expect("Could not create rusttype::Font");
 
-        let (glyphs, leftover) = Layout::SingleLine(GlyphGroup::Character, HorizontalAlign::Left)
+        let (glyphs, leftover) = Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left)
             .calculate_glyphs_and_leftover(
                 &font,
                 &GlyphInfo::from(&Section {
@@ -682,7 +764,7 @@ mod layout_test {
             );
 
         if let Some(LayoutLeftover::OutOfHeightBound(_, leftover)) = leftover {
-            assert_eq!(leftover.nfc_chars().collect::<String>(), "owor__");
+            assert_eq!(leftover.remaining_chars().collect::<String>(), "owor__");
         }
         else {
             assert!(false, "Unexpected leftover {:?}", leftover);
@@ -701,7 +783,7 @@ mod layout_test {
             .into_font()
             .expect("Could not create rusttype::Font");
 
-        let (glyphs, leftover) = Layout::SingleLine(GlyphGroup::Character, HorizontalAlign::Left)
+        let (glyphs, leftover) = Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left)
             .calculate_glyphs_and_leftover(
                 &font,
                 &GlyphInfo::from(&Section {
@@ -713,7 +795,7 @@ mod layout_test {
             );
 
         if let Some(LayoutLeftover::OutOfWidthBound(_, leftover)) = leftover {
-            assert_eq!(leftover.nfc_chars().collect::<String>(), "o world");
+            assert_eq!(leftover.remaining_chars().collect::<String>(), "o world");
         }
         else {
             assert!(false, "Unexpected leftover {:?}", leftover);

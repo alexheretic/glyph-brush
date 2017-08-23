@@ -41,6 +41,7 @@ fn main() {
         gfx_window_glutin::init::<format::Srgba8, format::Depth>(window_builder, context, &events_loop);
 
     let mut glyph_brush = GlyphBrushBuilder::using_font(include_bytes!("Arial Unicode.ttf"))
+        .initial_cache_size((2048, 2048))
         .build(factory.clone());
 
     let mut text: String = include_str!("100000_items.txt").into();
@@ -161,11 +162,11 @@ impl gfx_glyph::GlyphPositioner for CustomContiguousParagraphLayout {
 
         let mut out = vec![];
         loop {
-            let (glyphs, leftover) = Layout::SingleLine(GlyphGroup::Character, HorizontalAlign::Left)
+            let (glyphs, leftover) = Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left)
                 .calculate_glyphs_and_leftover(font, &glyph_info);
             out.extend_from_slice(&glyphs);
             match leftover {
-                Some(LayoutLeftover::AfterNewline(point, leftover)) => {
+                Some(LayoutLeftover::HardBreak(point, leftover)) => {
                     // ignore newlines just keep rendering on the same line
                     glyph_info = leftover;
                     glyph_info.screen_position.0 = point.x;
@@ -187,7 +188,7 @@ impl gfx_glyph::GlyphPositioner for CustomContiguousParagraphLayout {
     }
     /// Bounds rectangle is the same as built-in left align
     fn bounds_rect<'a, G: Into<GlyphInfo<'a>>>(&self, section: G) -> Rect<f32> {
-        Layout::SingleLine(GlyphGroup::Character, HorizontalAlign::Left).bounds_rect(section)
+        Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left).bounds_rect(section)
     }
 }
 

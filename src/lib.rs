@@ -53,6 +53,7 @@ extern crate gfx_core;
 extern crate rusttype;
 extern crate unicode_normalization;
 extern crate ordered_float;
+extern crate xi_unicode;
 
 mod section;
 mod layout;
@@ -555,7 +556,8 @@ impl<'a> GlyphBrushBuilder<'a> {
     }
 
     /// Initial size of 2D texture used as a gpu cache, pixels (width, height).
-    /// The GPU cache will automatically quadruple if insufficient.
+    /// The GPU cache will dynamically quadruple in size whenever the current size
+    /// is insufficient.
     ///
     /// Defaults to `(256, 256)`
     pub fn initial_cache_size(mut self, size: (u32, u32)) -> Self {
@@ -615,7 +617,7 @@ impl<'a> GlyphBrushBuilder<'a> {
     pub fn build<R, F>(self, mut factory: F) -> GlyphBrush<'a, R, F>
         where R: gfx::Resources, F: gfx::Factory<R>
     {
-        let font = font(self.font);
+        let font = font(self.font).unwrap();
 
         let (cache_width, cache_height) = self.initial_cache_size;
         let font_cache_tex = create_texture(&mut factory, cache_width, cache_height).unwrap();
@@ -641,11 +643,14 @@ impl<'a> GlyphBrushBuilder<'a> {
     }
 }
 
-/// Returns a Font from font bytes info, panics if not supported.
-pub fn font<'a>(font_bytes: &'a [u8]) -> Font<'a> {
-    assert!(!font_bytes.is_empty(), "Empty font data");
-    FontCollection::from_bytes(font_bytes as &[u8]).into_font()
-        .expect("Could not create rusttype::Font")
+/// Returns a Font from font bytes info or an error reason.
+pub fn font<'a>(font_bytes: &'a [u8]) -> Result<Font<'a>, &'static str> {
+    if font_bytes.is_empty() {
+        return Err("Empty font data");
+    }
+    FontCollection::from_bytes(font_bytes as &[u8])
+        .into_font()
+        .ok_or("Font not supported by rusttype")
 }
 
 #[inline]
