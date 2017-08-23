@@ -68,6 +68,7 @@ use std::i32;
 use std::error::Error;
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry;
+use std::time::*;
 
 pub use section::*;
 pub use layout::*;
@@ -264,16 +265,27 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     fn cache_glyphs<L>(&mut self, section: &Section, layout: &L) -> u64
         where L: GlyphPositioner
     {
+        let start = Instant::now();
         let section_hash = hash(&(section, layout));
 
-        if let Entry::Vacant(entry) = self.calculate_glyph_cache.entry(section_hash) {
-            entry.insert(GlyphedSection {
+        if self.cache_glyph_positioning {
+            if let Entry::Vacant(entry) = self.calculate_glyph_cache.entry(section_hash) {
+                entry.insert(GlyphedSection {
+                    color: section.color,
+                    bounds: layout.bounds_rect(section),
+                    glyphs: layout.calculate_glyphs(&self.font, section),
+                });
+            }
+        }
+        else {
+            self.calculate_glyph_cache.insert(section_hash, GlyphedSection {
                 color: section.color,
                 bounds: layout.bounds_rect(section),
                 glyphs: layout.calculate_glyphs(&self.font, section),
             });
         }
-
+        trace!("layout.calculate_glyphs in {:.3}ms",
+            start.elapsed().subsec_nanos() as f64 / 1_000_000_f64);
         section_hash
     }
 
@@ -303,6 +315,11 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         where C: gfx::CommandBuffer<R>,
               T: format::RenderFormat,
     {
+        let start = Instant::now();
+
+        let mut verts_created = start.elapsed();
+        let mut gpu_cache_finished = start.elapsed();
+
         let (screen_width, screen_height, _, _) = target.get_dimensions();
         let (screen_width, screen_height) = (screen_width as u32, screen_height as u32);
 
@@ -367,6 +384,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
 
                 break;
             }
+            gpu_cache_finished = start.elapsed();
+            let gpu_cache_finished_time = start + gpu_cache_finished;
 
             let verts: Vec<GlyphVertex> = self.section_buffer.iter()
                 .flat_map(|section_hash| {
@@ -380,6 +399,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                         (screen_width as f32, screen_height as f32))
                 })
                 .collect();
+
+            verts_created = gpu_cache_finished_time.elapsed();
 
             let (vbuf, slice) = self.factory.create_vertex_buffer_with_slice(&verts, ());
 
@@ -428,7 +449,23 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
             encoder.draw(slice, &pso.1, pipe_data);
         }
 
+        let draw_finished = {
+            let elapsed = start.elapsed();
+            if elapsed > verts_created + gpu_cache_finished {
+                elapsed - (verts_created + gpu_cache_finished)
+            }
+            else {
+                Duration::from_secs(0)
+            }
+        };
+
         self.clear_section_buffer();
+
+        trace!("draw in {:.3}ms (gpu cache {:.3}ms, vertices {:.3}ms, draw-call {:.3}ms)",
+            start.elapsed().subsec_nanos() as f64 / 1_000_000_f64,
+            gpu_cache_finished.subsec_nanos() as f64 / 1_000_000_f64,
+            verts_created.subsec_nanos() as f64 / 1_000_000_f64,
+            draw_finished.subsec_nanos() as f64 / 1_000_000_f64);
 
         Ok(())
     }
@@ -554,7 +591,8 @@ impl<'a> GlyphBrushBuilder<'a> {
     /// same hash as a previous call.
     ///
     /// Improves performance. Should only disable if using a custom GlyphPositioner that is
-    /// impure according to it's inputs, so caching a previous call is not desired.
+    /// impure according to it's inputs, so caching a previous call is not desired. Disabling
+    /// also disables [`cache_glyph_drawing`](#method.cache_glyph_drawing).
     ///
     /// Defaults to `true`
     pub fn cache_glyph_positioning(mut self, cache: bool) -> Self {
@@ -564,7 +602,8 @@ impl<'a> GlyphBrushBuilder<'a> {
 
     /// Sets optimising drawing by reusing the last draw requesting an identical draw queue.
     ///
-    /// Improves performance.
+    /// Improves performance. Is disabled if
+    /// [`cache_glyph_positioning`](#method.cache_glyph_positioning) is disabled.
     ///
     /// Defaults to `true`
     pub fn cache_glyph_drawing(mut self, cache: bool) -> Self {
@@ -597,7 +636,7 @@ impl<'a> GlyphBrushBuilder<'a> {
             gpu_cache_scale_tolerance: self.gpu_cache_scale_tolerance,
             gpu_cache_position_tolerance: self.gpu_cache_position_tolerance,
             cache_glyph_positioning: self.cache_glyph_positioning,
-            cache_glyph_drawing: self.cache_glyph_drawing,
+            cache_glyph_drawing: self.cache_glyph_drawing && self.cache_glyph_positioning,
         }
     }
 }
@@ -628,7 +667,8 @@ fn text_vertices(glyphs: &[PositionedGlyph],
     };
 
     for g in glyphs {
-        if let Ok(Some((mut uv_rect, screen_rect))) = cache.rect_for(FONT_CACHE_ID, g) {
+        let rect = cache.rect_for(FONT_CACHE_ID, g);
+        if let Ok(Some((mut uv_rect, screen_rect))) = rect {
             if screen_rect.min.x as f32 > bounds.max.x ||
                 screen_rect.min.y as f32 > bounds.max.y ||
                 bounds.min.x > screen_rect.max.x as f32 ||
@@ -701,6 +741,9 @@ fn text_vertices(glyphs: &[PositionedGlyph],
                     tex_pos: [uv_rect.min.x, uv_rect.max.y],
                     color,
                 }]);
+        }
+        else if rect.is_err() {
+            warn!("Cache miss?: {:?}", rect);
         }
     }
     vertices

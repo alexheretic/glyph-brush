@@ -1,6 +1,6 @@
 [package]
 name = "gfx_glyph"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Alex Butler <alexheretic@gmail.com>"]
 description = "Fast GPU cached text rendering using gfx-rs & rusttype"
 repository = "https://github.com/alexheretic/gfx-glyph"
@@ -26,4 +26,4 @@ cgmath = "0.15"
 
 [replace]
 # Missing glyph bug awaiting fix in main rusttype repo, see https://github.com/dylanede/rusttype/issues/52
-"rusttype:0.2.1" = { git = "https://github.com/alexheretic/rusttype", branch = "fix-missing-glyphs" }
+"rusttype:0.2.1" = { git = "https://github.com/alexheretic/rusttype", branch = "fix-glyph-not-cached" }

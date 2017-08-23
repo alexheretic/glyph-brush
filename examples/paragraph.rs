@@ -18,6 +18,8 @@ use cgmath::Matrix4;
 use glutin::GlContext;
 use gfx::{format, Device};
 use std::env;
+use std::io;
+use std::io::Write;
 
 fn main() {
     pretty_env_logger::init().expect("log");
@@ -42,7 +44,7 @@ fn main() {
         gfx_window_glutin::init::<format::Srgba8, format::Depth>(window_builder, context, &events_loop);
 
     let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(include_bytes!("Arial Unicode.ttf"))
-        // .initial_cache_size((1024, 1024))
+        .initial_cache_size((1024, 1024))
         .gpu_cache_position_tolerance(0.2)
         .build(factory.clone());
 
@@ -93,7 +95,9 @@ fn main() {
                             else { zoom -= 0.1 };
                             zoom = zoom.min(1.0).max(0.1);
                             if (zoom - old_zoom).abs() > 1e-2 {
-                                println!("transform-zoom -> {:.1}", zoom);
+                                print!("\r                            \r");
+                                print!("transform-zoom -> {:.1}", zoom);
+                                io::stdout().flush().ok().unwrap();
                             }
                         }
                         else {
@@ -102,10 +106,12 @@ fn main() {
                             let mut size = font_size.x / window.hidpi_factor();
                             if y < 0.0 { size += (size / 4.0).max(2.0) }
                             else { size *= 4.0 / 5.0 };
-                            size = size.max(1.0);
+                            size = size.max(1.0);//.round();
                             font_size = gfx_glyph::Scale::uniform(size * window.hidpi_factor());
                             if (font_size.x - old_size).abs() > 1e-2 {
-                                println!("font-size -> {:.1}", font_size.x);
+                                print!("\r                            \r");
+                                print!("font-size -> {}", font_size.x);
+                                io::stdout().flush().ok().unwrap();
                             }
                         }
 
@@ -180,4 +186,5 @@ fn main() {
         window.swap_buffers().unwrap();
         device.cleanup();
     }
+    println!();
 }
