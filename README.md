@@ -44,10 +44,6 @@ Have a look at
 * `cargo run --example paragraph --release`
 * `cargo run --example performance --release`
 
-## Issues
-There is currently a rendering bug in rusttype gpu cache code that can cause missing glyphs, add the following to your Cargo.toml to fix this until the bug is addressed in mainline rusttype.
-```toml
-[replace]
-# Missing glyph bug awaiting fix in main rusttype repo, see https://github.com/dylanede/rusttype/issues/52
-"rusttype:0.2.1" = { git = "https://github.com/alexheretic/rusttype", branch = "fix-glyph-not-cached" }
-```
+## Changelog
+Release 0.2
+* Adopt default line breaking logic according to the Unicode Standard Annex \#14 with `StandardLineBreaker` included in `Layout::default()`. A `LineBreaker` implementation can be provided instead of using one of these.
