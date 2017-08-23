@@ -373,7 +373,7 @@ mod layout_test {
     use super::*;
     use std::f32;
 
-    const A_FONT: &[u8] = include_bytes!("../test/DejaVuSansMono.ttf") as &[u8];
+    const A_FONT: &[u8] = include_bytes!("../tests/DejaVuSansMono.ttf") as &[u8];
 
     #[test]
     fn single_line_chars_left() {
