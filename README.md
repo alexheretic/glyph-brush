@@ -46,4 +46,4 @@ Have a look at
 
 ## Changelog
 Release 0.2
-* Adopt default line breaking logic according to the Unicode Standard Annex \#14 with `StandardLineBreaker` included in `Layout::default()`. A `LineBreaker` implementation can be provided instead of using one of these.
+* Adopt default line breaking logic according to the Unicode Standard Annex \#14 with `StandardLineBreaker` (included in `Layout::default()`). A `LineBreaker` implementation can be provided instead of using one of these.
