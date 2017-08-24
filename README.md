@@ -21,7 +21,7 @@ sequential frames.
 extern crate gfx_glyph;
 use gfx_glyph::{Section, Layout, GlyphBrushBuilder};
 
-let arial = include_bytes!("examples/Arial Unicode.ttf");
+let arial: &[u8] = include_bytes!("examples/Arial Unicode.ttf");
 let mut glyph_brush = GlyphBrushBuilder::using_font(arial)
     .build(gfx_factory.clone());
 
