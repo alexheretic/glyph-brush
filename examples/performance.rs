@@ -112,7 +112,7 @@ fn main() {
         // the lib needs layout logic to render the glyphs, ie a gfx_glyph::GlyphPositioner
         // See the built-in ones, ie Layout::default()
         // This is an example of implementing your own, see below
-        let layout = CustomContiguousParagraphLayout {};
+        let layout = CustomContiguousParagraphLayout;
 
         // Adds a section & layout to the queue for the next call to `draw_queued`, this
         // can be called multiple times for different sections that want to use the same
@@ -144,7 +144,7 @@ fn main() {
 /// screen with characters. Note Hash is required in order to cache the glyph positioning, as
 /// such you'll notice `calculate_glyphs` is only called once per distinct section
 #[derive(Debug, Clone, Copy, Hash)]
-pub struct CustomContiguousParagraphLayout {}
+pub struct CustomContiguousParagraphLayout;
 
 impl gfx_glyph::GlyphPositioner for CustomContiguousParagraphLayout {
 

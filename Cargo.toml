@@ -6,7 +6,7 @@ description = "Fast GPU cached text rendering using gfx-rs & rusttype"
 repository = "https://github.com/alexheretic/gfx-glyph"
 keywords = ["font", "ttf", "truetype", "gfx", "text"]
 license = "Apache-2.0"
-exclude = ["examples/*.ttf", "examples/*.txt"]
+exclude = ["examples/*.ttf", "examples/*.txt", "benches/*.*"]
 readme="README.md"
 
 [dependencies]
@@ -26,6 +26,10 @@ glutin = "0.9"
 time = "0.1"
 cgmath = "0.15"
 spin_sleep = "0.3"
+
+[features]
+# Compiles benchmark code, to be avoided normally as this currently requires nightly rust
+bench = []
 
 [replace]
 # Missing glyph bug awaiting fix in main rusttype repo, see https://github.com/dylanede/rusttype/issues/52
