@@ -19,15 +19,15 @@
 //! use gfx_glyph::{Section, Layout, GlyphBrushBuilder};
 //! # fn main() {
 //! # let events_loop = glutin::EventsLoop::new();
-//! # let (window, mut device, mut gfx_factory, mut gfx_target, mut main_depth) =
+//! # let (_window, _device, mut gfx_factory, gfx_target, _main_depth) =
 //! #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
 //! #         glutin::WindowBuilder::new(),
 //! #         glutin::ContextBuilder::new(),
 //! #         &events_loop);
 //! # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
 //!
-//! let arial = include_bytes!("examples/Arial Unicode.ttf");
-//! let mut glyph_brush = GlyphBrushBuilder::using_font(arial)
+//! let arial = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/examples/Arial Unicode.ttf")).as_ref();
+//! let mut glyph_brush = GlyphBrushBuilder::using_font(arial.into())
 //!     .build(gfx_factory.clone());
 //!
 //! # let owned_section = OwnedSection { text: "another".into(), ..OwnedSection::default() };
@@ -59,7 +59,7 @@ mod section;
 mod layout;
 
 use gfx::traits::FactoryExt;
-use rusttype::{FontCollection, point, vector};
+use rusttype::{FontCollection, SharedBytes, point, vector};
 use rusttype::gpu_cache::Cache;
 use gfx::{handle, texture, format, preset, state};
 use std::collections::hash_map::DefaultHasher;
@@ -67,8 +67,10 @@ use std::hash::{Hash, Hasher};
 use gfx_core::memory::Typed;
 use std::i32;
 use std::error::Error;
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry;
+use std::sync::Arc;
 use std::time::*;
 
 pub use section::*;
@@ -162,15 +164,15 @@ fn hash<H: Hash>(hashable: &H) -> u64 {
 /// use gfx_glyph::{Section, Layout};
 /// # fn main() {
 /// # let events_loop = glutin::EventsLoop::new();
-/// # let (window, mut device, mut gfx_factory, mut gfx_target, mut main_depth) =
+/// # let (_window, _device, mut gfx_factory, gfx_target, _main_depth) =
 /// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
 /// #         glutin::WindowBuilder::new(),
 /// #         glutin::ContextBuilder::new(),
 /// #         &events_loop);
 /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
 ///
-/// # let arial = include_bytes!("examples/Arial Unicode.ttf");
-/// # let mut glyph_brush = GlyphBrushBuilder::using_font(arial)
+/// # let arial = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/examples/Arial Unicode.ttf")).as_ref();
+/// # let mut glyph_brush = GlyphBrushBuilder::using_font(arial.into())
 /// #     .build(gfx_factory.clone());
 ///
 /// # let owned_section = OwnedSection { text: "another".into(), ..OwnedSection::default() };
@@ -521,20 +523,20 @@ struct GlyphedSection {
 /// use gfx_glyph::GlyphBrushBuilder;
 /// # fn main() {
 /// # let events_loop = glutin::EventsLoop::new();
-/// # let (window, mut device, mut gfx_factory, mut gfx_target, mut main_depth) =
+/// # let (_window, _device, gfx_factory, _gfx_target, _main_depth) =
 /// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
 /// #         glutin::WindowBuilder::new(),
 /// #         glutin::ContextBuilder::new(),
 /// #         &events_loop);
-///
-/// let arial = include_bytes!("examples/Arial Unicode.ttf");
-/// let mut glyph_brush = GlyphBrushBuilder::using_font(arial)
+/// let arial = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/examples/Arial Unicode.ttf")).as_ref();
+/// let glyph_brush = GlyphBrushBuilder::using_font(arial.into())
 ///     .build(gfx_factory.clone());
+/// # let _ = glyph_brush;
 /// # }
 /// ```
 #[derive(Debug)]
 pub struct GlyphBrushBuilder<'a> {
-    font: &'a [u8],
+    font: Cow<'a, [u8]>,
     initial_cache_size: (u32, u32),
     gpu_cache_scale_tolerance: f32,
     gpu_cache_position_tolerance: f32,
@@ -544,7 +546,7 @@ pub struct GlyphBrushBuilder<'a> {
 
 impl<'a> GlyphBrushBuilder<'a> {
     /// Specifies the font data used to render glyphs
-    pub fn using_font(font: &'a [u8]) -> Self {
+    pub fn using_font(font: Cow<'a, [u8]>) -> Self {
         GlyphBrushBuilder {
             font: font,
             initial_cache_size: (256, 256),
@@ -644,11 +646,15 @@ impl<'a> GlyphBrushBuilder<'a> {
 }
 
 /// Returns a Font from font bytes info or an error reason.
-pub fn font<'a>(font_bytes: &'a [u8]) -> Result<Font<'a>, &'static str> {
+pub fn font<'a>(font_bytes: Cow<'a, [u8]>) -> Result<Font<'a>, &'static str> {
     if font_bytes.is_empty() {
         return Err("Empty font data");
     }
-    FontCollection::from_bytes(font_bytes as &[u8])
+    let shared_bytes = match font_bytes {
+        Cow::Owned(vec) => SharedBytes::ByArc(Arc::new(vec.into_boxed_slice())),
+        Cow::Borrowed(slice) => SharedBytes::ByRef(slice),
+    };
+    FontCollection::from_bytes(shared_bytes)
         .into_font()
         .ok_or("Font not supported by rusttype")
 }

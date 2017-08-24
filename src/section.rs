@@ -13,6 +13,7 @@ use std::f32;
 ///     text: "Hello gfx_glyph",
 ///     ..Section::default()
 /// };
+/// # let _ = section;
 /// ```
 #[derive(Debug, Clone)]
 pub struct Section<'a> {
