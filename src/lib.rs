@@ -26,8 +26,8 @@
 //! #         &events_loop);
 //! # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
 //!
-//! let arial = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/examples/Arial Unicode.ttf")).as_ref();
-//! let mut glyph_brush = GlyphBrushBuilder::using_font(arial.into())
+//! let arial: &[u8] = include_bytes!("examples/Arial Unicode.ttf");
+//! let mut glyph_brush = GlyphBrushBuilder::using_font(arial)
 //!     .build(gfx_factory.clone());
 //!
 //! # let owned_section = OwnedSection { text: "another".into(), ..OwnedSection::default() };
@@ -59,7 +59,7 @@ mod section;
 mod layout;
 
 use gfx::traits::FactoryExt;
-use rusttype::{FontCollection, SharedBytes, point, vector};
+use rusttype::{FontCollection, point, vector};
 use rusttype::gpu_cache::Cache;
 use gfx::{handle, texture, format, preset, state};
 use std::collections::hash_map::DefaultHasher;
@@ -67,11 +67,10 @@ use std::hash::{Hash, Hasher};
 use gfx_core::memory::Typed;
 use std::i32;
 use std::error::Error;
-use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry;
-use std::sync::Arc;
 use std::time::*;
+use std::fmt;
 
 pub use section::*;
 pub use layout::*;
@@ -90,6 +89,8 @@ pub type PositionedGlyph = rusttype::PositionedGlyph<'static>;
 pub type ScaledGlyph = rusttype::ScaledGlyph<'static>;
 /// Aliased type to allow lib usage without declaring underlying **rusttype** lib
 pub type Glyph = rusttype::Glyph<'static>;
+/// Aliased type to allow lib usage without declaring underlying **rusttype** lib
+pub type SharedBytes<'a> = rusttype::SharedBytes<'a>;
 
 // Type for the generated glyph cache texture
 type TexForm = format::U8Norm;
@@ -171,8 +172,8 @@ fn hash<H: Hash>(hashable: &H) -> u64 {
 /// #         &events_loop);
 /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
 ///
-/// # let arial = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/examples/Arial Unicode.ttf")).as_ref();
-/// # let mut glyph_brush = GlyphBrushBuilder::using_font(arial.into())
+/// # let arial: &[u8] = include_bytes!("examples/Arial Unicode.ttf");
+/// # let mut glyph_brush = GlyphBrushBuilder::using_font(arial)
 /// #     .build(gfx_factory.clone());
 ///
 /// # let owned_section = OwnedSection { text: "another".into(), ..OwnedSection::default() };
@@ -528,15 +529,15 @@ struct GlyphedSection {
 /// #         glutin::WindowBuilder::new(),
 /// #         glutin::ContextBuilder::new(),
 /// #         &events_loop);
-/// let arial = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/examples/Arial Unicode.ttf")).as_ref();
-/// let glyph_brush = GlyphBrushBuilder::using_font(arial.into())
+///
+/// let arial: &[u8] = include_bytes!("examples/Arial Unicode.ttf");
+/// let mut glyph_brush = GlyphBrushBuilder::using_font(arial)
 ///     .build(gfx_factory.clone());
 /// # let _ = glyph_brush;
 /// # }
 /// ```
-#[derive(Debug)]
 pub struct GlyphBrushBuilder<'a> {
-    font: Cow<'a, [u8]>,
+    font: SharedBytes<'a>,
     initial_cache_size: (u32, u32),
     gpu_cache_scale_tolerance: f32,
     gpu_cache_position_tolerance: f32,
@@ -546,9 +547,9 @@ pub struct GlyphBrushBuilder<'a> {
 
 impl<'a> GlyphBrushBuilder<'a> {
     /// Specifies the font data used to render glyphs
-    pub fn using_font(font: Cow<'a, [u8]>) -> Self {
+    pub fn using_font<B: Into<SharedBytes<'a>>>(font: B) -> Self {
         GlyphBrushBuilder {
-            font: font,
+            font: font.into(),
             initial_cache_size: (256, 256),
             gpu_cache_scale_tolerance: 0.5,
             gpu_cache_position_tolerance: 1.0,
@@ -645,16 +646,29 @@ impl<'a> GlyphBrushBuilder<'a> {
     }
 }
 
+impl<'a> fmt::Debug for GlyphBrushBuilder<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "GlyphBrushBuilder{{ \
+            initial_cache_size: {initial_cache_size:?}, \
+            gpu_cache_scale_tolerance: {gpu_cache_scale_tolerance}, \
+            gpu_cache_position_tolerance: {gpu_cache_position_tolerance}, \
+            cache_glyph_positioning: {cache_glyph_positioning}, \
+            cache_glyph_drawing: {cache_glyph_drawing} }}",
+            initial_cache_size = self.initial_cache_size,
+            gpu_cache_scale_tolerance = self.gpu_cache_scale_tolerance,
+            gpu_cache_position_tolerance = self.gpu_cache_position_tolerance,
+            cache_glyph_positioning = self.cache_glyph_positioning,
+            cache_glyph_drawing = self.cache_glyph_drawing,)
+    }
+}
+
 /// Returns a Font from font bytes info or an error reason.
-pub fn font<'a>(font_bytes: Cow<'a, [u8]>) -> Result<Font<'a>, &'static str> {
+pub fn font<'a, B: Into<SharedBytes<'a>>>(font_bytes: B) -> Result<Font<'a>, &'static str> {
+    let font_bytes = font_bytes.into();
     if font_bytes.is_empty() {
         return Err("Empty font data");
     }
-    let shared_bytes = match font_bytes {
-        Cow::Owned(vec) => SharedBytes::ByArc(Arc::new(vec.into_boxed_slice())),
-        Cow::Borrowed(slice) => SharedBytes::ByRef(slice),
-    };
-    FontCollection::from_bytes(shared_bytes)
+    FontCollection::from_bytes(font_bytes)
         .into_font()
         .ok_or("Font not supported by rusttype")
 }

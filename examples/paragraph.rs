@@ -43,8 +43,7 @@ fn main() {
     let (window, mut device, mut factory, mut main_color, mut main_depth) =
         gfx_window_glutin::init::<format::Srgba8, format::Depth>(window_builder, context, &events_loop);
 
-    let font_data = include_bytes!("Arial Unicode.ttf").as_ref();
-    let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(font_data.into())
+    let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(include_bytes!("Arial Unicode.ttf") as &[u8])
         .initial_cache_size((1024, 1024))
         .gpu_cache_position_tolerance(0.2)
         .build(factory.clone());
