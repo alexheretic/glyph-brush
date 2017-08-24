@@ -4,6 +4,7 @@ extern crate glutin;
 extern crate time;
 extern crate pretty_env_logger;
 extern crate gfx_glyph;
+extern crate spin_sleep;
 
 use glutin::GlContext;
 use gfx::{format, Device};
@@ -32,8 +33,9 @@ fn main() {
     }
 
     let mut events_loop = glutin::EventsLoop::new();
+    let title = "gfx_glyph rendering 100,000 glyphs - scroll to size, type to modify";
     let window_builder = glutin::WindowBuilder::new()
-        .with_title("gfx_glyph rendering 100,000 glyphs - scroll to size, type to modify".to_string())
+        .with_title(title)
         .with_dimensions(1024, 576);
     let context = glutin::ContextBuilder::new()
         .with_vsync(false);
@@ -50,9 +52,10 @@ fn main() {
 
     let mut running = true;
     let mut font_size = Scale::uniform(25.0 * window.hidpi_factor());
-    let mut rate = LoopLimiter::builder().report_interval(0.5).build_with_target_rate(0);
+    let mut loop_helper = spin_sleep::LoopHelper::builder().build_without_target_rate();
+
     while running {
-        rate.loop_start();
+        loop_helper.loop_start();
 
         events_loop.poll_events(|event| {
             use glutin::*;
@@ -129,11 +132,8 @@ fn main() {
         window.swap_buffers().unwrap();
         device.cleanup();
 
-        if let Some(rate) = rate.report_rate() {
-            use std::io::Write;
-            print!("\r                            \r");
-            print!("FPS: {}", rate);
-            ::std::io::stdout().flush().ok().unwrap();
+        if let Some(rate) = loop_helper.report_rate() {
+            window.set_title(&format!("{} - {:.0} FPS", title, rate));
         }
     }
     println!();
@@ -189,72 +189,5 @@ impl gfx_glyph::GlyphPositioner for CustomContiguousParagraphLayout {
     /// Bounds rectangle is the same as built-in left align
     fn bounds_rect<'a, G: Into<GlyphInfo<'a>>>(&self, section: G) -> Rect<f32> {
         Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left).bounds_rect(section)
-    }
-}
-
-/// Convenience logic for tracking FPS, copied in from one of my game projects
-#[derive(Debug)]
-pub struct LoopLimiter {
-    pub target_delta: f64,
-    pub report_interval: f64,
-
-    last_loop_start: f64,
-    last_report: f64,
-    delta_sum: f64,
-    delta_count: u32,
-}
-
-#[derive(Debug)]
-pub struct LoopLimiterBuilder {
-    report_interval: Option<f64>,
-}
-
-impl LoopLimiterBuilder {
-    pub fn report_interval(mut self, duration: f64) -> LoopLimiterBuilder {
-        self.report_interval = Some(duration);
-        self
-    }
-
-    pub fn build_with_target_rate(self, target_rate: u32) -> LoopLimiter {
-        let now = time::precise_time_s();
-        let report_interval = self.report_interval.unwrap_or_else(|| 1.0);
-        let target_delta = 1.0 / target_rate as f64;
-        LoopLimiter {
-            target_delta,
-            report_interval,
-            last_report: now - report_interval,
-            last_loop_start: now - target_delta,
-            delta_sum: 0.0,
-            delta_count: 0,
-        }
-    }
-}
-
-impl LoopLimiter {
-    pub fn builder() -> LoopLimiterBuilder {
-        LoopLimiterBuilder {
-            report_interval: None,
-        }
-    }
-
-    pub fn loop_start(&mut self) -> f64 {
-        let it_start = time::precise_time_s();
-        let delta = it_start - self.last_loop_start;
-        self.last_loop_start = it_start;
-        self.delta_sum += delta;
-        self.delta_count += 1;
-        delta
-    }
-
-    pub fn report_rate(&mut self) -> Option<u32> {
-        let now = time::precise_time_s();
-        if now - self.last_report > self.report_interval {
-            let report = Some((1.0 / (self.delta_sum / self.delta_count as f64)).round() as u32);
-            self.delta_sum = 0.0;
-            self.delta_count = 0;
-            self.last_report = now;
-            report
-        }
-        else { None }
     }
 }

@@ -13,6 +13,7 @@ extern crate time;
 extern crate pretty_env_logger;
 extern crate gfx_glyph;
 extern crate cgmath;
+extern crate spin_sleep;
 
 use cgmath::Matrix4;
 use glutin::GlContext;
@@ -35,9 +36,9 @@ fn main() {
     }
 
     let mut events_loop = glutin::EventsLoop::new();
+    let title = "gfx_glyph example - scroll to size, type to modify, ctrl-scroll to transform zoom";
     let window_builder = glutin::WindowBuilder::new()
-        .with_title("gfx_glyph example - scroll to size, \
-            type to modify, ctrl-scroll to transform zoom".to_string())
+        .with_title(title)
         .with_dimensions(1024, 576);
     let context = glutin::ContextBuilder::new();
     let (window, mut device, mut factory, mut main_color, mut main_depth) =
@@ -56,8 +57,11 @@ fn main() {
     let mut font_size = gfx_glyph::Scale::uniform(18.0 * window.hidpi_factor());
     let mut zoom: f32 = 1.0;
     let mut ctrl = false;
+    let mut loop_helper = spin_sleep::LoopHelper::builder().build_without_target_rate();
 
     while running {
+        loop_helper.loop_start();
+
         events_loop.poll_events(|event| {
             use glutin::*;
 
@@ -185,6 +189,10 @@ fn main() {
         encoder.flush(&mut device);
         window.swap_buffers().unwrap();
         device.cleanup();
+
+        if let Some(rate) = loop_helper.report_rate() {
+            window.set_title(&format!("{} - {:.0} FPS", title, rate));
+        }
     }
     println!();
 }

@@ -15,7 +15,7 @@ Makes use of three kinds of caching to optimise frame performance.
 rendering on sequential frames.
 * Caches draw calculations to avoid repeated cost of identical text rendering on
 sequential frames.
-* Uses rusttype's built-in GPU cache logic to maintain a GPU texture of rendered glyphs.
+* Uses rusttype's built-in GPU cache logic to maintain a GPU texture of rendered glyphs. Also manages dynamic growth of the GPU cache when needed.
 
 ```rust
 extern crate gfx_glyph;
