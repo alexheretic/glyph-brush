@@ -159,7 +159,7 @@ pub struct StandardLineBreaker;
 
 impl LineBreaker for StandardLineBreaker {
     fn line_breaks<'a>(&self, glyph_info: &GlyphInfo<'a>) -> Box<Iterator<Item=LineBreak> + 'a> {
-        Box::new(xi_unicode::LineBreakIterator::new(&glyph_info.substring())
+        Box::new(xi_unicode::LineBreakIterator::new(glyph_info.substring())
             .map(|(offset, hard)| {
                 if hard { LineBreak::Hard(offset) } else { LineBreak::Soft(offset)}
             }))
@@ -202,7 +202,7 @@ impl<'a> Iterator for AnyCharLineBreakerIter<'a> {
 
 impl LineBreaker for AnyCharLineBreaker {
     fn line_breaks<'a>(&self, glyph_info: &GlyphInfo<'a>) -> Box<Iterator<Item=LineBreak> + 'a> {
-        let mut unicode_breaker = xi_unicode::LineBreakIterator::new(&glyph_info.substring());
+        let mut unicode_breaker = xi_unicode::LineBreakIterator::new(glyph_info.substring());
         let current_break = unicode_breaker.next();
 
         Box::new(AnyCharLineBreakerIter {
