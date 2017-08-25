@@ -168,6 +168,7 @@ fn no_cache_render_100_small_sections_fully(b: &mut ::test::Bencher) {
     bench(b, &section_layouts, brush);
 }
 
+#[cfg(feature = "bench")]
 fn bench<L: gfx_glyph::LineBreaker>(
     b: &mut ::test::Bencher,
     sections: &[(gfx_glyph::StaticSection, gfx_glyph::Layout<L>)],
