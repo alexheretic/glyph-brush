@@ -84,7 +84,7 @@ fn main() {
                     WindowEvent::MouseWheel{ delta: MouseScrollDelta::LineDelta(_, y), .. } => {
                         // increase/decrease font size with mouse wheel
                         let mut size = font_size.x / window.hidpi_factor();
-                        if y < 0.0 { size += (size / 4.0).max(2.0) }
+                        if y > 0.0 { size += (size / 4.0).max(2.0) }
                         else { size *= 4.0 / 5.0 };
                         size = size.max(1.0);
                         font_size = Scale::uniform(size * window.hidpi_factor());

@@ -95,7 +95,7 @@ fn main() {
                         if ctrl {
                             let old_zoom = zoom;
                             // increase/decrease zoom
-                            if y < 0.0 { zoom += 0.1 }
+                            if y > 0.0 { zoom += 0.1 }
                             else { zoom -= 0.1 };
                             zoom = zoom.min(1.0).max(0.1);
                             if (zoom - old_zoom).abs() > 1e-2 {
@@ -108,13 +108,13 @@ fn main() {
                             // increase/decrease font size
                             let old_size = font_size.x;
                             let mut size = font_size.x / window.hidpi_factor();
-                            if y < 0.0 { size += (size / 4.0).max(2.0) }
+                            if y > 0.0 { size += (size / 4.0).max(2.0) }
                             else { size *= 4.0 / 5.0 };
-                            size = size.max(1.0);//.round();
+                            size = size.max(1.0);
                             font_size = gfx_glyph::Scale::uniform(size * window.hidpi_factor());
                             if (font_size.x - old_size).abs() > 1e-2 {
                                 print!("\r                            \r");
-                                print!("font-size -> {}", font_size.x);
+                                print!("font-size -> {:.1}", font_size.x);
                                 io::stdout().flush().ok().unwrap();
                             }
                         }
