@@ -91,6 +91,10 @@ pub type ScaledGlyph = rusttype::ScaledGlyph<'static>;
 pub type Glyph = rusttype::Glyph<'static>;
 /// Aliased type to allow lib usage without declaring underlying **rusttype** lib
 pub type SharedBytes<'a> = rusttype::SharedBytes<'a>;
+/// Aliased type to allow lib usage without declaring underlying **rusttype** lib
+pub type HMetrics = rusttype::HMetrics;
+/// Aliased type to allow lib usage without declaring underlying **rusttype** lib
+pub type VMetrics = rusttype::VMetrics;
 
 // Type for the generated glyph cache texture
 type TexForm = format::U8Norm;
