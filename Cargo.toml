@@ -1,6 +1,6 @@
 [package]
 name = "gfx_glyph"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["Alex Butler <alexheretic@gmail.com>"]
 description = "Fast GPU cached text rendering using gfx-rs & rusttype"
 repository = "https://github.com/alexheretic/gfx-glyph"
@@ -17,6 +17,7 @@ gfx_core = "0.7"
 unicode-normalization = "0.1"
 ordered-float = "0.5"
 xi-unicode = "0.1.0"
+linked-hash-map = "0.5"
 
 [dev-dependencies]
 pretty_env_logger = "0.1"
@@ -30,7 +31,3 @@ spin_sleep = "0.3"
 [features]
 # Compiles benchmark code, to be avoided normally as this currently requires nightly rust
 bench = []
-
-[replace]
-# Missing glyph bug awaiting fix in main rusttype repo, see https://github.com/dylanede/rusttype/issues/52
-"rusttype:0.2.1" = { git = "https://github.com/alexheretic/rusttype", branch = "fix-glyph-not-cached" }

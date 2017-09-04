@@ -6,7 +6,7 @@
 //! rendering on sequential frames.
 //! * Caches draw calculations to avoid repeated cost of identical text rendering on
 //! sequential frames.
-//! * Uses rusttype's built-in GPU cache logic to maintain a GPU texture of rendered glyphs.
+//! * GPU cache logic to dynamically maintain a GPU texture of rendered glyphs.
 //!
 //! # Example
 //!
@@ -43,7 +43,9 @@
 //! glyph_brush.draw_queued(&mut gfx_encoder, &gfx_target).unwrap();
 //! # }
 //! ```
-
+#![cfg_attr(feature = "bench", feature(test))]
+#[cfg(feature = "bench")]
+extern crate test;
 #[cfg(test)] extern crate pretty_env_logger;
 #[cfg(test)] #[macro_use] extern crate approx;
 
@@ -54,13 +56,15 @@ extern crate rusttype;
 extern crate unicode_normalization;
 extern crate ordered_float;
 extern crate xi_unicode;
+extern crate linked_hash_map;
 
 mod section;
 mod layout;
+mod gpu_cache;
 
 use gfx::traits::FactoryExt;
 use rusttype::{FontCollection, point, vector};
-use rusttype::gpu_cache::Cache;
+use gpu_cache::Cache;
 use gfx::{handle, texture, format, preset, state};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -95,6 +99,8 @@ pub type SharedBytes<'a> = rusttype::SharedBytes<'a>;
 pub type HMetrics = rusttype::HMetrics;
 /// Aliased type to allow lib usage without declaring underlying **rusttype** lib
 pub type VMetrics = rusttype::VMetrics;
+/// Aliased type to allow lib usage without declaring underlying **rusttype** lib
+pub type GlyphId = rusttype::GlyphId;
 
 // Type for the generated glyph cache texture
 type TexForm = format::U8Norm;
@@ -195,7 +201,7 @@ fn hash<H: Hash>(hashable: &H) -> u64 {
 /// ```
 pub struct GlyphBrush<'a, R: gfx::Resources, F: gfx::Factory<R>>{
     font: rusttype::Font<'a>,
-    font_cache: rusttype::gpu_cache::Cache,
+    font_cache: Cache,
     font_cache_tex: (gfx::handle::Texture<R, TexSurface>, gfx_core::handle::ShaderResourceView<R, f32>),
     factory: F,
     draw_cache: Option<DrawnGlyphBrush<R>>,
