@@ -5,11 +5,8 @@ environment:
     target: x86_64-pc-windows-msvc
   - channel: stable
     target: x86_64-pc-windows-gnu
-  ## Note: disabled as rustdoc compile changes to include_bytes!
-  ## cause compile failure in 1.21 (easy to fix, but will cause failure in current stable)
-  ## TODO re-enable after 1.21 stable release
-  # - channel: nightly
-  #   target: x86_64-pc-windows-msvc
+  - channel: nightly
+    target: x86_64-pc-windows-msvc
 matrix:
   allow_failures:
   - channel: nightly
