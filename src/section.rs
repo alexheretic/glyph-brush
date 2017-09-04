@@ -15,7 +15,7 @@ use std::f32;
 /// };
 /// # let _ = section;
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Section<'a> {
     /// Text to render
     pub text: &'a str,
@@ -107,7 +107,7 @@ impl<'a> From<&'a OwnedSection> for Section<'a> {
 
 /// A section with a static str reference, equalent to Section<'static>
 /// but may avoid edge case compile issues. See [`Section`](struct.Section.html)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct StaticSection {
     pub text: &'static str,
     pub screen_position: (f32, f32),

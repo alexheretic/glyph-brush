@@ -1,7 +1,6 @@
 extern crate gfx;
 extern crate gfx_window_glutin;
 extern crate glutin;
-extern crate time;
 extern crate pretty_env_logger;
 extern crate gfx_glyph;
 extern crate spin_sleep;

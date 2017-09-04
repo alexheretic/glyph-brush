@@ -26,7 +26,7 @@
 //! #         &events_loop);
 //! # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
 //!
-//! let arial: &[u8] = include_bytes!("examples/Arial Unicode.ttf");
+//! let arial: &[u8] = include_bytes!("../examples/Arial Unicode.ttf");
 //! let mut glyph_brush = GlyphBrushBuilder::using_font(arial)
 //!     .build(gfx_factory.clone());
 //!
@@ -176,7 +176,7 @@ fn hash<H: Hash>(hashable: &H) -> u64 {
 /// #         &events_loop);
 /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
 ///
-/// # let arial: &[u8] = include_bytes!("examples/Arial Unicode.ttf");
+/// # let arial: &[u8] = include_bytes!("../examples/Arial Unicode.ttf");
 /// # let mut glyph_brush = GlyphBrushBuilder::using_font(arial)
 /// #     .build(gfx_factory.clone());
 ///
@@ -534,7 +534,7 @@ struct GlyphedSection {
 /// #         glutin::ContextBuilder::new(),
 /// #         &events_loop);
 ///
-/// let arial: &[u8] = include_bytes!("examples/Arial Unicode.ttf");
+/// let arial: &[u8] = include_bytes!("../examples/Arial Unicode.ttf");
 /// let mut glyph_brush = GlyphBrushBuilder::using_font(arial)
 ///     .build(gfx_factory.clone());
 /// # let _ = glyph_brush;
