@@ -267,9 +267,10 @@ impl Cache {
         use point;
         let mut in_use_rows = HashSet::new();
         // tallest first gives better packing
-        self.queue.sort_by(|x, y|
-                           y.1.pixel_bounding_box().unwrap().height().cmp(
-                               &x.1.pixel_bounding_box().unwrap().height()));
+        // can use 'sort_unstable' as order of equal elements is unimportant
+        self.queue.sort_unstable_by_key(|&(_, ref glyph)| {
+            -glyph.pixel_bounding_box().unwrap().height()
+        });
         let mut queue_success = true;
         'per_glyph: for &(font_id, ref glyph) in &self.queue {
             // Check to see if it's already cached, or a close enough version is:

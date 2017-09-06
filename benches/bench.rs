@@ -51,6 +51,7 @@ fn render_3_medium_sections_fully(b: &mut ::test::Bencher) {
 
 #[bench]
 #[cfg(feature = "bench")]
+// Note: 'no_cache' here refers to the glyph positioning/drawing caches (not the gpu cache)
 fn no_cache_render_3_medium_sections_fully(b: &mut ::test::Bencher) {
     use std::f32;
     use gfx_glyph::*;
@@ -104,6 +105,7 @@ fn render_1_large_section_partially(b: &mut ::test::Bencher) {
 
 #[bench]
 #[cfg(feature = "bench")]
+// Note: 'no_cache' here refers to the glyph positioning/drawing caches (not the gpu cache)
 fn no_cache_render_1_large_section_partially(b: &mut ::test::Bencher) {
     use gfx_glyph::*;
 
@@ -145,6 +147,7 @@ fn render_100_small_sections_fully(b: &mut ::test::Bencher) {
 
 #[bench]
 #[cfg(feature = "bench")]
+// Note: 'no_cache' here refers to the glyph positioning/drawing caches (not the gpu cache)
 fn no_cache_render_100_small_sections_fully(b: &mut ::test::Bencher) {
     use std::f32;
     use gfx_glyph::*;
