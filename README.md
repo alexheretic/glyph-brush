@@ -45,12 +45,17 @@ Have a look at
 * `cargo run --example performance --release`
 
 ## Changelog
-**0.3.2**
-* Move fixed GPU caching logic into crate replacing `rusttype::gpu_cache`
-* `Section` & `StaticSection` implement `Copy`
-
 **0.3**
 * Use `Into<SharedBytes>` instead of explicit `&[u8]` for font byte input to improve flexibility.
+
+Non-breaking notable changes:
+* **0.3.2**
+  * Move fixed GPU caching logic into crate replacing `rusttype::gpu_cache`
+  * `Section` & `StaticSection` implement `Copy`
+* **0.3.3**
+  * Fix another GPU caching issues that could cause missing glyphs
+  * Fix layout issue that could miss a character immediately preceding EOF
+  * Optimise GPU cache sorting performance
 
 **0.2**
 * Adopt default line breaking logic according to the Unicode Standard Annex \#14 with `StandardLineBreaker` (included in `Layout::default()`). A `LineBreaker` implementation can be provided instead of using one of these.
