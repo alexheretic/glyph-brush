@@ -26,7 +26,7 @@
 //! each glyph. For a concrete use case see the `gpu_cache` example.
 
 use rusttype::{PositionedGlyph, Rect, Scale, GlyphId, Vector};
-use std::collections::{HashMap, BTreeMap};
+use std::collections::{HashMap, HashSet, BTreeMap};
 use std::collections::Bound::{Included, Unbounded};
 use linked_hash_map::LinkedHashMap;
 
@@ -265,7 +265,7 @@ impl Cache {
     pub fn cache_queued<F: FnMut(Rect<u32>, &[u8])>(&mut self, mut uploader: F) -> Result<(), CacheWriteErr> {
         use vector;
         use point;
-        let mut oldest_in_use_row = None;
+        let mut in_use_rows = HashSet::new();
         // tallest first gives better packing
         self.queue.sort_by(|x, y|
                            y.1.pixel_bounding_box().unwrap().height().cmp(
@@ -317,17 +317,13 @@ impl Cache {
                 (Some((_, _, row)), None) => {
                     // just one match
                     self.rows.get_refresh(&row);
-                    if oldest_in_use_row.is_none() {
-                        oldest_in_use_row = Some(row);
-                    }
+                    in_use_rows.insert(row);
                     continue 'per_glyph;
                 }
                 (Some((_, _, row1)), Some((_, _, row2))) if row1 == row2 => {
                     // two matches, but the same row
                     self.rows.get_refresh(&row1);
-                    if oldest_in_use_row.is_none() {
-                        oldest_in_use_row = Some(row1);
-                    }
+                    in_use_rows.insert(row1);
                     continue 'per_glyph;
                 }
                 (Some((scale1, offset1, row1)), Some((scale2, offset2, row2))) => {
@@ -344,9 +340,7 @@ impl Cache {
                         + ((offset2.y - spec.offset.y) / self.position_tolerance).abs();
                     let row = if v1 < v2 { row1 } else { row2 };
                     self.rows.get_refresh(&row);
-                    if oldest_in_use_row.is_none() {
-                        oldest_in_use_row = Some(row);
-                    }
+                    in_use_rows.insert(row);
                     continue 'per_glyph;
                 }
             }
@@ -379,7 +373,7 @@ impl Cache {
                     // Remove old rows until room is available
                     while self.rows.len() > 0 {
                         // check that the oldest row isn't also in use
-                        if oldest_in_use_row.as_ref().map(|t| self.rows.front().unwrap().0 != t).unwrap_or(true) {
+                        if !in_use_rows.contains(self.rows.front().unwrap().0) {
                             // Remove row
                             let (top, row) = self.rows.pop_front().unwrap();
                             for (spec, _, _) in row.glyphs {
@@ -451,9 +445,7 @@ impl Cache {
             // add the glyph to the row
             row.glyphs.push((spec, rect, pixels));
             row.width += width;
-            if oldest_in_use_row.is_none() {
-                oldest_in_use_row = Some(row_top);
-            }
+            in_use_rows.insert(row_top);
             self.all_glyphs.insert(spec, (row_top, row.glyphs.len() as u32 - 1));
         }
         if queue_success {
