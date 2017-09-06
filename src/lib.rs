@@ -48,6 +48,7 @@
 extern crate test;
 #[cfg(test)] extern crate pretty_env_logger;
 #[cfg(test)] #[macro_use] extern crate approx;
+#[cfg(test)] #[macro_use] extern crate lazy_static;
 
 #[macro_use] extern crate log;
 #[macro_use] extern crate gfx;

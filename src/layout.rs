@@ -294,7 +294,7 @@ fn single_line<'a, L: LineBreaker>(
 
     for (index, c) in glyph_info.remaining_chars().enumerate() {
         while next_break.is_some() {
-            if next_break.as_ref().unwrap().offset() < index + 1 {
+            if next_break.as_ref().unwrap().offset() < index {
                 previous_break = next_break.take();
                 next_break = line_breaks.next();
             }
@@ -302,11 +302,13 @@ fn single_line<'a, L: LineBreaker>(
         }
 
         if let Some(LineBreak::Hard(offset)) = next_break {
-            if offset == index + 1 && offset != glyph_info.text.len() {
-                leftover = Some(LayoutLeftover::HardBreak(caret, glyph_info.skip(index + 1)));
+            if offset == index && offset != glyph_info.text.len() {
+                leftover = Some(LayoutLeftover::HardBreak(caret, glyph_info.skip(index)));
                 break;
             }
         }
+
+        if c.is_control() { continue; }
 
         let base_glyph = if let Some(glyph) = font.glyph(c) {
             glyph
@@ -321,7 +323,7 @@ fn single_line<'a, L: LineBreaker>(
         if let Some(bb) = glyph.pixel_bounding_box() {
             if bb.max.x as f32 > (screen_x + bound_w) {
                 if let Some(line_break) = next_break {
-                    if line_break.offset() == index + 1 {
+                    if line_break.offset() == index {
                         // current char is a breaking char
                         leftover = Some(LayoutLeftover::OutOfWidthBound(
                             caret,
@@ -455,19 +457,34 @@ mod layout_test {
     use super::*;
     use std::f32;
 
-    const A_FONT: &[u8] = include_bytes!("../tests/DejaVuSansMono.ttf") as &[u8];
+    lazy_static! {
+        static ref A_FONT: Font<'static> = FontCollection::
+            from_bytes(include_bytes!("../tests/DejaVuSansMono.ttf") as &[u8])
+            .into_font()
+            .expect("Could not create rusttype::Font");
+    }
+
+    /// Checks the order of glyphs in the first arg iterable matches the
+    /// second arg string characters
+    macro_rules! assert_glyph_order {
+        ($glyphs:expr, $string:expr) => {{
+            let expected_len = $string.len();
+            assert_eq!($glyphs.len(), expected_len, "Unexpected number of glyphs");
+            let mut glyphs = $glyphs.iter();
+            for c in $string.chars() {
+                assert_eq!(glyphs.next().unwrap().id(), A_FONT.glyph(c).unwrap().id(),
+                    "Unexpected glyph id, expecting id for char `{}`", c);
+            }
+        }}
+    }
 
     #[test]
     fn single_line_chars_left_simple() {
         let _ = ::pretty_env_logger::init();
 
-        let font = FontCollection::from_bytes(A_FONT)
-            .into_font()
-            .expect("Could not create rusttype::Font");
-
         let (glyphs, leftover) = Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left)
             .calculate_glyphs_and_leftover(
-                &font,
+                &A_FONT,
                 &GlyphInfo::from(&Section {
                     text: "hello world",
                     scale: Scale::uniform(20.0),
@@ -476,35 +493,21 @@ mod layout_test {
             );
 
         assert!(leftover.is_none());
-        assert_eq!(glyphs.len(), 11);
+
+        assert_glyph_order!(glyphs, "hello world");
+
         assert_eq!(glyphs[0].position().x, 0.0);
         assert!(glyphs[10].position().x > 0.0,
             "unexpected last position {:?}", glyphs[10].position());
-
-        assert_eq!(glyphs[0].id(), font.glyph('h').unwrap().id());
-        assert_eq!(glyphs[1].id(), font.glyph('e').unwrap().id());
-        assert_eq!(glyphs[2].id(), font.glyph('l').unwrap().id());
-        assert_eq!(glyphs[3].id(), font.glyph('l').unwrap().id());
-        assert_eq!(glyphs[4].id(), font.glyph('o').unwrap().id());
-        assert_eq!(glyphs[5].id(), font.glyph(' ').unwrap().id());
-        assert_eq!(glyphs[6].id(), font.glyph('w').unwrap().id());
-        assert_eq!(glyphs[7].id(), font.glyph('o').unwrap().id());
-        assert_eq!(glyphs[8].id(), font.glyph('r').unwrap().id());
-        assert_eq!(glyphs[9].id(), font.glyph('l').unwrap().id());
-        assert_eq!(glyphs[10].id(), font.glyph('d').unwrap().id());
     }
 
     #[test]
     fn single_line_chars_right() {
         let _ = ::pretty_env_logger::init();
 
-        let font = FontCollection::from_bytes(A_FONT)
-            .into_font()
-            .expect("Could not create rusttype::Font");
-
         let (glyphs, leftover) = Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Right)
             .calculate_glyphs_and_leftover(
-                &font,
+                &A_FONT,
                 &GlyphInfo::from(&Section {
                     text: "hello world",
                     scale: Scale::uniform(20.0),
@@ -513,7 +516,7 @@ mod layout_test {
             );
 
         assert!(leftover.is_none());
-        assert_eq!(glyphs.len(), 11);
+        assert_glyph_order!(glyphs, "hello world");
         assert!(glyphs[0].position().x < glyphs[10].position().x);
         assert!(glyphs[10].position().x <= 0.0,
             "unexpected last position {:?}", glyphs[10].position());
@@ -522,31 +525,15 @@ mod layout_test {
         let rightmost_x = glyphs[10].pixel_bounding_box().unwrap().max.x as f32
             + glyphs[10].unpositioned().h_metrics().left_side_bearing;
         assert_relative_eq!(rightmost_x, 0.0, epsilon = 1e-1);
-
-        assert_eq!(glyphs[0].id(), font.glyph('h').unwrap().id());
-        assert_eq!(glyphs[1].id(), font.glyph('e').unwrap().id());
-        assert_eq!(glyphs[2].id(), font.glyph('l').unwrap().id());
-        assert_eq!(glyphs[3].id(), font.glyph('l').unwrap().id());
-        assert_eq!(glyphs[4].id(), font.glyph('o').unwrap().id());
-        assert_eq!(glyphs[5].id(), font.glyph(' ').unwrap().id());
-        assert_eq!(glyphs[6].id(), font.glyph('w').unwrap().id());
-        assert_eq!(glyphs[7].id(), font.glyph('o').unwrap().id());
-        assert_eq!(glyphs[8].id(), font.glyph('r').unwrap().id());
-        assert_eq!(glyphs[9].id(), font.glyph('l').unwrap().id());
-        assert_eq!(glyphs[10].id(), font.glyph('d').unwrap().id());
     }
 
     #[test]
     fn single_line_chars_center() {
         let _ = ::pretty_env_logger::init();
 
-        let font = FontCollection::from_bytes(A_FONT)
-            .into_font()
-            .expect("Could not create rusttype::Font");
-
         let (glyphs, leftover) = Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Center)
             .calculate_glyphs_and_leftover(
-                &font,
+                &A_FONT,
                 &GlyphInfo::from(&Section {
                     text: "hello world",
                     scale: Scale::uniform(20.0),
@@ -555,7 +542,7 @@ mod layout_test {
             );
 
         assert!(leftover.is_none());
-        assert_eq!(glyphs.len(), 11);
+        assert_glyph_order!(glyphs, "hello world");
         assert!(glyphs[0].position().x < 0.0,
             "unexpected first glyph position {:?}", glyphs[0].position());
         assert!(glyphs[10].position().x > 0.0,
@@ -567,31 +554,15 @@ mod layout_test {
         let rightmost_x = glyphs[10].pixel_bounding_box().unwrap().max.x as f32
             + glyphs[10].unpositioned().h_metrics().left_side_bearing;
         assert_relative_eq!(rightmost_x, -leftmost_x, epsilon = 1e-1);
-
-        assert_eq!(glyphs[0].id(), font.glyph('h').unwrap().id());
-        assert_eq!(glyphs[1].id(), font.glyph('e').unwrap().id());
-        assert_eq!(glyphs[2].id(), font.glyph('l').unwrap().id());
-        assert_eq!(glyphs[3].id(), font.glyph('l').unwrap().id());
-        assert_eq!(glyphs[4].id(), font.glyph('o').unwrap().id());
-        assert_eq!(glyphs[5].id(), font.glyph(' ').unwrap().id());
-        assert_eq!(glyphs[6].id(), font.glyph('w').unwrap().id());
-        assert_eq!(glyphs[7].id(), font.glyph('o').unwrap().id());
-        assert_eq!(glyphs[8].id(), font.glyph('r').unwrap().id());
-        assert_eq!(glyphs[9].id(), font.glyph('l').unwrap().id());
-        assert_eq!(glyphs[10].id(), font.glyph('d').unwrap().id());
     }
 
     #[test]
     fn wrap_word_left() {
         let _ = ::pretty_env_logger::init();
 
-        let font = FontCollection::from_bytes(A_FONT)
-            .into_font()
-            .expect("Could not create rusttype::Font");
-
         let (glyphs, leftover) = Layout::SingleLine(StandardLineBreaker, HorizontalAlign::Left)
             .calculate_glyphs_and_leftover(
-                &font,
+                &A_FONT,
                 &GlyphInfo::from(&Section {
                     text: "hello what's _happening_?",
                     scale: Scale::uniform(20.0),
@@ -607,21 +578,14 @@ mod layout_test {
             assert!(false, "Unexpected leftover {:?}", leftover);
         }
 
-        assert_eq!(glyphs.len(), 6);
+        assert_glyph_order!(glyphs, "hello ");
         assert_eq!(glyphs[0].position().x, 0.0);
         assert!(glyphs[5].position().x > 0.0,
             "unexpected last position {:?}", glyphs[5].position());
 
-        assert_eq!(glyphs[0].id(), font.glyph('h').unwrap().id());
-        assert_eq!(glyphs[1].id(), font.glyph('e').unwrap().id());
-        assert_eq!(glyphs[2].id(), font.glyph('l').unwrap().id());
-        assert_eq!(glyphs[3].id(), font.glyph('l').unwrap().id());
-        assert_eq!(glyphs[4].id(), font.glyph('o').unwrap().id());
-        assert_eq!(glyphs[5].id(), font.glyph(' ').unwrap().id());
-
         let (glyphs, leftover) = Layout::SingleLine(StandardLineBreaker, HorizontalAlign::Left)
             .calculate_glyphs_and_leftover(
-                &font,
+                &A_FONT,
                 &GlyphInfo::from(&Section {
                     text: "hello what's _happening_?",
                     scale: Scale::uniform(20.0),
@@ -637,38 +601,19 @@ mod layout_test {
             assert!(false, "Unexpected leftover {:?}", leftover);
         }
 
-        assert_eq!(glyphs.len(), 13);
+        assert_glyph_order!(glyphs, "hello what's ");
         assert_eq!(glyphs[0].position().x, 0.0);
         assert!(glyphs[12].position().x > 0.0,
             "unexpected last position {:?}", glyphs[12].position());
-
-        let mut glyphs = glyphs.into_iter();
-        assert_eq!(glyphs.next().unwrap().id(), font.glyph('h').unwrap().id());
-        assert_eq!(glyphs.next().unwrap().id(), font.glyph('e').unwrap().id());
-        assert_eq!(glyphs.next().unwrap().id(), font.glyph('l').unwrap().id());
-        assert_eq!(glyphs.next().unwrap().id(), font.glyph('l').unwrap().id());
-        assert_eq!(glyphs.next().unwrap().id(), font.glyph('o').unwrap().id());
-        assert_eq!(glyphs.next().unwrap().id(), font.glyph(' ').unwrap().id());
-        assert_eq!(glyphs.next().unwrap().id(), font.glyph('w').unwrap().id());
-        assert_eq!(glyphs.next().unwrap().id(), font.glyph('h').unwrap().id());
-        assert_eq!(glyphs.next().unwrap().id(), font.glyph('a').unwrap().id());
-        assert_eq!(glyphs.next().unwrap().id(), font.glyph('t').unwrap().id());
-        assert_eq!(glyphs.next().unwrap().id(), font.glyph('\'').unwrap().id());
-        assert_eq!(glyphs.next().unwrap().id(), font.glyph('s').unwrap().id());
-        assert_eq!(glyphs.next().unwrap().id(), font.glyph(' ').unwrap().id());
     }
 
     #[test]
     fn single_line_chars_left_finish_at_newline() {
         let _ = ::pretty_env_logger::init();
 
-        let font = FontCollection::from_bytes(A_FONT)
-            .into_font()
-            .expect("Could not create rusttype::Font");
-
         let (glyphs, leftover) = Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left)
             .calculate_glyphs_and_leftover(
-                &font,
+                &A_FONT,
                 &GlyphInfo::from(&Section {
                     text: "hello\nworld",
                     scale: Scale::uniform(20.0),
@@ -682,29 +627,19 @@ mod layout_test {
         else {
             assert!(false, "Unexpected leftover {:?}", leftover);
         }
-        assert_eq!(glyphs.len(), 5);
+        assert_glyph_order!(glyphs, "hello");
         assert_eq!(glyphs[0].position().x, 0.0);
         assert!(glyphs[4].position().x > 0.0,
             "unexpected last position {:?}", glyphs[4].position());
-
-        assert_eq!(glyphs[0].id(), font.glyph('h').unwrap().id());
-        assert_eq!(glyphs[1].id(), font.glyph('e').unwrap().id());
-        assert_eq!(glyphs[2].id(), font.glyph('l').unwrap().id());
-        assert_eq!(glyphs[3].id(), font.glyph('l').unwrap().id());
-        assert_eq!(glyphs[4].id(), font.glyph('o').unwrap().id());
     }
 
     #[test]
     fn single_line_little_verticle_room() {
         let _ = ::pretty_env_logger::init();
 
-        let font = FontCollection::from_bytes(A_FONT)
-            .into_font()
-            .expect("Could not create rusttype::Font");
-
         let (glyphs, leftover) = Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left)
             .calculate_glyphs_and_leftover(
-                &font,
+                &A_FONT,
                 &GlyphInfo::from(&Section {
                     text: "hello world",
                     scale: Scale::uniform(20.0),
@@ -714,31 +649,19 @@ mod layout_test {
             );
 
         assert!(leftover.is_none(), "unexpected leftover {:?}", leftover);
-        assert_eq!(glyphs.len(), 6);
-
-        assert_eq!(glyphs[0].id(), font.glyph('h').unwrap().id());
-        // 'e' hidden
-        assert_eq!(glyphs[1].id(), font.glyph('l').unwrap().id());
-        assert_eq!(glyphs[2].id(), font.glyph('l').unwrap().id());
-        // 'o' hidden
-        assert_eq!(glyphs[3].id(), font.glyph(' ').unwrap().id());
-        // 'w' hidden
-        // 'o' hidden
-        // 'r' hidden
-        assert_eq!(glyphs[4].id(), font.glyph('l').unwrap().id());
-        assert_eq!(glyphs[5].id(), font.glyph('d').unwrap().id());
+        assert_glyph_order!(glyphs, "hll ld"); // e,o,w,o,r hidden
 
         // letter `l` should be in the same place as when all the word is visible
         let (all_glyphs, _) = Layout::SingleLine(StandardLineBreaker, HorizontalAlign::Left)
             .calculate_glyphs_and_leftover(
-                &font,
+                &A_FONT,
                 &GlyphInfo::from(&Section {
                     text: "hello world",
                     scale: Scale::uniform(20.0),
                     ..Section::default()
                 })
             );
-        assert_eq!(all_glyphs[9].id(), font.glyph('l').unwrap().id());
+        assert_eq!(all_glyphs[9].id(), A_FONT.glyph('l').unwrap().id());
         assert_relative_eq!(all_glyphs[9].position().x, glyphs[4].position().x);
         assert_relative_eq!(all_glyphs[9].position().y, glyphs[4].position().y);
     }
@@ -747,13 +670,9 @@ mod layout_test {
     fn single_line_little_verticle_room_tail_lost() {
         let _ = ::pretty_env_logger::init();
 
-        let font = FontCollection::from_bytes(A_FONT)
-            .into_font()
-            .expect("Could not create rusttype::Font");
-
         let (glyphs, leftover) = Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left)
             .calculate_glyphs_and_leftover(
-                &font,
+                &A_FONT,
                 &GlyphInfo::from(&Section {
                     text: "hellowor__",
                     scale: Scale::uniform(20.0),
@@ -769,23 +688,17 @@ mod layout_test {
         else {
             assert!(false, "Unexpected leftover {:?}", leftover);
         }
-        assert_eq!(glyphs.len(), 3);
 
-        assert_eq!(glyphs[0].id(), font.glyph('h').unwrap().id());
-        // 'e' hidden
-        assert_eq!(glyphs[1].id(), font.glyph('l').unwrap().id());
-        assert_eq!(glyphs[2].id(), font.glyph('l').unwrap().id());
+        assert_glyph_order!(glyphs, "hll"); // e hidden
     }
 
     #[test]
     fn single_line_limited_horizontal_room() {
-        let font = FontCollection::from_bytes(A_FONT)
-            .into_font()
-            .expect("Could not create rusttype::Font");
+        let _ = ::pretty_env_logger::init();
 
         let (glyphs, leftover) = Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left)
             .calculate_glyphs_and_leftover(
-                &font,
+                &A_FONT,
                 &GlyphInfo::from(&Section {
                     text: "hello world",
                     scale: Scale::uniform(20.0),
@@ -801,12 +714,33 @@ mod layout_test {
             assert!(false, "Unexpected leftover {:?}", leftover);
         }
 
-        assert_eq!(glyphs.len(), 4);
+        assert_glyph_order!(glyphs, "hell");
         assert_eq!(glyphs[0].position().x, 0.0);
+    }
 
-        assert_eq!(glyphs[0].id(), font.glyph('h').unwrap().id());
-        assert_eq!(glyphs[1].id(), font.glyph('e').unwrap().id());
-        assert_eq!(glyphs[2].id(), font.glyph('l').unwrap().id());
-        assert_eq!(glyphs[3].id(), font.glyph('l').unwrap().id());
+    #[test]
+    fn wrap_layout_with_new_lines() {
+        let _ = ::pretty_env_logger::init();
+
+        let test_str = "Autumn moonlight\n\
+            a worm digs silently\n\
+            into the chestnut.";
+
+        let (glyphs, leftover) = Layout::Wrap(StandardLineBreaker, HorizontalAlign::Left)
+            .calculate_glyphs_and_leftover(
+                &A_FONT,
+                &GlyphInfo::from(&Section {
+                    text: test_str,
+                    scale: Scale::uniform(20.0),
+                    ..Section::default()
+                })
+            );
+
+        assert!(leftover.is_none(), "Unexpected leftover {:?}", leftover);
+        assert_glyph_order!(glyphs, "Autumn moonlighta worm digs silentlyinto the chestnut.");
+        assert!(glyphs[16].position().y > glyphs[0].position().y,
+            "second line should be lower than first");
+        assert!(glyphs[36].position().y > glyphs[16].position().y,
+            "third line should be lower than second");
     }
 }

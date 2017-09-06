@@ -27,6 +27,7 @@ glutin = "0.9"
 time = "0.1"
 cgmath = "0.15"
 spin_sleep = "0.3"
+lazy_static = "0.2"
 
 [features]
 # Compiles benchmark code, to be avoided normally as this currently requires nightly rust
