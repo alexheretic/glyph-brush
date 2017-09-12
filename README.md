@@ -48,6 +48,7 @@ Have a look at
 **0.4**
 * Support depth testing with configurable gfx depth test (via `GlyphBrushBuilder::depth_test`).
   * `Section`s now have a `z` value to indicate the depth.
+  * Actual depth testing is disabled by default, but a reference to the depth buffer is now required to draw.
 * Streamline API for use with built-in `Layout`s, while still allowing custom layouts.
   * Built-in layouts are now a member of `Section`.
   * Custom layouts can still be used by using `GlyphBrush::queue_custom_layout` method instead of `queue`.
