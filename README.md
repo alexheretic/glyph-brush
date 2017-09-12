@@ -19,7 +19,7 @@ sequential frames.
 
 ```rust
 extern crate gfx_glyph;
-use gfx_glyph::{Section, Layout, GlyphBrushBuilder};
+use gfx_glyph::{Section, GlyphBrushBuilder};
 
 let arial: &[u8] = include_bytes!("examples/Arial Unicode.ttf");
 let mut glyph_brush = GlyphBrushBuilder::using_font(arial)
@@ -30,10 +30,10 @@ let section = Section {
     ..Section::default() // color, position, etc
 };
 
-glyph_brush.queue(section, &Layout::default());
-glyph_brush.queue(some_other_section, &Layout::default());
+glyph_brush.queue(section);
+glyph_brush.queue(some_other_section);
 
-glyph_brush.draw_queued(&mut gfx_encoder, &gfx_target).unwrap();
+glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth).unwrap();
 ```
 
 ## Limitations
@@ -45,6 +45,16 @@ Have a look at
 * `cargo run --example performance --release`
 
 ## Changelog
+**0.4**
+* Support depth testing with configurable gfx depth test (via `GlyphBrushBuilder::depth_test`).
+  * `Section`s now have a `z` value to indicate the depth.
+* Streamline API for use with built-in `Layout`s, while still allowing custom layouts.
+  * Built-in layouts are now a member of `Section`.
+  * Custom layouts can still be used by using `GlyphBrush::queue_custom_layout` method instead of `queue`.
+  * `Section<'a, L>` are now generic to allow pluggable `LineBreaker` logic in the layout. This is a little unfortunate for the API surface.
+* Remove unnecessary `OwnedSection` and `StaticSection` to simplify the API.
+* `pixel_bounding_box` renamed to `pixel_bounds` & `pixel_bounds_custom_layout`
+
 **0.3**
 * Use `Into<SharedBytes>` instead of explicit `&[u8]` for font byte input to improve flexibility.
 
@@ -53,8 +63,8 @@ Notable non-breaking changes:
   * Move fixed GPU caching logic into crate replacing `rusttype::gpu_cache`
   * `Section` & `StaticSection` implement `Copy`
 * **0.3.3**
-  * Fix another GPU caching issues that could cause missing glyphs
-  * Fix layout issue that could miss a character immediately preceding EOF
+  * Fix another GPU caching issue that could cause missing glyphs
+  * Fix a layout issue that could miss a character immediately preceding EOF
   * Optimise GPU cache sorting performance
 
 **0.2**

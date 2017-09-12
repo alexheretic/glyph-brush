@@ -129,27 +129,22 @@ fn main() {
         let (width, height, ..) = main_color.get_dimensions();
         let scale = font_size;
 
-        // The section is all the info needed for the glyph brush to render a 'section' of text
-        // can use `..Section::default()` to skip the bits you don't care about
-        // also see convenience variants StaticSection & OwnedSection
+        // The section is all the info needed for the glyph brush to render a 'section' of text.
+        // Use `..Section::default()` to skip the bits you don't care about
         let section = gfx_glyph::Section {
             text: &text,
             scale,
             screen_position: (0.0, 0.0),
             bounds: (width as f32 / 3.15, height as f32),
             color: [0.9, 0.3, 0.3, 1.0],
+            ..Section::default()
         };
-
-        // the lib needs layout logic to render the glyphs, ie a gfx_glyph::GlyphPositioner
-        // See the built-in ones at Layout::*
-        // Layout::default() is a left aligned word wrapping style
-        let layout = gfx_glyph::Layout::default();
 
         // Adds a section & layout to the queue for the next call to `draw_queued`, this
         // can be called multiple times for different sections that want to use the same
         // font and gpu cache
         // This step computes the glyph positions, this is cached to avoid unnecessary recalculation
-        glyph_brush.queue(section, &layout);
+        glyph_brush.queue(section);
 
         use gfx_glyph::*;
         glyph_brush.queue(Section {
@@ -158,7 +153,9 @@ fn main() {
             screen_position: (width as f32 / 2.0, 0.0),
             bounds: (width as f32 / 3.15, height as f32),
             color: [0.3, 0.9, 0.3, 1.0],
-        }, &Layout::Wrap(StandardLineBreaker, HorizontalAlign::Center));
+            layout: Layout::Wrap(StandardLineBreaker, HorizontalAlign::Center),
+            ..Section::default()
+        });
 
         glyph_brush.queue(Section {
             text: &text,
@@ -166,10 +163,12 @@ fn main() {
             screen_position: (width as f32, 0.0),
             bounds: (width as f32 / 3.15, height as f32),
             color: [0.3, 0.3, 0.9, 1.0],
-        }, &Layout::Wrap(StandardLineBreaker, HorizontalAlign::Right));
+            layout: Layout::Wrap(StandardLineBreaker, HorizontalAlign::Right),
+            ..Section::default()
+        });
 
         // Note: Can be drawn simply with the below, when transforms are not needed:
-        // `glyph_brush.draw_queued(&mut encoder, &main_color).expect("draw");`
+        // `glyph_brush.draw_queued(&mut encoder, &main_color, &main_depth).expect("draw");`
 
         // Here an example transform is used as a cheap zoom out (controlled with ctrl-scroll)
         let transform = Matrix4::from_scale(zoom);
@@ -183,7 +182,8 @@ fn main() {
         glyph_brush.draw_queued_with_transform(
             transform.into(),
             &mut encoder,
-            &main_color).expect("draw");
+            &main_color,
+            &main_depth).expect("draw");
 
         encoder.flush(&mut device);
         window.swap_buffers().unwrap();

@@ -16,7 +16,7 @@ use std::f32;
 /// # let _ = section;
 /// ```
 #[derive(Debug, Clone, Copy)]
-pub struct Section<'a> {
+pub struct Section<'a, L: LineBreaker> {
     /// Text to render
     pub text: &'a str,
     /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
@@ -27,15 +27,28 @@ pub struct Section<'a> {
     pub scale: Scale,
     /// Rgba color of rendered text. Defaults to black.
     pub color: [f32; 4],
+    /// Z values for use in depth testing. Defaults to 0.0
+    pub z: f32,
+    /// Built in layout, can overridden with custom layout logic
+    /// see [`queue_custom_layout`](struct.GlyphBrush.html#method.queue_custom_layout)
+    pub layout: Layout<L>,
 }
 
-impl<'a> Default for Section<'a> {
+impl Default for Section<'static, StandardLineBreaker> {
     fn default() -> Self {
-        StaticSection::default().into()
+        Self {
+            text: "",
+            screen_position: (0.0, 0.0),
+            bounds: (f32::INFINITY, f32::INFINITY),
+            scale: Scale::uniform(16.0),
+            color: [0.0, 0.0, 0.0, 1.0],
+            z: 0.0,
+            layout: Layout::default(),
+        }
     }
 }
 
-impl<'a> Hash for Section<'a> {
+impl<'a, L: LineBreaker> Hash for Section<'a, L> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         use ordered_float::OrderedFloat;
 
@@ -45,9 +58,11 @@ impl<'a> Hash for Section<'a> {
             bounds: (bound_w, bound_h),
             scale,
             color,
+            z,
+            layout: _layout_hashed_separately,
         } = *self;
 
-        let ord_floats: [OrderedFloat<f32>; 10] = [
+        let ord_floats: &[OrderedFloat<_>] = &[
             screen_x.into(),
             screen_y.into(),
             bound_w.into(),
@@ -58,91 +73,9 @@ impl<'a> Hash for Section<'a> {
             color[1].into(),
             color[2].into(),
             color[3].into(),
+            z.into(),
         ];
 
         (text, ord_floats).hash(state);
-    }
-}
-
-impl<'a> Section<'a> {
-    pub fn to_owned_section(&self) -> OwnedSection {
-        OwnedSection {
-            text: self.text.to_owned(),
-            screen_position: self.screen_position,
-            bounds: self.bounds,
-            scale: self.scale,
-            color: self.color,
-        }
-    }
-}
-
-/// A section with owned text. See [`Section`](struct.Section.html)
-#[derive(Debug, Clone)]
-pub struct OwnedSection {
-    pub text: String,
-    pub screen_position: (f32, f32),
-    pub bounds: (f32, f32),
-    pub scale: Scale,
-    pub color: [f32; 4],
-}
-
-impl Default for OwnedSection {
-    fn default() -> Self {
-        Section::default().to_owned_section()
-    }
-}
-
-impl<'a> From<&'a OwnedSection> for Section<'a> {
-    fn from(section: &'a OwnedSection) -> Self {
-        let &OwnedSection { ref text, screen_position, bounds, scale, color } = section;
-        Self {
-            text: text,
-            screen_position,
-            bounds,
-            scale,
-            color,
-        }
-    }
-}
-
-/// A section with a static str reference, equalent to Section<'static>
-/// but may avoid edge case compile issues. See [`Section`](struct.Section.html)
-#[derive(Debug, Clone, Copy)]
-pub struct StaticSection {
-    pub text: &'static str,
-    pub screen_position: (f32, f32),
-    pub bounds: (f32, f32),
-    pub scale: Scale,
-    pub color: [f32; 4],
-}
-
-impl Default for StaticSection {
-    fn default() -> Self {
-        Self {
-            text: "",
-            screen_position: (0.0, 0.0),
-            bounds: (f32::INFINITY, f32::INFINITY),
-            scale: Scale::uniform(16.0),
-            color: [0.0, 0.0, 0.0, 1.0],
-        }
-    }
-}
-
-impl<'a> From<&'a StaticSection> for Section<'static> {
-    fn from(section: &'a StaticSection) -> Self {
-        let &StaticSection { text, screen_position, bounds, scale, color } = section;
-        Self {
-            text: text,
-            screen_position,
-            bounds,
-            scale,
-            color,
-        }
-    }
-}
-
-impl From<StaticSection> for Section<'static> {
-    fn from(section: StaticSection) -> Self {
-        Section::from(&section)
     }
 }

@@ -49,8 +49,8 @@ impl<'a> GlyphInfo<'a> {
     }
 }
 
-impl<'a, 'b> From<&'b Section<'a>> for GlyphInfo<'a> {
-    fn from(section: &'b Section<'a>) -> Self {
+impl<'a, 'b, L: LineBreaker> From<&'b Section<'a, L>> for GlyphInfo<'a> {
+    fn from(section: &'b Section<'a, L>) -> Self {
         let Section { text, screen_position, bounds, scale, .. } = *section;
         Self {
             text,
@@ -105,7 +105,7 @@ pub trait LineBreaker: fmt::Debug + Copy + Hash {
 /// Takes generic [`LineBreaker`](trait.LineBreaker.html) to indicate the wrapping style.
 /// See [`StandardLineBreaker`](struct.StandardLineBreaker.html),
 /// [`AnyCharLineBreaker`](struct.AnyCharLineBreaker.html).
-#[derive(Debug, Clone, Copy, Hash)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum Layout<L: LineBreaker> {
     /// Renders a single line from left-to-right according to the inner alignment.
     /// Hard breaking will end the line, partially hitting the width bound will end the line.

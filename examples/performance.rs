@@ -99,7 +99,6 @@ fn main() {
 
         // The section is all the info needed for the glyph brush to render a 'section' of text
         // can use `..Section::default()` to skip the bits you don't care about
-        // also see convenience variants StaticSection & OwnedSection
         let section = Section {
             text: &text,
             scale: font_size,
@@ -108,8 +107,9 @@ fn main() {
             ..Section::default()
         };
 
-        // the lib needs layout logic to render the glyphs, ie a gfx_glyph::GlyphPositioner
-        // See the built-in ones, ie Layout::default()
+        // Custom layout logic to render the glyphs is allowed by implementing
+        // `gfx_glyph::GlyphPositioner`
+        // Built-in layouts are available e.g. `Layout::default()`
         // This is an example of implementing your own, see below
         let layout = CustomContiguousParagraphLayout;
 
@@ -117,7 +117,7 @@ fn main() {
         // can be called multiple times for different sections that want to use the same
         // font and gpu cache
         // This step computes the glyph positions, this is cached to avoid unnecessary recalculation
-        glyph_brush.queue(section, &layout);
+        glyph_brush.queue_custom_layout(section, &layout);
 
         // Finally once per frame you want to actually draw all the sections you've submitted
         // with `queue` calls.
@@ -125,7 +125,7 @@ fn main() {
         // Note: Drawing in the case the text is unchanged from the previous frame (a common case)
         // is essentially free as the vertices are reused &  gpu cache updating interaction
         // can be skipped.
-        glyph_brush.draw_queued(&mut encoder, &main_color).expect("draw");
+        glyph_brush.draw_queued(&mut encoder, &main_color, &main_depth).expect("draw");
 
         encoder.flush(&mut device);
         window.swap_buffers().unwrap();
