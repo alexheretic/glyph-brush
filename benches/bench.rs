@@ -25,27 +25,25 @@ fn render_3_medium_sections_fully(b: &mut ::test::Bencher) {
     let text = include_str!("lipsum.txt");
 
     bench(b,
-        &[(
-            StaticSection {
+        &[
+            Section {
                 text,
                 bounds: (600.0, f32::INFINITY),
-                ..StaticSection::default() },
-            Layout::Wrap(StandardLineBreaker, HorizontalAlign::Left)
-        ), (
-            StaticSection {
+                layout: Layout::Wrap(StandardLineBreaker, HorizontalAlign::Left),
+                ..Section::default() },
+            Section {
                 text,
                 screen_position: (600.0, 0.0),
                 bounds: (600.0, f32::INFINITY),
-                ..StaticSection::default() },
-            Layout::Wrap(StandardLineBreaker, HorizontalAlign::Center)
-        ), (
-            StaticSection {
+                layout: Layout::Wrap(StandardLineBreaker, HorizontalAlign::Center),
+                ..Section::default() },
+            Section {
                 text,
                 screen_position: (1200.0, 0.0),
                 bounds: (600.0, f32::INFINITY),
-                ..StaticSection::default() },
-            Layout::Wrap(StandardLineBreaker, HorizontalAlign::Right)
-        )],
+                layout: Layout::Wrap(StandardLineBreaker, HorizontalAlign::Right),
+                ..Section::default() },
+        ],
         brush);
 }
 
@@ -62,27 +60,25 @@ fn no_cache_render_3_medium_sections_fully(b: &mut ::test::Bencher) {
     let text = include_str!("lipsum.txt");
 
     bench(b,
-        &[(
-            StaticSection {
+        &[
+            Section {
                 text,
                 bounds: (600.0, f32::INFINITY),
-                ..StaticSection::default() },
-            Layout::Wrap(StandardLineBreaker, HorizontalAlign::Left)
-        ), (
-            StaticSection {
+                layout: Layout::Wrap(StandardLineBreaker, HorizontalAlign::Left),
+                ..Section::default() },
+            Section {
                 text,
                 screen_position: (600.0, 0.0),
                 bounds: (600.0, f32::INFINITY),
-                ..StaticSection::default() },
-            Layout::Wrap(StandardLineBreaker, HorizontalAlign::Center)
-        ), (
-            StaticSection {
+                layout: Layout::Wrap(StandardLineBreaker, HorizontalAlign::Center),
+                ..Section::default() },
+            Section {
                 text,
                 screen_position: (1200.0, 0.0),
                 bounds: (600.0, f32::INFINITY),
-                ..StaticSection::default() },
-            Layout::Wrap(StandardLineBreaker, HorizontalAlign::Right)
-        )],
+                layout: Layout::Wrap(StandardLineBreaker, HorizontalAlign::Right),
+                ..Section::default() }
+        ],
         brush);
 }
 
@@ -95,11 +91,11 @@ fn render_1_large_section_partially(b: &mut ::test::Bencher) {
     let text = include_str!("lots_of_lipsum.txt");
 
     bench(b,
-        &[(StaticSection {
+        &[Section {
             text,
             bounds: (600.0, 600.0),
-            ..StaticSection::default()
-        }, Layout::default())],
+            ..Section::default()
+        }],
         brush);
 }
 
@@ -115,11 +111,11 @@ fn no_cache_render_1_large_section_partially(b: &mut ::test::Bencher) {
     let text = include_str!("lots_of_lipsum.txt");
 
     bench(b,
-        &[(StaticSection {
+        &[Section {
             text,
             bounds: (600.0, 600.0),
-            ..StaticSection::default()
-        }, Layout::default())],
+            ..Section::default()
+        }],
         brush);
 }
 
@@ -134,12 +130,12 @@ fn render_100_small_sections_fully(b: &mut ::test::Bencher) {
 
     let mut section_layouts = vec![];
     for i in 0..100 {
-        section_layouts.push((StaticSection {
+        section_layouts.push(Section {
             text,
             screen_position: (i as f32, 0.0),
             bounds: (100.0, f32::INFINITY),
-            ..StaticSection::default()
-        }, Layout::default()));
+            ..Section::default()
+        });
     }
 
     bench(b, &section_layouts, brush);
@@ -159,12 +155,12 @@ fn no_cache_render_100_small_sections_fully(b: &mut ::test::Bencher) {
 
     let mut section_layouts = vec![];
     for i in 0..100 {
-        section_layouts.push((StaticSection {
+        section_layouts.push(Section {
             text,
             screen_position: (i as f32, 0.0),
             bounds: (100.0, f32::INFINITY),
-            ..StaticSection::default()
-        }, Layout::default()));
+            ..Section::default()
+        });
     }
 
     bench(b, &section_layouts, brush);
@@ -173,7 +169,7 @@ fn no_cache_render_100_small_sections_fully(b: &mut ::test::Bencher) {
 #[cfg(feature = "bench")]
 fn bench<L: gfx_glyph::LineBreaker>(
     b: &mut ::test::Bencher,
-    sections: &[(gfx_glyph::StaticSection, gfx_glyph::Layout<L>)],
+    sections: &[gfx_glyph::Section<'static, L>],
     brush: gfx_glyph::GlyphBrushBuilder)
 {
     use gfx::format;
@@ -188,7 +184,7 @@ fn bench<L: gfx_glyph::LineBreaker>(
 
     // TODO use headless/fake
     let events_loop = glutin::EventsLoop::new();
-    let (_window, _device, factory, main_color, _main_depth) =
+    let (_window, _device, factory, main_color, main_depth) =
         gfx_window_glutin::init::<format::Srgba8, format::Depth>(
             glutin::WindowBuilder::new().with_dimensions(1, 1),
             glutin::ContextBuilder::new(),
@@ -198,9 +194,9 @@ fn bench<L: gfx_glyph::LineBreaker>(
     let mut glyph_brush = brush.build(factory.clone());
 
     b.iter(|| {
-        for &(ref section, ref layout) in sections.iter() {
-            glyph_brush.queue(section.clone(), layout);
+        for section in sections.iter() {
+            glyph_brush.queue(*section);
         }
-        glyph_brush.draw_queued(&mut encoder, &main_color).expect("draw");
+        glyph_brush.draw_queued(&mut encoder, &main_color, &main_depth).expect("draw");
     });
 }

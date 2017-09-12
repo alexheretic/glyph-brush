@@ -15,11 +15,10 @@
 //! # extern crate gfx_window_glutin;
 //! # extern crate glutin;
 //! extern crate gfx_glyph;
-//! # use gfx_glyph::OwnedSection;
-//! use gfx_glyph::{Section, Layout, GlyphBrushBuilder};
+//! use gfx_glyph::{Section, GlyphBrushBuilder};
 //! # fn main() {
 //! # let events_loop = glutin::EventsLoop::new();
-//! # let (_window, _device, mut gfx_factory, gfx_target, _main_depth) =
+//! # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
 //! #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
 //! #         glutin::WindowBuilder::new(),
 //! #         glutin::ContextBuilder::new(),
@@ -30,17 +29,16 @@
 //! let mut glyph_brush = GlyphBrushBuilder::using_font(arial)
 //!     .build(gfx_factory.clone());
 //!
-//! # let owned_section = OwnedSection { text: "another".into(), ..OwnedSection::default() };
-//! # let some_other_section = &owned_section;
+//! # let some_other_section = Section { text: "another", ..Section::default() };
 //! let section = Section {
 //!     text: "Hello gfx_glyph",
 //!     ..Section::default()
 //! };
 //!
-//! glyph_brush.queue(section, &Layout::default());
-//! glyph_brush.queue(some_other_section, &Layout::default());
+//! glyph_brush.queue(section);
+//! glyph_brush.queue(some_other_section);
 //!
-//! glyph_brush.draw_queued(&mut gfx_encoder, &gfx_target).unwrap();
+//! glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth).unwrap();
 //! # }
 //! ```
 #![cfg_attr(feature = "bench", feature(test))]
@@ -127,7 +125,7 @@ mod gfx_structs {
 
     gfx_defines!{
         vertex GlyphVertex {
-            pos: [f32; 2] = "pos",
+            pos: [f32; 3] = "pos",
             tex_pos: [f32; 2] = "tex_pos",
             color: [f32; 4] = "color",
         }
@@ -138,15 +136,17 @@ mod gfx_structs {
         font_tex: gfx::TextureSampler<TexFormView>,
         transform: gfx::Global<[[f32; 4]; 4]>,
         out: gfx::RawRenderTarget,
+        out_depth: gfx::DepthTarget<gfx::format::Depth>,
     });
 
     impl<'a> glyph_pipe::Init<'a> {
-        pub fn using_format(format: gfx::format::Format) -> Self {
+        pub fn new(format: gfx::format::Format, depth_test: gfx::state::Depth) -> Self {
             glyph_pipe::Init {
                 vbuf: (),
                 font_tex: "font_tex",
                 transform: "transform",
-                out: ("Target0", format, state::ColorMask::all(), Some(preset::blend::ALPHA))
+                out: ("Target0", format, state::ColorMask::all(), Some(preset::blend::ALPHA)),
+                out_depth: depth_test,
             }
         }
     }
@@ -172,11 +172,11 @@ fn hash<H: Hash>(hashable: &H) -> u64 {
 /// # extern crate gfx_window_glutin;
 /// # extern crate glutin;
 /// extern crate gfx_glyph;
-/// # use gfx_glyph::{OwnedSection, GlyphBrushBuilder};
-/// use gfx_glyph::{Section, Layout};
+/// # use gfx_glyph::{GlyphBrushBuilder};
+/// use gfx_glyph::Section;
 /// # fn main() {
 /// # let events_loop = glutin::EventsLoop::new();
-/// # let (_window, _device, mut gfx_factory, gfx_target, _main_depth) =
+/// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
 /// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
 /// #         glutin::WindowBuilder::new(),
 /// #         glutin::ContextBuilder::new(),
@@ -187,17 +187,16 @@ fn hash<H: Hash>(hashable: &H) -> u64 {
 /// # let mut glyph_brush = GlyphBrushBuilder::using_font(arial)
 /// #     .build(gfx_factory.clone());
 ///
-/// # let owned_section = OwnedSection { text: "another".into(), ..OwnedSection::default() };
-/// # let some_other_section = &owned_section;
+/// # let some_other_section = Section { text: "another", ..Section::default() };
 /// let section = Section {
 ///     text: "Hello gfx_glyph",
 ///     ..Section::default()
 /// };
 ///
-/// glyph_brush.queue(section, &Layout::default());
-/// glyph_brush.queue(some_other_section, &Layout::default());
+/// glyph_brush.queue(section);
+/// glyph_brush.queue(some_other_section);
 ///
-/// glyph_brush.draw_queued(&mut gfx_encoder, &gfx_target).unwrap();
+/// glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth).unwrap();
 /// # }
 /// ```
 pub struct GlyphBrush<'a, R: gfx::Resources, F: gfx::Factory<R>>{
@@ -220,23 +219,26 @@ pub struct GlyphBrush<'a, R: gfx::Resources, F: gfx::Factory<R>>{
     gpu_cache_position_tolerance: f32,
     cache_glyph_positioning: bool,
     cache_glyph_drawing: bool,
+
+    depth_test: gfx::state::Depth,
 }
 
 impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
 
-    /// Returns the pixel bounding box for the input section & layout. The box is a conservative
-    /// whole number pixel rectangle that can contain the section.
-    pub fn pixel_bounding_box<'a, S, L>(&mut self, section: S, layout: &L)
+    /// Returns the pixel bounding box for the input section using a custom layout.
+    /// The box is a conservative whole number pixel rectangle that can contain the section.
+    pub fn pixel_bounds_custom_layout<'a, S, L, U>(&mut self, section: S, custom_layout: &L)
         -> Rect<i32>
         where L: GlyphPositioner + Hash,
-              S: Into<Section<'a>>,
+              U: LineBreaker, // not used, overridden by custom layout
+              S: Into<Section<'a, U>>,
     {
         let section = section.into();
         let mut x = (i32::MAX, i32::MIN);
         let mut y = (i32::MAX, i32::MIN);
         let mut no_match = true;
 
-        let section_hash = self.cache_glyphs(&section, layout);
+        let section_hash = self.cache_glyphs(&section, custom_layout);
 
         for g in &self.calculate_glyph_cache[&section_hash].glyphs {
             no_match = false;
@@ -262,23 +264,47 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         }
     }
 
+    /// Returns the pixel bounding box for the input section. The box is a conservative
+    /// whole number pixel rectangle that can contain the section.
+    pub fn pixel_bounds<'a, S, L>(&mut self, section: S) -> Rect<i32>
+        where L: LineBreaker,
+            S: Into<Section<'a, L>>,
+    {
+        let section = section.into();
+        self.pixel_bounds_custom_layout(section, &section.layout)
+    }
+
     /// Queues a section/layout to be drawn by the next call of
     /// [`draw_queued`](struct.GlyphBrush.html#method.draw_queued). Can be called multiple times
     /// to queue multiple sections for drawing.
     ///
-    /// See [`Layout`](enum.Layout.html) for available built-in glyph positioning layouts.
-    pub fn queue<'a, S, L>(&mut self, section: S, layout: &L)
-        where L: GlyphPositioner,
-              S: Into<Section<'a>>,
+    /// Used to provide custom `GlyphPositioner` logic, if using built-in
+    /// [`Layout`](enum.Layout.html) simply use [`queue`](struct.GlyphBrush.html#method.queue)
+    pub fn queue_custom_layout<'a, S, G, U>(&mut self, section: S, custom_layout: &G)
+        where G: GlyphPositioner,
+              U: LineBreaker, // not used, overridden by custom layout
+              S: Into<Section<'a, U>>
     {
         let section = section.into();
-        let section_hash = self.cache_glyphs(&section, layout);
+        let section_hash = self.cache_glyphs(&section, custom_layout);
         self.section_buffer.push(section_hash);
     }
 
+    /// Queues a section/layout to be drawn by the next call of
+    /// [`draw_queued`](struct.GlyphBrush.html#method.draw_queued). Can be called multiple times
+    /// to queue multiple sections for drawing.
+    pub fn queue<'a, S, L>(&mut self, section: S)
+        where L: LineBreaker,
+              S: Into<Section<'a, L>>,
+    {
+        let section = section.into();
+        self.queue_custom_layout(section, &section.layout)
+    }
+
     /// Returns the calculate_glyph_cache key for this sections glyphs
-    fn cache_glyphs<L>(&mut self, section: &Section, layout: &L) -> u64
-        where L: GlyphPositioner
+    fn cache_glyphs<L, U>(&mut self, section: &Section<U>, layout: &L) -> u64
+        where L: GlyphPositioner,
+              U: LineBreaker,
     {
         let start = Instant::now();
         let section_hash = hash(&(section, layout));
@@ -288,6 +314,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                 entry.insert(GlyphedSection {
                     color: section.color,
                     bounds: layout.bounds_rect(section),
+                    z: section.z,
                     glyphs: layout.calculate_glyphs(&self.font, section),
                 });
             }
@@ -296,6 +323,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
             self.calculate_glyph_cache.insert(section_hash, GlyphedSection {
                 color: section.color,
                 bounds: layout.bounds_rect(section),
+                z: section.z,
                 glyphs: layout.calculate_glyphs(&self.font, section),
             });
         }
@@ -310,12 +338,13 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     pub fn draw_queued<C, T>(
         &mut self,
         encoder: &mut gfx::Encoder<R, C>,
-        target: &gfx::handle::RenderTargetView<R, T>)
+        target: &gfx::handle::RenderTargetView<R, T>,
+        depth_target: &gfx::handle::DepthStencilView<R, gfx::format::Depth>)
         -> Result<(), String>
         where C: gfx::CommandBuffer<R>,
               T: format::RenderFormat,
     {
-        self.draw_queued_with_transform(IDENTITY_MATRIX4, encoder, target)
+        self.draw_queued_with_transform(IDENTITY_MATRIX4, encoder, target, depth_target)
     }
 
     /// Draws all queued sections onto a render target, applying a position transform (e.g.
@@ -325,7 +354,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         &mut self,
         transform: [[f32; 4]; 4],
         mut encoder: &mut gfx::Encoder<R, C>,
-        target: &gfx::handle::RenderTargetView<R, T>)
+        target: &gfx::handle::RenderTargetView<R, T>,
+        depth_target: &gfx::handle::DepthStencilView<R, gfx::format::Depth>)
         -> Result<(), String>
         where C: gfx::CommandBuffer<R>,
               T: format::RenderFormat,
@@ -404,13 +434,14 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
 
             let verts: Vec<GlyphVertex> = self.section_buffer.iter()
                 .flat_map(|section_hash| {
-                    let GlyphedSection{ ref glyphs, color, bounds }
+                    let GlyphedSection{ ref glyphs, color, bounds, z }
                         = self.calculate_glyph_cache[section_hash];
                     text_vertices(
                         glyphs,
                         &self.font_cache,
                         bounds,
                         color,
+                        z,
                         (screen_width as f32, screen_height as f32))
                 })
                 .collect();
@@ -423,6 +454,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                 let mut cache = self.draw_cache.take().unwrap();
                 cache.pipe_data.vbuf = vbuf;
                 cache.pipe_data.out = target.raw().clone();
+                cache.pipe_data.out_depth = depth_target.clone();
                 if cache.pso.0 != T::get_format() {
                     cache.pso = (T::get_format(), self.pso_using(T::get_format()));
                 }
@@ -445,6 +477,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                             font_tex: (self.font_cache_tex.1.clone(), sampler),
                             transform: transform,
                             out: target.raw().clone(),
+                            out_depth: depth_target.clone(),
                         }
                     },
                     pso: (T::get_format(), self.pso_using(T::get_format())),
@@ -504,7 +537,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         self.factory.create_pipeline_simple(
             include_bytes!("shader/vert.glsl"),
             include_bytes!("shader/frag.glsl"),
-            glyph_pipe::Init::using_format(format)).unwrap()
+            glyph_pipe::Init::new(format, self.depth_test)).unwrap()
     }
 }
 
@@ -520,6 +553,7 @@ struct DrawnGlyphBrush<R: gfx::Resources> {
 struct GlyphedSection {
     color: [f32; 4],
     bounds: Rect<f32>,
+    z: f32,
     glyphs: Vec<PositionedGlyph>,
 }
 
@@ -554,6 +588,7 @@ pub struct GlyphBrushBuilder<'a> {
     gpu_cache_position_tolerance: f32,
     cache_glyph_positioning: bool,
     cache_glyph_drawing: bool,
+    depth_test: gfx::state::Depth,
 }
 
 impl<'a> GlyphBrushBuilder<'a> {
@@ -566,6 +601,7 @@ impl<'a> GlyphBrushBuilder<'a> {
             gpu_cache_position_tolerance: 1.0,
             cache_glyph_positioning: true,
             cache_glyph_drawing: true,
+            depth_test: gfx::preset::depth::PASS_TEST,
         }
     }
 
@@ -627,6 +663,29 @@ impl<'a> GlyphBrushBuilder<'a> {
         self
     }
 
+    /// Sets the depth test to use on the text section **z** values.
+    ///
+    /// Defaults to: *Always pass the depth test, never write to the depth buffer write*
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # extern crate gfx;
+    /// # extern crate gfx_glyph;
+    /// # use gfx_glyph::GlyphBrushBuilder;
+    /// # fn main() {
+    /// # let some_font: &[u8] = include_bytes!("../examples/Arial Unicode.ttf");
+    /// GlyphBrushBuilder::using_font(some_font)
+    ///     .depth_test(gfx::preset::depth::LESS_EQUAL_WRITE)
+    ///     // ...
+    /// # ;
+    /// # }
+    /// ```
+    pub fn depth_test(mut self, depth_test: gfx::state::Depth) -> Self {
+        self.depth_test = depth_test;
+        self
+    }
+
     /// Builds a `GlyphBrush` using the input gfx factory
     pub fn build<R, F>(self, mut factory: F) -> GlyphBrush<'a, R, F>
         where R: gfx::Resources, F: gfx::Factory<R>
@@ -653,6 +712,8 @@ impl<'a> GlyphBrushBuilder<'a> {
             gpu_cache_position_tolerance: self.gpu_cache_position_tolerance,
             cache_glyph_positioning: self.cache_glyph_positioning,
             cache_glyph_drawing: self.cache_glyph_drawing && self.cache_glyph_positioning,
+
+            depth_test: self.depth_test,
         }
     }
 }
@@ -689,6 +750,7 @@ fn text_vertices(glyphs: &[PositionedGlyph],
                  cache: &Cache,
                  bounds: Rect<f32>,
                  color: [f32; 4],
+                 z: f32,
                  (screen_width, screen_height): (f32, f32)) -> Vec<GlyphVertex> {
     let origin = point(0.0, 0.0);
     let mut vertices = Vec::with_capacity(glyphs.len() * 6);
@@ -748,32 +810,32 @@ fn text_vertices(glyphs: &[PositionedGlyph],
 
             vertices.extend_from_slice(&[
                 GlyphVertex {
-                    pos: [gl_rect.min.x, gl_rect.max.y],
+                    pos: [gl_rect.min.x, gl_rect.max.y, z],
                     tex_pos: [uv_rect.min.x, uv_rect.max.y],
                     color,
                 },
                 GlyphVertex {
-                    pos: [gl_rect.min.x, gl_rect.min.y],
+                    pos: [gl_rect.min.x, gl_rect.min.y, z],
                     tex_pos: [uv_rect.min.x, uv_rect.min.y],
                     color,
                 },
                 GlyphVertex {
-                    pos: [gl_rect.max.x, gl_rect.min.y],
+                    pos: [gl_rect.max.x, gl_rect.min.y, z],
                     tex_pos: [uv_rect.max.x, uv_rect.min.y],
                     color,
                 },
                 GlyphVertex {
-                    pos: [gl_rect.max.x, gl_rect.min.y],
+                    pos: [gl_rect.max.x, gl_rect.min.y, z],
                     tex_pos: [uv_rect.max.x, uv_rect.min.y],
                     color,
                 },
                 GlyphVertex {
-                    pos: [gl_rect.max.x, gl_rect.max.y],
+                    pos: [gl_rect.max.x, gl_rect.max.y, z],
                     tex_pos: [uv_rect.max.x, uv_rect.max.y],
                     color,
                 },
                 GlyphVertex {
-                    pos: [gl_rect.min.x, gl_rect.max.y],
+                    pos: [gl_rect.min.x, gl_rect.max.y, z],
                     tex_pos: [uv_rect.min.x, uv_rect.max.y],
                     color,
                 }]);
