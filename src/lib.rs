@@ -227,46 +227,46 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
 
     /// Returns the pixel bounding box for the input section using a custom layout.
     /// The box is a conservative whole number pixel rectangle that can contain the section.
+    ///
+    /// If the section is empty or would result in no drawn glyphs will return `None`
     pub fn pixel_bounds_custom_layout<'a, S, L, U>(&mut self, section: S, custom_layout: &L)
-        -> Rect<i32>
+        -> Option<Rect<i32>>
         where L: GlyphPositioner + Hash,
               U: LineBreaker, // not used, overridden by custom layout
               S: Into<Section<'a, U>>,
     {
         let section = section.into();
-        let mut x = (i32::MAX, i32::MIN);
-        let mut y = (i32::MAX, i32::MIN);
+        let mut x = (0, 0);
+        let mut y = (0, 0);
         let mut no_match = true;
 
         let section_hash = self.cache_glyphs(&section, custom_layout);
 
         for g in &self.calculate_glyph_cache[&section_hash].glyphs {
-            no_match = false;
             if let Some(Rect{ min, max }) = g.pixel_bounding_box() {
-                if min.x < x.0 { x.0 = min.x; }
-                if min.y < y.0 { y.0 = min.y; }
-                if max.x > x.1 { x.1 = max.x; }
-                if max.y > y.1 { y.1 = max.y; }
+                if no_match || min.x < x.0 { x.0 = min.x; }
+                if no_match || min.y < y.0 { y.0 = min.y; }
+                if no_match || max.x > x.1 { x.1 = max.x; }
+                if no_match || max.y > y.1 { y.1 = max.y; }
+
+                no_match = false;
             }
         }
 
-        if no_match {
-            Rect {
-                min: Point { x: 0, y: 0 },
-                max: Point { x: 1, y: 1 },
-            }
-        }
+        if no_match { None }
         else {
-            Rect {
+            Some(Rect {
                 min: Point { x: x.0, y: y.0 },
                 max: Point { x: x.1, y: y.1 },
-            }
+            })
         }
     }
 
     /// Returns the pixel bounding box for the input section. The box is a conservative
     /// whole number pixel rectangle that can contain the section.
-    pub fn pixel_bounds<'a, S, L>(&mut self, section: S) -> Rect<i32>
+    ///
+    /// If the section is empty or would result in no drawn glyphs will return `None`
+    pub fn pixel_bounds<'a, S, L>(&mut self, section: S) -> Option<Rect<i32>>
         where L: LineBreaker,
             S: Into<Section<'a, L>>,
     {
@@ -598,7 +598,7 @@ impl<'a> GlyphBrushBuilder<'a> {
             font: font.into(),
             initial_cache_size: (256, 256),
             gpu_cache_scale_tolerance: 0.5,
-            gpu_cache_position_tolerance: 1.0,
+            gpu_cache_position_tolerance: 0.1,
             cache_glyph_positioning: true,
             cache_glyph_drawing: true,
             depth_test: gfx::preset::depth::PASS_TEST,
@@ -630,7 +630,7 @@ impl<'a> GlyphBrushBuilder<'a> {
     /// to reuse an existing glyph in the GPU cache. Anything greater than or equal to
     /// 1.0 means "don't care".
     ///
-    /// Defaults to `1.0`
+    /// Defaults to `0.1`
     ///
     /// See rusttype docs for `rusttype::gpu_cache::Cache`
     pub fn gpu_cache_position_tolerance(mut self, tolerance: f32) -> Self {

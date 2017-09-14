@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd $dir
+
+if [ "${1:-}" == "--help" ] || [ "${1:-}" == "-h" ]; then
+  echo "Micro-benchmarks for gfx_glyph"
+  echo "  Setup a control / starting values to compare against"
+  echo "  > ./bench --control"
+  echo ''
+  echo '  With a control recorded, re-evaluate and compare:'
+  echo '  > ./bench'
+  echo ''
+  echo '  Can also add cargo-benchcmp arguments to change the comparison output'
+  echo '  > ./bench --threshold 2'
+  exit 0
+fi
+
+if [ "${1:-}" == "--control" ]; then
+  echo 'running bench > benches/control.stdout' >&2
+  rustup run nightly cargo bench --features bench \
+    | tee benches/control.stdout \
+    | grep --color=never 'bench:'
+  exit 0
+fi
+
+if [ ! -f benches/control.stdout ]; then
+  echo 'benches/control.stdout missing, will not perform a benchmark comparison' >&2
+  echo '  run `./bench --control` to generate from the current source' >&2
+  # just run a bench
+  rustup run nightly cargo bench --features bench
+else
+  echo 'running bench > benches/change.stdout' >&2
+
+  rustup run nightly cargo bench --features bench \
+    | tee benches/change.stdout \
+    | grep --color=never 'bench:'
+
+  echo ''
+
+  cargo benchcmp benches/control.stdout benches/change.stdout "$@"
+fi

@@ -43,6 +43,7 @@ fn main() {
 
     let mut glyph_brush = GlyphBrushBuilder::using_font(include_bytes!("Arial Unicode.ttf") as &[u8])
         .initial_cache_size((2048, 2048))
+        .gpu_cache_position_tolerance(1.0)
         .build(factory.clone());
 
     let mut text: String = include_str!("100000_items.txt").into();
