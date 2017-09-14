@@ -45,7 +45,6 @@ fn main() {
 
     let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(include_bytes!("Arial Unicode.ttf") as &[u8])
         .initial_cache_size((1024, 1024))
-        .gpu_cache_position_tolerance(0.2)
         .build(factory.clone());
 
     let mut text: String = include_str!("lipsum.txt").into();

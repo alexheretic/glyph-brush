@@ -55,6 +55,8 @@ Have a look at
   * `Section<'a, L>` are now generic to allow pluggable `LineBreaker` logic in the layout. This is a little unfortunate for the API surface.
 * Remove unnecessary `OwnedSection` and `StaticSection` to simplify the API.
 * `pixel_bounding_box` renamed to `pixel_bounds` & `pixel_bounds_custom_layout`
+  * These now return `Option<_>` to handle the bounds of 'nothing' properly
+* `GlyphBrushBuilder` `gpu_cache_position_tolerance` default reduced to 0.1 (from 1.0)
 
 **0.3**
 * Use `Into<SharedBytes>` instead of explicit `&[u8]` for font byte input to improve flexibility.
