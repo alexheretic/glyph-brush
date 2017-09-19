@@ -214,6 +214,9 @@ pub struct GlyphBrush<'a, R: gfx::Resources, F: gfx::Factory<R>>{
     // to be rendered on the next `draw_queued` call
     section_buffer: Vec<u64>,
 
+    // Set of section hashs to keep in the glyph cache this frame even if they haven't been drawn
+    keep_in_cache: HashSet<u64>,
+
     // config
     gpu_cache_scale_tolerance: f32,
     gpu_cache_position_tolerance: f32,
@@ -241,6 +244,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         let mut no_match = true;
 
         let section_hash = self.cache_glyphs(&section, custom_layout);
+        self.keep_in_cache.insert(section_hash);
 
         for g in &self.calculate_glyph_cache[&section_hash].glyphs {
             if let Some(Rect{ min, max }) = g.pixel_bounding_box() {
@@ -521,8 +525,14 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     fn clear_section_buffer(&mut self) {
         if self.cache_glyph_positioning {
             // clear section_buffer & trim calculate_glyph_cache to active sections
-            let mut active = HashSet::with_capacity(self.section_buffer.len());
+            let mut active = HashSet::with_capacity(
+                self.section_buffer.len() + self.keep_in_cache.len()
+            );
+                
             for h in self.section_buffer.drain(..) {
+                active.insert(h);
+            }
+            for h in self.keep_in_cache.drain() {
                 active.insert(h);
             }
             self.calculate_glyph_cache.retain(|key, _| active.contains(key));
@@ -530,6 +540,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         else {
             self.section_buffer.clear();
             self.calculate_glyph_cache.clear();
+            self.keep_in_cache.clear();
         }
     }
 
@@ -707,6 +718,7 @@ impl<'a> GlyphBrushBuilder<'a> {
             draw_cache: None,
             section_buffer: Vec::new(),
             calculate_glyph_cache: HashMap::new(),
+            keep_in_cache: HashSet::new(),
 
             gpu_cache_scale_tolerance: self.gpu_cache_scale_tolerance,
             gpu_cache_position_tolerance: self.gpu_cache_position_tolerance,
