@@ -36,6 +36,12 @@ pub enum BuiltInLineBreaker {
     AnyCharLineBreaker,
 }
 
+impl Default for BuiltInLineBreaker {
+    fn default() -> Self {
+        BuiltInLineBreaker::StandardLineBreaker
+    }
+}
+
 // Iterator that indicates all characters are soft line breaks, except hard ones which are hard.
 struct AnyCharLineBreakerIter<'a> {
     chars: iter::Enumerate<Skip<Recompositions<Chars<'a>>>>,
