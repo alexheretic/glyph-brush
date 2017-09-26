@@ -99,13 +99,13 @@ fn main() {
         let (width, height, ..) = main_color.get_dimensions();
 
         // The section is all the info needed for the glyph brush to render a 'section' of text
-        // can use `..Section::default()` to skip the bits you don't care about
-        let section = Section {
+        // can use `..SimpleSection::default()` to skip the bits you don't care about
+        let section = SimpleSection {
             text: &text,
             scale: font_size,
             bounds: (width as f32, height as f32),
             color: [0.8, 0.8, 0.8, 1.0],
-            ..Section::default()
+            ..SimpleSection::default()
         };
 
         // Custom layout logic to render the glyphs is allowed by implementing
@@ -118,7 +118,7 @@ fn main() {
         // can be called multiple times for different sections that want to use the same
         // font and gpu cache
         // This step computes the glyph positions, this is cached to avoid unnecessary recalculation
-        glyph_brush.queue_custom_layout(section, &layout);
+        glyph_brush.queue_custom_layout(&section, &layout);
 
         // Finally once per frame you want to actually draw all the sections you've submitted
         // with `queue` calls.
@@ -149,31 +149,28 @@ pub struct CustomContiguousParagraphLayout;
 impl gfx_glyph::GlyphPositioner for CustomContiguousParagraphLayout {
 
     /// Calculate a sequence of positioned glyphs to render
-    fn calculate_glyphs<'a, G>(&self, font: &Font, section: G)
-        -> Vec<PositionedGlyph>
-        where G: Into<GlyphInfo<'a>>
+    fn calculate_glyphs<'a, G: Into<SectionGlyphInfo<'a>>>(&self, font: &Font, section: G)
+        -> Vec<(Vec<PositionedGlyph>, [f32; 4])>
     {
         let mut glyph_info = section.into();
         let original_screen_x = glyph_info.screen_position.0;
         let original_bound_w = glyph_info.bounds.0;
 
-        let v_metrics = font.v_metrics(glyph_info.scale);
-        let advance_height = v_metrics.ascent - v_metrics.descent + v_metrics.line_gap;
-
         let mut out = vec![];
         loop {
-            let (glyphs, leftover) = Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left)
+            let (glyphs, leftover) = Layout::SingleLine(BuiltInLineBreaker::AnyCharLineBreaker, HorizontalAlign::Left)
                 .calculate_glyphs_and_leftover(font, &glyph_info);
             out.extend_from_slice(&glyphs);
             match leftover {
-                Some(LayoutLeftover::HardBreak(point, leftover)) => {
+                Some(LayoutLeftover::HardBreak(point, leftover, _)) => {
                     // ignore newlines just keep rendering on the same line
                     glyph_info = leftover;
                     glyph_info.screen_position.0 = point.x;
                     glyph_info.bounds.0 = original_bound_w - (point.x - original_screen_x);
                 }
-                Some(LayoutLeftover::OutOfWidthBound(_, leftover)) => {
+                Some(LayoutLeftover::OutOfWidthBound(_, leftover, v_metrics)) => {
                     // use the next line when we run out of width
+                    let advance_height = v_metrics.ascent - v_metrics.descent + v_metrics.line_gap;
                     glyph_info = leftover;
                     glyph_info.screen_position.1 += advance_height;
                     glyph_info.screen_position.0 = original_screen_x;
@@ -187,7 +184,7 @@ impl gfx_glyph::GlyphPositioner for CustomContiguousParagraphLayout {
         out
     }
     /// Bounds rectangle is the same as built-in left align
-    fn bounds_rect<'a, G: Into<GlyphInfo<'a>>>(&self, section: G) -> Rect<f32> {
-        Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left).bounds_rect(section)
+    fn bounds_rect<'a, G: Into<SectionGlyphInfo<'a>>>(&self, section: G) -> Rect<f32> {
+        Layout::SingleLine(BuiltInLineBreaker::AnyCharLineBreaker, HorizontalAlign::Left).bounds_rect(section)
     }
 }

@@ -58,8 +58,10 @@ extern crate xi_unicode;
 extern crate linked_hash_map;
 
 mod section;
+mod simple_section;
 mod layout;
 mod gpu_cache;
+mod linebreak;
 
 use gfx::traits::FactoryExt;
 use rusttype::{FontCollection, point, vector};
@@ -76,7 +78,9 @@ use std::time::*;
 use std::fmt;
 
 pub use section::*;
+pub use simple_section::*;
 pub use layout::*;
+pub use linebreak::*;
 
 /// Aliased type to allow lib usage without declaring underlying **rusttype** lib
 pub type Font<'a> = rusttype::Font<'a>;
@@ -100,6 +104,8 @@ pub type HMetrics = rusttype::HMetrics;
 pub type VMetrics = rusttype::VMetrics;
 /// Aliased type to allow lib usage without declaring underlying **rusttype** lib
 pub type GlyphId = rusttype::GlyphId;
+
+pub(crate) type Color = [f32; 4];
 
 // Type for the generated glyph cache texture
 type TexForm = format::U8Norm;
@@ -264,11 +270,10 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     /// The box is a conservative whole number pixel rectangle that can contain the section.
     ///
     /// If the section is empty or would result in no drawn glyphs will return `None`
-    pub fn pixel_bounds_custom_layout<'a, S, L, U>(&mut self, section: S, custom_layout: &L)
+    pub fn pixel_bounds_custom_layout<'a, S, L>(&mut self, section: S, custom_layout: &L)
         -> Option<Rect<i32>>
         where L: GlyphPositioner + Hash,
-              U: LineBreaker, // not used, overridden by custom layout
-              S: Into<Section<'a, U>>,
+              S: Into<Section2<'a>>,
     {
         let section = section.into();
         let mut x = (0, 0);
@@ -278,7 +283,10 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         let section_hash = self.cache_glyphs(&section, custom_layout);
         self.keep_in_cache.insert(section_hash);
 
-        for g in &self.calculate_glyph_cache[&section_hash].glyphs {
+        for g in self.calculate_glyph_cache[&section_hash]
+            .glyphs.iter()
+            .flat_map(|&(ref g, _)| g.iter())
+        {
             if let Some(Rect{ min, max }) = g.pixel_bounding_box() {
                 if no_match || min.x < x.0 { x.0 = min.x; }
                 if no_match || min.y < y.0 { y.0 = min.y; }
@@ -302,12 +310,12 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     /// whole number pixel rectangle that can contain the section.
     ///
     /// If the section is empty or would result in no drawn glyphs will return `None`
-    pub fn pixel_bounds<'a, S, L>(&mut self, section: S) -> Option<Rect<i32>>
-        where L: LineBreaker,
-            S: Into<Section<'a, L>>,
+    pub fn pixel_bounds<'a, S>(&mut self, section: S) -> Option<Rect<i32>>
+        where S: Into<Section2<'a>>,
     {
         let section = section.into();
-        self.pixel_bounds_custom_layout(section, &section.layout)
+        let layout = section.layout;
+        self.pixel_bounds_custom_layout(section, &layout)
     }
 
     /// Queues a section/layout to be drawn by the next call of
@@ -316,10 +324,9 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     ///
     /// Used to provide custom `GlyphPositioner` logic, if using built-in
     /// [`Layout`](enum.Layout.html) simply use [`queue`](struct.GlyphBrush.html#method.queue)
-    pub fn queue_custom_layout<'a, S, G, U>(&mut self, section: S, custom_layout: &G)
+    pub fn queue_custom_layout<'a, S, G>(&mut self, section: S, custom_layout: &G)
         where G: GlyphPositioner,
-              U: LineBreaker, // not used, overridden by custom layout
-              S: Into<Section<'a, U>>
+              S: Into<Section2<'a>>
     {
         let section = section.into();
         let section_hash = self.cache_glyphs(&section, custom_layout);
@@ -329,18 +336,17 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     /// Queues a section/layout to be drawn by the next call of
     /// [`draw_queued`](struct.GlyphBrush.html#method.draw_queued). Can be called multiple times
     /// to queue multiple sections for drawing.
-    pub fn queue<'a, S, L>(&mut self, section: S)
-        where L: LineBreaker,
-              S: Into<Section<'a, L>>,
+    pub fn queue<'a, S>(&mut self, section: S)
+        where S: Into<Section2<'a>>,
     {
         let section = section.into();
-        self.queue_custom_layout(section, &section.layout)
+        let layout = section.layout;
+        self.queue_custom_layout(section, &layout)
     }
 
     /// Returns the calculate_glyph_cache key for this sections glyphs
-    fn cache_glyphs<L, U>(&mut self, section: &Section<U>, layout: &L) -> u64
+    fn cache_glyphs<L>(&mut self, section: &Section2, layout: &L) -> u64
         where L: GlyphPositioner,
-              U: LineBreaker,
     {
         let start = Instant::now();
         let section_hash = hash(&(section, layout));
@@ -348,19 +354,17 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         if self.cache_glyph_positioning {
             if let Entry::Vacant(entry) = self.calculate_glyph_cache.entry(section_hash) {
                 entry.insert(GlyphedSection {
-                    color: section.color,
                     bounds: layout.bounds_rect(section),
-                    z: section.z,
                     glyphs: layout.calculate_glyphs(&self.font, section),
+                    z: section.z,
                 });
             }
         }
         else {
             self.calculate_glyph_cache.insert(section_hash, GlyphedSection {
-                color: section.color,
                 bounds: layout.bounds_rect(section),
-                z: section.z,
                 glyphs: layout.calculate_glyphs(&self.font, section),
+                z: section.z,
             });
         }
         trace!("layout.calculate_glyphs in {:.3}ms",
@@ -418,7 +422,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
 
                 for section_hash in &self.section_buffer {
                     let GlyphedSection{ ref glyphs, .. } = self.calculate_glyph_cache[section_hash];
-                    for glyph in glyphs {
+                    for glyph in glyphs.iter().flat_map(|s| s.0.iter()) {
                         self.font_cache.queue_glyph(FONT_CACHE_ID, glyph.clone());
                         no_text = false;
                     }
@@ -472,15 +476,20 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
 
             let verts: Vec<GlyphVertex> = self.section_buffer.iter()
                 .flat_map(|section_hash| {
-                    let GlyphedSection{ ref glyphs, color, bounds, z }
+                    let GlyphedSection{ ref glyphs, bounds, z }
                         = self.calculate_glyph_cache[section_hash];
-                    text_vertices(
-                        glyphs,
-                        &self.font_cache,
-                        bounds,
-                        color,
-                        z,
-                        (screen_width as f32, screen_height as f32))
+
+                    glyphs.iter()
+                        .flat_map(|&(ref glyphs, color)| {
+                            text_vertices(
+                                &glyphs,
+                                &self.font_cache,
+                                bounds,
+                                color,
+                                z,
+                                (screen_width as f32, screen_height as f32))
+                        })
+                        .collect::<Vec<_>>()
                 })
                 .collect();
 
@@ -600,10 +609,9 @@ struct DrawnGlyphBrush<R: gfx::Resources> {
 
 #[derive(Clone)]
 struct GlyphedSection {
-    color: [f32; 4],
     bounds: Rect<f32>,
+    glyphs: Vec<(Vec<PositionedGlyph>, Color)>,
     z: f32,
-    glyphs: Vec<PositionedGlyph>,
 }
 
 /// Builder for a [`GlyphBrush`](struct.GlyphBrush.html).
