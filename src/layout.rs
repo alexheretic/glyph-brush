@@ -54,6 +54,7 @@ pub struct GlyphInfo<'a> {
     skip: usize,
     pub scale: Scale,
     pub color: Color,
+    pub font_id: FontId,
 }
 
 impl<'a> GlyphInfo<'a> {
@@ -83,12 +84,13 @@ impl<'a> GlyphInfo<'a> {
 
 impl<'a> From<SectionText<'a>> for GlyphInfo<'a> {
     fn from(section: SectionText<'a>) -> Self {
-        let SectionText { text, scale, color, .. } = section;
+        let SectionText { text, scale, color, font_id, .. } = section;
         Self {
             text,
             scale,
             skip: 0,
             color,
+            font_id,
         }
     }
 }
@@ -99,8 +101,8 @@ pub trait GlyphPositioner: Hash {
     /// Calculate a sequence of positioned glyphs to render. Custom implementations should always
     /// return the same result when called with the same arguments. If not consider disabling
     /// [`cache_glyph_positioning`](struct.GlyphBrushBuilder.html#method.cache_glyph_positioning).
-    fn calculate_glyphs<'a, G>(&self, font: &Font, section: G)
-        -> Vec<(Vec<PositionedGlyph>, Color)>
+    fn calculate_glyphs<'a, G>(&self, font: &HashMap<FontId, Font>, section: G)
+        -> Vec<(Vec<PositionedGlyph>, Color, FontId)>
         where G: Into<SectionGlyphInfo<'a>>;
     /// Return a rectangle according to the requested render position and bounds appropriate
     /// for the glyph layout.
@@ -132,17 +134,20 @@ impl Default for Layout<BuiltInLineBreaker> {
 }
 
 impl<L: LineBreaker> GlyphPositioner for Layout<L> {
-    fn calculate_glyphs<'a, G: Into<SectionGlyphInfo<'a>>>(&self, font: &Font, section: G)
-        -> Vec<(Vec<PositionedGlyph>, Color)>
-    {
-        self.calculate_glyphs_and_leftover(font, &section.into()).0
+    fn calculate_glyphs<'a, G: Into<SectionGlyphInfo<'a>>>(
+        &self,
+        font_map: &HashMap<FontId, Font>,
+        section: G,
+    ) -> Vec<(Vec<PositionedGlyph>, Color, FontId)> {
+        self.calculate_glyphs_and_leftover(font_map, &section.into()).0
     }
 
     fn bounds_rect<'a, G: Into<SectionGlyphInfo<'a>>>(&self, section: G) -> Rect<f32> {
         let SectionGlyphInfo {
             screen_position: (screen_x, screen_y),
             bounds: (bound_w, bound_h),
-            .. } = section.into();
+            ..
+        } = section.into();
         match *self {
             Layout::SingleLine(_, HorizontalAlign::Left) |
             Layout::Wrap(_, HorizontalAlign::Left) => Rect {
@@ -162,6 +167,7 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
         }
     }
 }
+
 
 /// Describes horizontal alignment preference for positioning & bounds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -207,14 +213,18 @@ pub enum LayoutLeftover<'a> {
 }
 
 impl<L: LineBreaker> Layout<L> {
-    pub fn calculate_glyphs_and_leftover<'a>(&self, font: &Font, section: &SectionGlyphInfo<'a>)
-        -> (Vec<(Vec<PositionedGlyph>, Color)>, Option<LayoutLeftover<'a>>)
-    {
+    pub fn calculate_glyphs_and_leftover<'a>(
+        &self,
+        font_map: &HashMap<FontId, Font>,
+        section: &SectionGlyphInfo<'a>,
+    ) -> (Vec<(Vec<PositionedGlyph>, Color, FontId)>, Option<LayoutLeftover<'a>>) {
         match *self {
-            Layout::SingleLine(line_breaker, h_align) =>
-                single_line(font, line_breaker, h_align, section),
-            Layout::Wrap(line_breaker, h_align) =>
-                paragraph(font, line_breaker, h_align, section.clone()),
+            Layout::SingleLine(line_breaker, h_align) => {
+                single_line(font_map, line_breaker, h_align, section)
+            }
+            Layout::Wrap(line_breaker, h_align) => {
+                paragraph(font_map, line_breaker, h_align, section.clone())
+            }
         }
     }
 }
@@ -223,18 +233,18 @@ impl<L: LineBreaker> Layout<L> {
 /// the top-left corner.
 /// Returns (positioned-glyphs, text that could not be positioned (outside bounds))
 fn single_line<'a, L: LineBreaker>(
-    font: &Font,
+    font_map: &HashMap<FontId, Font>,
     line_breaker: L,
     h_align: HorizontalAlign,
-    section_glyph_info: &SectionGlyphInfo<'a>)
-    -> (Vec<(Vec<PositionedGlyph>, Color)>, Option<LayoutLeftover<'a>>)
-{
+    section_glyph_info: &SectionGlyphInfo<'a>,
+) -> (Vec<(Vec<PositionedGlyph>, Color, FontId)>, Option<LayoutLeftover<'a>>) {
+
     let SectionGlyphInfo {
         screen_position: (screen_x, screen_y),
         bounds: (bound_w, bound_h),
         .. } = *section_glyph_info;
 
-    let mut result: Vec<(Vec<PositionedGlyph>, _)> = Vec::new();
+    let mut result: Vec<(Vec<PositionedGlyph>, _, _)> = Vec::new();
     let mut leftover = None;
 
     let mut caret = point(0.0, 0.0);
@@ -264,7 +274,8 @@ fn single_line<'a, L: LineBreaker>(
     };
 
     'sections: for (info_index, glyph_info) in section_glyph_info.remaining_info() {
-        let GlyphInfo { scale, color, .. } = *glyph_info;
+        let GlyphInfo { scale, color, font_id, .. } = *glyph_info;
+        let font = &font_map[&font_id];
 
         let mut v_metrics = font.v_metrics(scale);
         if let Some(max) = max_line_v {
@@ -309,7 +320,7 @@ fn single_line<'a, L: LineBreaker>(
                     ));
                     if !glyphs.is_empty() {
                         shift_previous_ascent_by!(ascent_adjustment);
-                        result.push((glyphs, color));
+                        result.push((glyphs, color, font_id));
                     }
                     break 'sections;
                 }
@@ -343,7 +354,7 @@ fn single_line<'a, L: LineBreaker>(
                             ));
                             if !glyphs.is_empty() {
                                 shift_previous_ascent_by!(ascent_adjustment);
-                                result.push((glyphs, color));
+                                result.push((glyphs, color, font_id));
                             }
                             break 'sections;
                         }
@@ -374,7 +385,7 @@ fn single_line<'a, L: LineBreaker>(
                     }
                     if !glyphs.is_empty() {
                         shift_previous_ascent_by!(ascent_adjustment);
-                        result.push((glyphs, color));
+                        result.push((glyphs, color, font_id));
                     }
                     break 'sections;
                 }
@@ -395,7 +406,7 @@ fn single_line<'a, L: LineBreaker>(
             if shift_previous_ascent_by!(ascent_adjustment) {
                 max_line_v = Some(v_metrics);
             }
-            result.push((glyphs, color));
+            result.push((glyphs, color, font_id));
         }
 
         if let Some(idx) = vertically_hidden_tail_start {
@@ -450,18 +461,18 @@ fn single_line<'a, L: LineBreaker>(
 }
 
 fn paragraph<'a, L: LineBreaker>(
-    font: &Font,
+    font_map: &HashMap<FontId, Font>,
     line_breaker: L,
     h_align: HorizontalAlign,
     mut section: SectionGlyphInfo<'a>)
-    -> (Vec<(Vec<PositionedGlyph>, Color)>, Option<LayoutLeftover<'a>>)
+    -> (Vec<(Vec<PositionedGlyph>, Color, FontId)>, Option<LayoutLeftover<'a>>)
 {
     let mut out = vec![];
     let mut paragraph_leftover = None;
 
     loop {
         let (glyphs, mut leftover) = Layout::SingleLine(line_breaker, h_align)
-            .calculate_glyphs_and_leftover(font, &section);
+            .calculate_glyphs_and_leftover(font_map, &section);
         out.extend_from_slice(&glyphs);
         if leftover.is_none() { break; }
 
@@ -531,9 +542,12 @@ mod layout_test {
         ($layout:expr, $section:expr) => {{
             let _ = ::pretty_env_logger::init();
 
+            let mut font_map = HashMap::new();
+            font_map.insert(FontId(0), A_FONT.clone());
+
             let (all_glyphs, leftover) = $layout
                 .calculate_glyphs_and_leftover(
-                    &A_FONT,
+                    &font_map,
                     &SectionGlyphInfo::from(&$section.into())
                 );
 

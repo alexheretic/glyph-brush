@@ -33,6 +33,8 @@ pub struct SimpleSection<'a> {
     /// Built in layout, can overridden with custom layout logic
     /// see [`queue_custom_layout`](struct.GlyphBrush.html#method.queue_custom_layout)
     pub layout: Layout<BuiltInLineBreaker>,
+
+    pub font_id: FontId,
 }
 
 impl Default for SimpleSection<'static> {
@@ -45,6 +47,7 @@ impl Default for SimpleSection<'static> {
             color: [0.0, 0.0, 0.0, 1.0],
             z: 0.0,
             layout: Layout::default(),
+            font_id: FontId::default(),
         }
     }
 }
@@ -59,6 +62,7 @@ impl<'a, 'b> From<&'b SimpleSection<'a>> for Section2<'a> {
             bounds,
             z,
             layout,
+            font_id,
         } = *s;
 
         Section2 {
@@ -66,6 +70,7 @@ impl<'a, 'b> From<&'b SimpleSection<'a>> for Section2<'a> {
                 text,
                 scale,
                 color,
+                font_id,
                 ..SectionText::default()
             }],
             screen_position,

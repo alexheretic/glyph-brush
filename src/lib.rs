@@ -62,11 +62,13 @@ mod simple_section;
 mod layout;
 mod gpu_cache;
 mod linebreak;
+mod pipe;
+mod builder;
 
 use gfx::traits::FactoryExt;
 use rusttype::{FontCollection, point, vector};
 use gpu_cache::Cache;
-use gfx::{handle, texture, format, preset, state};
+use gfx::{handle, texture, format};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use gfx_core::memory::Typed;
@@ -75,12 +77,13 @@ use std::error::Error;
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry;
 use std::time::*;
-use std::fmt;
+use pipe::*;
 
 pub use section::*;
 pub use simple_section::*;
 pub use layout::*;
 pub use linebreak::*;
+pub use builder::*;
 
 /// Aliased type to allow lib usage without declaring underlying **rusttype** lib
 pub type Font<'a> = rusttype::Font<'a>;
@@ -115,82 +118,12 @@ type TexFormView = <TexForm as format::Formatted>::View;
 type TexSurfaceHandle<R> = handle::Texture<R, TexSurface>;
 type TexShaderView<R> = handle::ShaderResourceView<R, TexFormView>;
 
-// Each brush is limited to a single font, so just use 0
-const FONT_CACHE_ID: usize = 0;
-
 const IDENTITY_MATRIX4: [[f32; 4]; 4] = [
     [1.0, 0.0, 0.0, 0.0],
     [0.0, 1.0, 0.0, 0.0],
     [0.0, 0.0, 1.0, 0.0],
     [0.0, 0.0, 0.0, 1.0],
 ];
-
-// Inner module used to avoid public access
-mod gfx_structs {
-    use super::*;
-    use gfx::*;
-    use gfx::pso::*;
-    use gfx_core::pso;
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-    pub struct RawDepthTarget;
-
-    impl<'a> DataLink<'a> for RawDepthTarget {
-        type Init = (format::Format, state::Depth);
-        fn new() -> Self { RawDepthTarget }
-        fn is_active(&self) -> bool { true }
-        fn link_depth_stencil(&mut self, init: &Self::Init) -> Option<pso::DepthStencilDesc> {
-            Some((init.0, init.1.into()))
-        }
-    }
-
-    impl<R: Resources> DataBind<R> for RawDepthTarget {
-        type Data = handle::RawDepthStencilView<R>;
-        fn bind_to(&self,
-                   out: &mut RawDataSet<R>,
-                   data: &Self::Data,
-                   man: &mut handle::Manager<R>,
-                   _: &mut AccessInfo<R>) {
-            let dsv = data;
-            out.pixel_targets.add_depth_stencil(man.ref_dsv(dsv), true, false, dsv.get_dimensions());
-        }
-    }
-
-    gfx_defines!{
-        vertex GlyphVertex {
-            pos: [f32; 3] = "pos",
-            tex_pos: [f32; 2] = "tex_pos",
-            color: [f32; 4] = "color",
-        }
-    }
-
-    gfx_pipeline_base!( glyph_pipe {
-        vbuf: VertexBuffer<GlyphVertex>,
-        font_tex: TextureSampler<TexFormView>,
-        transform: Global<[[f32; 4]; 4]>,
-        out: RawRenderTarget,
-        out_depth: RawDepthTarget,
-    });
-
-    impl<'a> glyph_pipe::Init<'a> {
-        pub fn new(
-            color_format: format::Format,
-            depth_format: format::Format,
-            depth_test: state::Depth)
-            -> Self
-        {
-            glyph_pipe::Init {
-                vbuf: (),
-                font_tex: "font_tex",
-                transform: "transform",
-                out: ("Target0", color_format, state::ColorMask::all(), Some(preset::blend::ALPHA)),
-                out_depth: (depth_format, depth_test),
-            }
-        }
-    }
-}
-
-use gfx_structs::*;
 
 fn hash<H: Hash>(hashable: &H) -> u64 {
     let mut s = DefaultHasher::new();
@@ -238,7 +171,7 @@ fn hash<H: Hash>(hashable: &H) -> u64 {
 /// # }
 /// ```
 pub struct GlyphBrush<'a, R: gfx::Resources, F: gfx::Factory<R>>{
-    font: rusttype::Font<'a>,
+    fonts: HashMap<FontId, rusttype::Font<'a>>,
     font_cache: Cache,
     font_cache_tex: (gfx::handle::Texture<R, TexSurface>, gfx_core::handle::ShaderResourceView<R, f32>),
     factory: F,
@@ -285,7 +218,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
 
         for g in self.calculate_glyph_cache[&section_hash]
             .glyphs.iter()
-            .flat_map(|&(ref g, _)| g.iter())
+            .flat_map(|&(ref g, ..)| g.iter())
         {
             if let Some(Rect{ min, max }) = g.pixel_bounding_box() {
                 if no_match || min.x < x.0 { x.0 = min.x; }
@@ -329,6 +262,11 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
               S: Into<Section2<'a>>
     {
         let section = section.into();
+        if cfg!(debug_assertions) {
+            for text in &section.text {
+                assert!(self.fonts.contains_key(&text.font_id));
+            }
+        }
         let section_hash = self.cache_glyphs(&section, custom_layout);
         self.section_buffer.push(section_hash);
     }
@@ -355,7 +293,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
             if let Entry::Vacant(entry) = self.calculate_glyph_cache.entry(section_hash) {
                 entry.insert(GlyphedSection {
                     bounds: layout.bounds_rect(section),
-                    glyphs: layout.calculate_glyphs(&self.font, section),
+                    glyphs: layout.calculate_glyphs(&self.fonts, section),
                     z: section.z,
                 });
             }
@@ -363,7 +301,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         else {
             self.calculate_glyph_cache.insert(section_hash, GlyphedSection {
                 bounds: layout.bounds_rect(section),
-                glyphs: layout.calculate_glyphs(&self.font, section),
+                glyphs: layout.calculate_glyphs(&self.fonts, section),
                 z: section.z,
             });
         }
@@ -421,10 +359,13 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                 let mut no_text = true;
 
                 for section_hash in &self.section_buffer {
-                    let GlyphedSection{ ref glyphs, .. } = self.calculate_glyph_cache[section_hash];
-                    for glyph in glyphs.iter().flat_map(|s| s.0.iter()) {
-                        self.font_cache.queue_glyph(FONT_CACHE_ID, glyph.clone());
-                        no_text = false;
+                    let GlyphedSection { ref glyphs, .. } =
+                        self.calculate_glyph_cache[section_hash];
+                    for &(ref glyphs, _, font_id) in glyphs {
+                        for glyph in glyphs {
+                            self.font_cache.queue_glyph(font_id.0, glyph.clone());
+                            no_text = false;
+                        }
                     }
                 }
 
@@ -480,12 +421,13 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                         = self.calculate_glyph_cache[section_hash];
 
                     glyphs.iter()
-                        .flat_map(|&(ref glyphs, color)| {
+                        .flat_map(|&(ref glyphs, color, font_id)| {
                             text_vertices(
                                 &glyphs,
+                                color,
+                                font_id,
                                 &self.font_cache,
                                 bounds,
-                                color,
                                 z,
                                 (screen_width as f32, screen_height as f32))
                         })
@@ -610,186 +552,8 @@ struct DrawnGlyphBrush<R: gfx::Resources> {
 #[derive(Clone)]
 struct GlyphedSection {
     bounds: Rect<f32>,
-    glyphs: Vec<(Vec<PositionedGlyph>, Color)>,
+    glyphs: Vec<(Vec<PositionedGlyph>, Color, FontId)>,
     z: f32,
-}
-
-/// Builder for a [`GlyphBrush`](struct.GlyphBrush.html).
-///
-/// # Example
-///
-/// ```no_run
-/// # extern crate gfx;
-/// # extern crate gfx_window_glutin;
-/// # extern crate glutin;
-/// extern crate gfx_glyph;
-/// use gfx_glyph::GlyphBrushBuilder;
-/// # fn main() {
-/// # let events_loop = glutin::EventsLoop::new();
-/// # let (_window, _device, gfx_factory, _gfx_target, _main_depth) =
-/// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
-/// #         glutin::WindowBuilder::new(),
-/// #         glutin::ContextBuilder::new(),
-/// #         &events_loop);
-///
-/// let arial: &[u8] = include_bytes!("../examples/Arial Unicode.ttf");
-/// let mut glyph_brush = GlyphBrushBuilder::using_font(arial)
-///     .build(gfx_factory.clone());
-/// # let _ = glyph_brush;
-/// # }
-/// ```
-pub struct GlyphBrushBuilder<'a> {
-    font: SharedBytes<'a>,
-    initial_cache_size: (u32, u32),
-    gpu_cache_scale_tolerance: f32,
-    gpu_cache_position_tolerance: f32,
-    cache_glyph_positioning: bool,
-    cache_glyph_drawing: bool,
-    depth_test: gfx::state::Depth,
-}
-
-impl<'a> GlyphBrushBuilder<'a> {
-    /// Specifies the font data used to render glyphs
-    pub fn using_font<B: Into<SharedBytes<'a>>>(font: B) -> Self {
-        GlyphBrushBuilder {
-            font: font.into(),
-            initial_cache_size: (256, 256),
-            gpu_cache_scale_tolerance: 0.5,
-            gpu_cache_position_tolerance: 0.1,
-            cache_glyph_positioning: true,
-            cache_glyph_drawing: true,
-            depth_test: gfx::preset::depth::PASS_TEST,
-        }
-    }
-
-    /// Initial size of 2D texture used as a gpu cache, pixels (width, height).
-    /// The GPU cache will dynamically quadruple in size whenever the current size
-    /// is insufficient.
-    ///
-    /// Defaults to `(256, 256)`
-    pub fn initial_cache_size(mut self, size: (u32, u32)) -> Self {
-        self.initial_cache_size = size;
-        self
-    }
-
-    /// Sets the maximum allowed difference in scale used for judging whether to reuse an
-    /// existing glyph in the GPU cache.
-    ///
-    /// Defaults to `0.5`
-    ///
-    /// See rusttype docs for `rusttype::gpu_cache::Cache`
-    pub fn gpu_cache_scale_tolerance(mut self, tolerance: f32) -> Self {
-        self.gpu_cache_scale_tolerance = tolerance;
-        self
-    }
-
-    /// Sets the maximum allowed difference in subpixel position used for judging whether
-    /// to reuse an existing glyph in the GPU cache. Anything greater than or equal to
-    /// 1.0 means "don't care".
-    ///
-    /// Defaults to `0.1`
-    ///
-    /// See rusttype docs for `rusttype::gpu_cache::Cache`
-    pub fn gpu_cache_position_tolerance(mut self, tolerance: f32) -> Self {
-        self.gpu_cache_position_tolerance = tolerance;
-        self
-    }
-
-    /// Sets whether perform the calculation of glyph positioning according to the layout
-    /// every time, or use a cached result if the input `Section` and `GlyphPositioner` are the
-    /// same hash as a previous call.
-    ///
-    /// Improves performance. Should only disable if using a custom GlyphPositioner that is
-    /// impure according to it's inputs, so caching a previous call is not desired. Disabling
-    /// also disables [`cache_glyph_drawing`](#method.cache_glyph_drawing).
-    ///
-    /// Defaults to `true`
-    pub fn cache_glyph_positioning(mut self, cache: bool) -> Self {
-        self.cache_glyph_positioning = cache;
-        self
-    }
-
-    /// Sets optimising drawing by reusing the last draw requesting an identical draw queue.
-    ///
-    /// Improves performance. Is disabled if
-    /// [`cache_glyph_positioning`](#method.cache_glyph_positioning) is disabled.
-    ///
-    /// Defaults to `true`
-    pub fn cache_glyph_drawing(mut self, cache: bool) -> Self {
-        self.cache_glyph_drawing = cache;
-        self
-    }
-
-    /// Sets the depth test to use on the text section **z** values.
-    ///
-    /// Defaults to: *Always pass the depth test, never write to the depth buffer write*
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # extern crate gfx;
-    /// # extern crate gfx_glyph;
-    /// # use gfx_glyph::GlyphBrushBuilder;
-    /// # fn main() {
-    /// # let some_font: &[u8] = include_bytes!("../examples/Arial Unicode.ttf");
-    /// GlyphBrushBuilder::using_font(some_font)
-    ///     .depth_test(gfx::preset::depth::LESS_EQUAL_WRITE)
-    ///     // ...
-    /// # ;
-    /// # }
-    /// ```
-    pub fn depth_test(mut self, depth_test: gfx::state::Depth) -> Self {
-        self.depth_test = depth_test;
-        self
-    }
-
-    /// Builds a `GlyphBrush` using the input gfx factory
-    pub fn build<R, F>(self, mut factory: F) -> GlyphBrush<'a, R, F>
-        where R: gfx::Resources, F: gfx::Factory<R>
-    {
-        let font = font(self.font).unwrap();
-
-        let (cache_width, cache_height) = self.initial_cache_size;
-        let font_cache_tex = create_texture(&mut factory, cache_width, cache_height).unwrap();
-
-        GlyphBrush {
-            font,
-            font_cache: Cache::new(cache_width,
-                                   cache_height,
-                                   self.gpu_cache_scale_tolerance,
-                                   self.gpu_cache_position_tolerance),
-            font_cache_tex,
-
-            factory,
-            draw_cache: None,
-            section_buffer: Vec::new(),
-            calculate_glyph_cache: HashMap::new(),
-            keep_in_cache: HashSet::new(),
-
-            gpu_cache_scale_tolerance: self.gpu_cache_scale_tolerance,
-            gpu_cache_position_tolerance: self.gpu_cache_position_tolerance,
-            cache_glyph_positioning: self.cache_glyph_positioning,
-            cache_glyph_drawing: self.cache_glyph_drawing && self.cache_glyph_positioning,
-
-            depth_test: self.depth_test,
-        }
-    }
-}
-
-impl<'a> fmt::Debug for GlyphBrushBuilder<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "GlyphBrushBuilder{{ \
-            initial_cache_size: {initial_cache_size:?}, \
-            gpu_cache_scale_tolerance: {gpu_cache_scale_tolerance}, \
-            gpu_cache_position_tolerance: {gpu_cache_position_tolerance}, \
-            cache_glyph_positioning: {cache_glyph_positioning}, \
-            cache_glyph_drawing: {cache_glyph_drawing} }}",
-            initial_cache_size = self.initial_cache_size,
-            gpu_cache_scale_tolerance = self.gpu_cache_scale_tolerance,
-            gpu_cache_position_tolerance = self.gpu_cache_position_tolerance,
-            cache_glyph_positioning = self.cache_glyph_positioning,
-            cache_glyph_drawing = self.cache_glyph_drawing,)
-    }
 }
 
 /// Returns a Font from font bytes info or an error reason.
@@ -804,12 +568,16 @@ pub fn font<'a, B: Into<SharedBytes<'a>>>(font_bytes: B) -> Result<Font<'a>, &'s
 }
 
 #[inline]
-fn text_vertices(glyphs: &[PositionedGlyph],
-                 cache: &Cache,
-                 bounds: Rect<f32>,
-                 color: [f32; 4],
-                 z: f32,
-                 (screen_width, screen_height): (f32, f32)) -> Vec<GlyphVertex> {
+fn text_vertices(
+    glyphs: &[PositionedGlyph],
+    color: Color,
+    font_id: FontId,
+    cache: &Cache,
+    bounds: Rect<f32>,
+    z: f32,
+    (screen_width, screen_height): (f32, f32),
+) -> Vec<GlyphVertex> {
+
     let origin = point(0.0, 0.0);
     let mut vertices = Vec::with_capacity(glyphs.len() * 6);
 
@@ -823,7 +591,7 @@ fn text_vertices(glyphs: &[PositionedGlyph],
     };
 
     for g in glyphs {
-        let rect = cache.rect_for(FONT_CACHE_ID, g);
+        let rect = cache.rect_for(font_id.0, g);
         if let Ok(Some((mut uv_rect, screen_rect))) = rect {
             if screen_rect.min.x as f32 > bounds.max.x ||
                 screen_rect.min.y as f32 > bounds.max.y ||

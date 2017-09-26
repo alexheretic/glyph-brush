@@ -61,7 +61,7 @@ pub struct SectionText<'a> {
     /// Rgba color of rendered text. Defaults to black.
     pub color: [f32; 4],
 
-    pub font_id: usize,
+    pub font_id: FontId,
 }
 
 impl Default for SectionText<'static> {
@@ -70,7 +70,7 @@ impl Default for SectionText<'static> {
             text: "",
             scale: Scale::uniform(16.0),
             color: [0.0, 0.0, 0.0, 1.0],
-            font_id: 0,
+            font_id: FontId::default(),
         }
     }
 }
@@ -98,3 +98,7 @@ impl<'a> Hash for SectionText<'a> {
         (text, font_id, ord_floats).hash(state);
     }
 }
+
+/// Id for a font, the default `FontId(0)` will always be present in a `GlyphBrush`
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
+pub struct FontId(pub usize);

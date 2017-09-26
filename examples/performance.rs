@@ -8,6 +8,7 @@ extern crate spin_sleep;
 use glutin::GlContext;
 use gfx::{format, Device};
 use std::env;
+use std::collections::HashMap;
 use gfx_glyph::*;
 
 fn main() {
@@ -149,9 +150,12 @@ pub struct CustomContiguousParagraphLayout;
 impl gfx_glyph::GlyphPositioner for CustomContiguousParagraphLayout {
 
     /// Calculate a sequence of positioned glyphs to render
-    fn calculate_glyphs<'a, G: Into<SectionGlyphInfo<'a>>>(&self, font: &Font, section: G)
-        -> Vec<(Vec<PositionedGlyph>, [f32; 4])>
-    {
+    fn calculate_glyphs<'a, G: Into<SectionGlyphInfo<'a>>>(
+        &self,
+        fonts: &HashMap<FontId, Font>,
+        section: G
+    ) -> Vec<(Vec<PositionedGlyph>, [f32; 4], FontId)> {
+
         let mut glyph_info = section.into();
         let original_screen_x = glyph_info.screen_position.0;
         let original_bound_w = glyph_info.bounds.0;
@@ -159,7 +163,7 @@ impl gfx_glyph::GlyphPositioner for CustomContiguousParagraphLayout {
         let mut out = vec![];
         loop {
             let (glyphs, leftover) = Layout::SingleLine(BuiltInLineBreaker::AnyCharLineBreaker, HorizontalAlign::Left)
-                .calculate_glyphs_and_leftover(font, &glyph_info);
+                .calculate_glyphs_and_leftover(fonts, &glyph_info);
             out.extend_from_slice(&glyphs);
             match leftover {
                 Some(LayoutLeftover::HardBreak(point, leftover, _)) => {

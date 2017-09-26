@@ -29,7 +29,7 @@ fn main() {
 
     if cfg!(debug_assertions) && env::var("yes_i_really_want_debug_mode").is_err() {
         eprintln!("Note: Release mode will improve performance greatly.\n    \
-            e.g. use `cargo run --example paragraph --release`");
+            e.g. use `cargo run --example complex_layout --release`");
     }
 
     let mut events_loop = glutin::EventsLoop::new();
@@ -41,11 +41,14 @@ fn main() {
     let (window, mut device, mut factory, mut main_color, mut main_depth) =
         gfx_window_glutin::init::<format::Srgba8, format::Depth>(window_builder, context, &events_loop);
 
-    let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(include_bytes!("Arial Unicode.ttf") as &[u8])
-        .initial_cache_size((1024, 1024))
-        .build(factory.clone());
+    let mut builder = GlyphBrushBuilder::using_font(include_bytes!("Arial Unicode.ttf") as &[u8])
+        .initial_cache_size((1024, 1024));
+    let sans_font = FontId::default();
+    let italic_font = builder.add_font(include_bytes!("OpenSans-Italic.ttf") as &[u8]);
+    let serif_font = builder.add_font(include_bytes!("GaramondNo8-Reg.ttf") as &[u8]);
+    let mono_font = builder.add_font(include_bytes!("../tests/DejaVuSansMono.ttf") as &[u8]);
 
-    let mut text: String = include_str!("lipsum.txt").into();
+    let mut glyph_brush = builder.build(factory.clone());
 
     let mut encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
 
@@ -57,24 +60,12 @@ fn main() {
 
         events_loop.poll_events(|event| {
             use glutin::*;
-
             if let Event::WindowEvent { event, .. } = event {
                 match event {
-                    WindowEvent::Closed => running = false,
                     WindowEvent::KeyboardInput {
-                        input: KeyboardInput {
-                            state: ElementState::Pressed,
-                            virtual_keycode: Some(keypress),
-                            .. },
+                        input: KeyboardInput { virtual_keycode: Some(VirtualKeyCode::Escape), .. },
                         ..
-                    } => match keypress {
-                        VirtualKeyCode::Escape => running = false,
-                        VirtualKeyCode::Back => { text.pop(); },
-                        _ => (),
-                    },
-                    WindowEvent::ReceivedCharacter(c) => if c != '\u{7f}' && c != '\u{8}' {
-                        text.push(c);
-                    },
+                    } | WindowEvent::Closed => running = false,
                     WindowEvent::Resized(width, height) => {
                         window.resize(width, height);
                         gfx_window_glutin::update_views(&window, &mut main_color, &mut main_depth);
@@ -96,19 +87,19 @@ fn main() {
                     text: "Lorem ipsum dolor sit amet, ferri simul omittantur eam eu, ",
                     scale: gfx_glyph::Scale::uniform(45.0),
                     color: [0.9, 0.3, 0.3, 1.0],
-                    font_id: 0,
+                    font_id: sans_font,
                 },
                 SectionText {
                     text: "dolorem",
                     scale: gfx_glyph::Scale::uniform(150.0),
                     color: [0.3, 0.9, 0.3, 1.0],
-                    font_id: 0,
+                    font_id: serif_font,
                 },
                 SectionText {
                     text: "Iriure vocibus est te, natum delicata dignissim pri ea.",
                     scale: gfx_glyph::Scale::uniform(25.0),
                     color: [0.3, 0.3, 0.9, 1.0],
-                    font_id: 0,
+                    font_id: sans_font,
                 },
             ],
             ..Section2::default()
@@ -119,32 +110,28 @@ fn main() {
             screen_position: (width * 0.51, 0.0),
             text: vec![
                 SectionText {
-                    text: "An cum odio mucius apeirian, ",
-                    scale: gfx_glyph::Scale::uniform(75.0),
-                    color: [0.9, 0.3, 0.3, 1.0],
-                    font_id: 0,
+                    text: "foo += bar;",
+                    scale: gfx_glyph::Scale::uniform(45.0),
+                    color: [0.3, 0.3, 0.9, 1.0],
+                    font_id: mono_font,
                 },
                 SectionText {
                     text: "eruditi habemus qualisque eam an. ",
-                    scale: gfx_glyph::Scale::uniform(55.0),
-                    color: [0.3, 0.9, 0.3, 1.0],
-                    font_id: 0,
+                    scale: gfx_glyph::Scale::uniform(30.0),
+                    color: [0.9, 0.3, 0.3, 1.0],
+                    font_id: italic_font,
                 },
                 SectionText {
                     text: "Eu facilisi maluisset eos.",
-                    scale: gfx_glyph::Scale::uniform(102.0),
-                    color: [0.3, 0.3, 0.9, 1.0],
-                    font_id: 0,
+                    scale: gfx_glyph::Scale::uniform(55.0),
+                    color: [0.3, 0.9, 0.3, 1.0],
+                    font_id: sans_font,
                 },
             ],
             ..Section2::default()
         });
 
-        glyph_brush.draw_queued(
-            &mut encoder,
-            &main_color,
-            &main_depth
-        ).expect("draw");
+        glyph_brush.draw_queued(&mut encoder, &main_color, &main_depth).expect("draw");
 
         encoder.flush(&mut device);
         window.swap_buffers().unwrap();
