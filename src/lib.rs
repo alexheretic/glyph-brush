@@ -122,6 +122,33 @@ const IDENTITY_MATRIX4: [[f32; 4]; 4] = [
 // Inner module used to avoid public access
 mod gfx_structs {
     use super::*;
+    use gfx::*;
+    use gfx::pso::*;
+    use gfx_core::pso;
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub struct RawDepthTarget;
+
+    impl<'a> DataLink<'a> for RawDepthTarget {
+        type Init = (format::Format, state::Depth);
+        fn new() -> Self { RawDepthTarget }
+        fn is_active(&self) -> bool { true }
+        fn link_depth_stencil(&mut self, init: &Self::Init) -> Option<pso::DepthStencilDesc> {
+            Some((init.0, init.1.into()))
+        }
+    }
+
+    impl<R: Resources> DataBind<R> for RawDepthTarget {
+        type Data = handle::RawDepthStencilView<R>;
+        fn bind_to(&self,
+                   out: &mut RawDataSet<R>,
+                   data: &Self::Data,
+                   man: &mut handle::Manager<R>,
+                   _: &mut AccessInfo<R>) {
+            let dsv = data;
+            out.pixel_targets.add_depth_stencil(man.ref_dsv(dsv), true, false, dsv.get_dimensions());
+        }
+    }
 
     gfx_defines!{
         vertex GlyphVertex {
@@ -132,21 +159,26 @@ mod gfx_structs {
     }
 
     gfx_pipeline_base!( glyph_pipe {
-        vbuf: gfx::VertexBuffer<GlyphVertex>,
-        font_tex: gfx::TextureSampler<TexFormView>,
-        transform: gfx::Global<[[f32; 4]; 4]>,
-        out: gfx::RawRenderTarget,
-        out_depth: gfx::DepthTarget<gfx::format::Depth>,
+        vbuf: VertexBuffer<GlyphVertex>,
+        font_tex: TextureSampler<TexFormView>,
+        transform: Global<[[f32; 4]; 4]>,
+        out: RawRenderTarget,
+        out_depth: RawDepthTarget,
     });
 
     impl<'a> glyph_pipe::Init<'a> {
-        pub fn new(format: gfx::format::Format, depth_test: gfx::state::Depth) -> Self {
+        pub fn new(
+            color_format: format::Format,
+            depth_format: format::Format,
+            depth_test: state::Depth)
+            -> Self
+        {
             glyph_pipe::Init {
                 vbuf: (),
                 font_tex: "font_tex",
                 transform: "transform",
-                out: ("Target0", format, state::ColorMask::all(), Some(preset::blend::ALPHA)),
-                out_depth: depth_test,
+                out: ("Target0", color_format, state::ColorMask::all(), Some(preset::blend::ALPHA)),
+                out_depth: (depth_format, depth_test),
             }
         }
     }
@@ -339,14 +371,15 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     /// Draws all queued sections onto a render target, applying a position transform (e.g.
     /// a projection).
     /// See [`queue`](struct.GlyphBrush.html#method.queue).
-    pub fn draw_queued<C, T>(
+    pub fn draw_queued<C, T, D>(
         &mut self,
         encoder: &mut gfx::Encoder<R, C>,
         target: &gfx::handle::RenderTargetView<R, T>,
-        depth_target: &gfx::handle::DepthStencilView<R, gfx::format::Depth>)
+        depth_target: &gfx::handle::DepthStencilView<R, D>)
         -> Result<(), String>
         where C: gfx::CommandBuffer<R>,
               T: format::RenderFormat,
+              D: format::DepthFormat,
     {
         self.draw_queued_with_transform(IDENTITY_MATRIX4, encoder, target, depth_target)
     }
@@ -354,15 +387,16 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     /// Draws all queued sections onto a render target, applying a position transform (e.g.
     /// a projection).
     /// See [`queue`](struct.GlyphBrush.html#method.queue).
-    pub fn draw_queued_with_transform<C, T>(
+    pub fn draw_queued_with_transform<C, T, D>(
         &mut self,
         transform: [[f32; 4]; 4],
         mut encoder: &mut gfx::Encoder<R, C>,
         target: &gfx::handle::RenderTargetView<R, T>,
-        depth_target: &gfx::handle::DepthStencilView<R, gfx::format::Depth>)
+        depth_target: &gfx::handle::DepthStencilView<R, D>)
         -> Result<(), String>
         where C: gfx::CommandBuffer<R>,
               T: format::RenderFormat,
+              D: format::DepthFormat,
     {
         let start = Instant::now();
 
@@ -458,9 +492,9 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                 let mut cache = self.draw_cache.take().unwrap();
                 cache.pipe_data.vbuf = vbuf;
                 cache.pipe_data.out = target.raw().clone();
-                cache.pipe_data.out_depth = depth_target.clone();
+                cache.pipe_data.out_depth = depth_target.raw().clone();
                 if cache.pso.0 != T::get_format() {
-                    cache.pso = (T::get_format(), self.pso_using(T::get_format()));
+                    cache.pso = (T::get_format(), self.pso_using(T::get_format(), D::get_format()));
                 }
                 cache.slice = slice;
                 cache.last_text_state = current_text_state;
@@ -481,10 +515,10 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                             font_tex: (self.font_cache_tex.1.clone(), sampler),
                             transform: transform,
                             out: target.raw().clone(),
-                            out_depth: depth_target.clone(),
+                            out_depth: depth_target.raw().clone(),
                         }
                     },
-                    pso: (T::get_format(), self.pso_using(T::get_format())),
+                    pso: (T::get_format(), self.pso_using(T::get_format(), D::get_format())),
                     slice,
                     last_text_state: 0,
                     texture_updated: false,
@@ -528,7 +562,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
             let mut active = HashSet::with_capacity(
                 self.section_buffer.len() + self.keep_in_cache.len()
             );
-                
+
             for h in self.section_buffer.drain(..) {
                 active.insert(h);
             }
@@ -544,11 +578,15 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         }
     }
 
-    fn pso_using(&mut self, format: gfx::format::Format) -> gfx::PipelineState<R, glyph_pipe::Meta> {
+    fn pso_using(
+        &mut self,
+        color_format: gfx::format::Format,
+        depth_format: gfx::format::Format) -> gfx::PipelineState<R, glyph_pipe::Meta>
+    {
         self.factory.create_pipeline_simple(
             include_bytes!("shader/vert.glsl"),
             include_bytes!("shader/frag.glsl"),
-            glyph_pipe::Init::new(format, self.depth_test)).unwrap()
+            glyph_pipe::Init::new(color_format, depth_format, self.depth_test)).unwrap()
     }
 }
 
