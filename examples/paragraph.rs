@@ -153,7 +153,7 @@ fn main() {
             screen_position: (width as f32 / 2.0, 0.0),
             bounds: (width as f32 / 3.15, height as f32),
             color: [0.3, 0.9, 0.3, 1.0],
-            layout: Layout::Wrap(BuiltInLineBreaker::StandardLineBreaker, HorizontalAlign::Center),
+            layout: Layout::default().h_align(HorizontalAlign::Center),
             ..Section::default()
         });
 
@@ -163,7 +163,7 @@ fn main() {
             screen_position: (width as f32, 0.0),
             bounds: (width as f32 / 3.15, height as f32),
             color: [0.3, 0.3, 0.9, 1.0],
-            layout: Layout::Wrap(BuiltInLineBreaker::StandardLineBreaker, HorizontalAlign::Right),
+            layout: Layout::default().h_align(HorizontalAlign::Right),
             ..Section::default()
         });
 

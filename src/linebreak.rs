@@ -32,13 +32,17 @@ pub trait LineBreaker: fmt::Debug + Copy + Hash {
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum BuiltInLineBreaker {
-    StandardLineBreaker,
+    /// LineBreaker that follows Unicode Standard Annex #14. That effectively means it
+    /// wraps words in a way that should work for most cases.
+    UnicodeLineBreaker,
+    /// LineBreaker that soft breaks on any character, and hard breaks similarly to
+    /// UnicodeLineBreaker.
     AnyCharLineBreaker,
 }
 
 impl Default for BuiltInLineBreaker {
     fn default() -> Self {
-        BuiltInLineBreaker::StandardLineBreaker
+        BuiltInLineBreaker::UnicodeLineBreaker
     }
 }
 
@@ -74,7 +78,7 @@ impl<'a> Iterator for AnyCharLineBreakerIter<'a> {
 impl LineBreaker for BuiltInLineBreaker {
     fn line_breaks<'a>(&self, glyph_info: &GlyphInfo<'a>) -> Box<Iterator<Item=LineBreak> + 'a> {
         match *self {
-            BuiltInLineBreaker::StandardLineBreaker => {
+            BuiltInLineBreaker::UnicodeLineBreaker => {
                 Box::new(xi_unicode::LineBreakIterator::new(glyph_info.substring())
                     .map(|(offset, hard)| {
                         if hard { LineBreak::Hard(offset) } else { LineBreak::Soft(offset)}

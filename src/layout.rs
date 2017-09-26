@@ -114,22 +114,83 @@ pub trait GlyphPositioner: Hash {
 /// Built-in [`GlyphPositioner`](trait.GlyphPositioner.html) implementations.
 ///
 /// Takes generic [`LineBreaker`](trait.LineBreaker.html) to indicate the wrapping style.
-/// See [`StandardLineBreaker`](struct.StandardLineBreaker.html),
-/// [`AnyCharLineBreaker`](struct.AnyCharLineBreaker.html).
+/// See [`BuiltInLineBreaker`](enum.BuiltInLineBreaker.html).
+///
+/// # Example
+/// ```
+/// # use gfx_glyph::*;
+/// let layout = Layout::default().h_align(HorizontalAlign::Right);
+/// # let _layout = layout;
+/// ```
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum Layout<L: LineBreaker> {
     /// Renders a single line from left-to-right according to the inner alignment.
     /// Hard breaking will end the line, partially hitting the width bound will end the line.
-    SingleLine(L, HorizontalAlign),
+    SingleLine {
+        line_breaker: L,
+        h_align: HorizontalAlign,
+        v_align: VerticalAlign,
+    },
     /// Renders multiple lines from left-to-right according to the inner alignment.
     /// Hard breaking characters will cause advancement to another line.
     /// A characters hitting the width bound will also cause another line to start.
-    Wrap(L, HorizontalAlign),
+    Wrap {
+        line_breaker: L,
+        h_align: HorizontalAlign,
+        v_align: VerticalAlign,
+    },
 }
 
 impl Default for Layout<BuiltInLineBreaker> {
     fn default() -> Self {
-        Layout::Wrap(BuiltInLineBreaker::StandardLineBreaker, HorizontalAlign::Left)
+        Layout::default_wrap()
+    }
+}
+
+impl Layout<BuiltInLineBreaker> {
+    pub fn default_single_line() -> Self {
+        Layout::SingleLine {
+            line_breaker: BuiltInLineBreaker::default(),
+            h_align: HorizontalAlign::Left,
+            v_align: VerticalAlign::Top,
+        }
+    }
+
+    pub fn default_wrap() -> Self {
+        Layout::Wrap {
+            line_breaker: BuiltInLineBreaker::default(),
+            h_align: HorizontalAlign::Left,
+            v_align: VerticalAlign::Top,
+        }
+    }
+}
+
+impl<L: LineBreaker> Layout<L> {
+    /// Returns an identical `Layout` but with the input `h_align`
+    pub fn h_align(self, h_align: HorizontalAlign) -> Self {
+        use Layout::*;
+        match self {
+            SingleLine { line_breaker, v_align, .. } => {
+                SingleLine { line_breaker, v_align, h_align }
+            }
+            Wrap { line_breaker, v_align, .. } => Wrap { line_breaker, v_align, h_align },
+        }
+    }
+
+    /// Returns an identical `Layout` but with the input `v_align`
+    pub fn v_align(self, v_align: VerticalAlign) -> Self {
+        match v_align {
+            VerticalAlign::Top => self
+        }
+    }
+
+    /// Returns an identical `Layout` but with the input `line_breaker`
+    pub fn line_breaker<L2: LineBreaker>(self, line_breaker: L2) -> Layout<L2> {
+        use Layout::*;
+        match self {
+            SingleLine { h_align, v_align, .. } => SingleLine { line_breaker, v_align, h_align },
+            Wrap { h_align, v_align, .. } => Wrap { line_breaker, v_align, h_align },
+        }
     }
 }
 
@@ -149,25 +210,24 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
             ..
         } = section.into();
         match *self {
-            Layout::SingleLine(_, HorizontalAlign::Left) |
-            Layout::Wrap(_, HorizontalAlign::Left) => Rect {
+            Layout::SingleLine { h_align: HorizontalAlign::Left, .. } |
+            Layout::Wrap { h_align: HorizontalAlign::Left, .. } => Rect {
                 min: Point { x: screen_x, y: screen_y },
                 max: Point { x: screen_x + bound_w, y: screen_y + bound_h },
             },
-            Layout::SingleLine(_, HorizontalAlign::Center) |
-            Layout::Wrap(_, HorizontalAlign::Center) => Rect {
+            Layout::SingleLine { h_align: HorizontalAlign::Center, .. } |
+            Layout::Wrap { h_align: HorizontalAlign::Center, .. } => Rect {
                 min: Point { x: screen_x - bound_w / 2.0, y: screen_y },
                 max: Point { x: screen_x + bound_w / 2.0, y: screen_y + bound_h },
             },
-            Layout::SingleLine(_, HorizontalAlign::Right) |
-            Layout::Wrap(_, HorizontalAlign::Right) => Rect {
+            Layout::SingleLine { h_align: HorizontalAlign::Right, .. } |
+            Layout::Wrap { h_align: HorizontalAlign::Right, .. } => Rect {
                 min: Point { x: screen_x - bound_w, y: screen_y },
                 max: Point { x: screen_x, y: screen_y + bound_h },
             },
         }
     }
 }
-
 
 /// Describes horizontal alignment preference for positioning & bounds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -181,6 +241,14 @@ pub enum HorizontalAlign {
     /// Rightmost character is immetiately to the left of the render position.<br/>
     /// Bounds start from the render position and advance leftwards.
     Right,
+}
+
+/// Describes vertical alignment preference for positioning & bounds. Currently a placeholder
+/// for future functionality.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum VerticalAlign {
+    /// Characters/bounds start underneath the render position and progress downwards
+    Top,
 }
 
 /// Container for glyphs leftover/unable to fit in a layout and/or within render bounds
@@ -219,11 +287,11 @@ impl<L: LineBreaker> Layout<L> {
         section: &SectionGlyphInfo<'a>,
     ) -> (Vec<(Vec<PositionedGlyph>, Color, FontId)>, Option<LayoutLeftover<'a>>) {
         match *self {
-            Layout::SingleLine(line_breaker, h_align) => {
-                single_line(font_map, line_breaker, h_align, section)
+            Layout::SingleLine { line_breaker, h_align, v_align } => {
+                single_line(font_map, line_breaker, h_align, v_align, section)
             }
-            Layout::Wrap(line_breaker, h_align) => {
-                paragraph(font_map, line_breaker, h_align, section.clone())
+            Layout::Wrap { line_breaker, h_align, v_align }  => {
+                paragraph(font_map, line_breaker, h_align, v_align, section.clone())
             }
         }
     }
@@ -236,8 +304,13 @@ fn single_line<'a, L: LineBreaker>(
     font_map: &HashMap<FontId, Font>,
     line_breaker: L,
     h_align: HorizontalAlign,
+    v_align: VerticalAlign,
     section_glyph_info: &SectionGlyphInfo<'a>,
 ) -> (Vec<(Vec<PositionedGlyph>, Color, FontId)>, Option<LayoutLeftover<'a>>) {
+
+    match v_align {
+        VerticalAlign::Top => {}
+    };
 
     let SectionGlyphInfo {
         screen_position: (screen_x, screen_y),
@@ -464,6 +537,7 @@ fn paragraph<'a, L: LineBreaker>(
     font_map: &HashMap<FontId, Font>,
     line_breaker: L,
     h_align: HorizontalAlign,
+    v_align: VerticalAlign,
     mut section: SectionGlyphInfo<'a>)
     -> (Vec<(Vec<PositionedGlyph>, Color, FontId)>, Option<LayoutLeftover<'a>>)
 {
@@ -471,8 +545,9 @@ fn paragraph<'a, L: LineBreaker>(
     let mut paragraph_leftover = None;
 
     loop {
-        let (glyphs, mut leftover) = Layout::SingleLine(line_breaker, h_align)
+        let (glyphs, mut leftover) = Layout::SingleLine { line_breaker, h_align, v_align }
             .calculate_glyphs_and_leftover(font_map, &section);
+
         out.extend_from_slice(&glyphs);
         if leftover.is_none() { break; }
 
@@ -562,7 +637,8 @@ mod layout_test {
     #[test]
     fn single_line_chars_left_simple() {
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
-            Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left),
+            Layout::default_single_line()
+                .line_breaker(AnyCharLineBreaker),
             Section {
                 text: "hello world",
                 scale: Scale::uniform(20.0),
@@ -581,7 +657,9 @@ mod layout_test {
     #[test]
     fn single_line_chars_right() {
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
-            Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Right),
+            Layout::default_single_line()
+                .line_breaker(AnyCharLineBreaker)
+                .h_align(HorizontalAlign::Right),
             Section {
                 text: "hello world",
                 scale: Scale::uniform(20.0),
@@ -605,7 +683,9 @@ mod layout_test {
     #[test]
     fn single_line_chars_center() {
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
-            Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Center),
+            Layout::default_single_line()
+                .line_breaker(AnyCharLineBreaker)
+                .h_align(HorizontalAlign::Center),
             Section {
                 text: "hello world",
                 scale: Scale::uniform(20.0),
@@ -639,7 +719,7 @@ mod layout_test {
     #[test]
     fn single_line_chars_left_finish_at_newline() {
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
-            Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left),
+            Layout::default_single_line().line_breaker(AnyCharLineBreaker),
             Section {
                 text: "hello\nworld",
                 scale: Scale::uniform(20.0),
@@ -662,7 +742,7 @@ mod layout_test {
     #[test]
     fn wrap_word_left() {
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
-            Layout::SingleLine(StandardLineBreaker, HorizontalAlign::Left),
+            Layout::default_single_line(),
             Section {
                 text: "hello what's _happening_?",
                 scale: Scale::uniform(20.0),
@@ -685,7 +765,7 @@ mod layout_test {
 
 
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
-            Layout::SingleLine(StandardLineBreaker, HorizontalAlign::Left),
+            Layout::default_single_line(),
             Section {
                 text: "hello what's _happening_?",
                 scale: Scale::uniform(20.0),
@@ -710,7 +790,7 @@ mod layout_test {
     #[test]
     fn single_line_little_verticle_room() {
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
-            Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left),
+            Layout::default_single_line().line_breaker(AnyCharLineBreaker),
             Section {
                 text: "hello world",
                 scale: Scale::uniform(20.0),
@@ -724,7 +804,7 @@ mod layout_test {
 
         // letter `l` should be in the same place as when all the word is visible
         let (all_glyphs, _) = merged_glyphs_and_leftover!(
-            Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left),
+            Layout::default_single_line().line_breaker(AnyCharLineBreaker),
             Section {
                 text: "hello world",
                 scale: Scale::uniform(20.0),
@@ -739,7 +819,7 @@ mod layout_test {
     #[test]
     fn single_line_little_verticle_room_tail_lost() {
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
-            Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left),
+            Layout::default_single_line().line_breaker(AnyCharLineBreaker),
             Section {
                 text: "hellowor__",
                 scale: Scale::uniform(20.0),
@@ -761,7 +841,7 @@ mod layout_test {
     #[test]
     fn single_line_limited_horizontal_room() {
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
-            Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left),
+            Layout::default_single_line().line_breaker(AnyCharLineBreaker),
             Section {
                 text: "hello world",
                 scale: Scale::uniform(20.0),
@@ -788,7 +868,7 @@ mod layout_test {
             into the chestnut.";
 
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
-            Layout::Wrap(StandardLineBreaker, HorizontalAlign::Left),
+            Layout::default_wrap(),
             Section {
                 text: test_str,
                 scale: Scale::uniform(20.0),
@@ -807,7 +887,7 @@ mod layout_test {
     #[test]
     fn leftover_max_vmetrics() {
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
-            Layout::SingleLine(StandardLineBreaker, HorizontalAlign::Left),
+            Layout::default_single_line(),
             VariedSection {
                 text: vec![
                     SectionText {

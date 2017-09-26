@@ -162,7 +162,8 @@ impl gfx_glyph::GlyphPositioner for CustomContiguousParagraphLayout {
 
         let mut out = vec![];
         loop {
-            let (glyphs, leftover) = Layout::SingleLine(BuiltInLineBreaker::AnyCharLineBreaker, HorizontalAlign::Left)
+            let (glyphs, leftover) = Layout::default_single_line()
+                .line_breaker(BuiltInLineBreaker::AnyCharLineBreaker)
                 .calculate_glyphs_and_leftover(fonts, &glyph_info);
             out.extend_from_slice(&glyphs);
             match leftover {
@@ -189,6 +190,8 @@ impl gfx_glyph::GlyphPositioner for CustomContiguousParagraphLayout {
     }
     /// Bounds rectangle is the same as built-in left align
     fn bounds_rect<'a, G: Into<SectionGlyphInfo<'a>>>(&self, section: G) -> Rect<f32> {
-        Layout::SingleLine(BuiltInLineBreaker::AnyCharLineBreaker, HorizontalAlign::Left).bounds_rect(section)
+        Layout::default_single_line()
+            .line_breaker(BuiltInLineBreaker::AnyCharLineBreaker)
+            .bounds_rect(section)
     }
 }

@@ -505,6 +505,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         Ok(())
     }
 
+    /// Returns `FontId` -> `Font` map of available fonts.
     pub fn fonts(&self) -> &HashMap<FontId, Font<'font>> {
         &self.fonts
     }

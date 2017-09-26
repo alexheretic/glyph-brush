@@ -1,6 +1,33 @@
 use super::*;
 use std::f32;
 
+/// An object that contains all the info to render a varied section of text. That is one including
+/// many parts with differing fonts/scales/colors bowing to a single layout.
+///
+/// For single font/scale/color sections it may be simpler to use
+/// [`Section`](struct.Section.html).
+///
+/// # Example
+///
+/// ```
+/// use gfx_glyph::{VariedSection, SectionText};
+///
+/// let section = VariedSection {
+///     text: vec![
+///         SectionText {
+///             text: "I looked around and it was ",
+///             ..SectionText::default()
+///         },
+///         SectionText {
+///             text: "RED",
+///             color: [1.0, 0.0, 0.0, 1.0],
+///             ..SectionText::default()
+///         },
+///     ],
+///     ..VariedSection::default()
+/// };
+/// # let _ = section;
+/// ```
 #[derive(Debug, Clone)]
 pub struct VariedSection<'a> {
     /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
@@ -12,7 +39,7 @@ pub struct VariedSection<'a> {
     /// Built in layout, can be overridden with custom layout logic
     /// see [`queue_custom_layout`](struct.GlyphBrush.html#method.queue_custom_layout)
     pub layout: Layout<BuiltInLineBreaker>,
-
+    /// Text to render, rendered next to one another according the layout.
     pub text: Vec<SectionText<'a>>,
 }
 
@@ -60,7 +87,11 @@ pub struct SectionText<'a> {
     pub scale: Scale,
     /// Rgba color of rendered text. Defaults to black.
     pub color: [f32; 4],
-
+    /// Font id to use for this section.
+    ///
+    /// It must be known to the `GlyphBrush` it is being used with,
+    /// either `FontId::default()` or the return of
+    /// [`add_font`](struct.GlyphBrushBuilder.html#method.add_font).
     pub font_id: FontId,
 }
 
@@ -104,8 +135,9 @@ impl<'a> Hash for SectionText<'a> {
 pub struct FontId(pub usize);
 
 
-/// An object that, along with the [`GlyphPositioner`](trait.GlyphPositioner.html),
-/// contains all the info to render a section of text.
+/// An object that contains all the info to render a section of text.
+///
+/// For varied font/scale/color sections see [`VariedSection`](struct.VariedSection.html).
 ///
 /// # Example
 ///
@@ -135,7 +167,11 @@ pub struct Section<'a> {
     /// Built in layout, can overridden with custom layout logic
     /// see [`queue_custom_layout`](struct.GlyphBrush.html#method.queue_custom_layout)
     pub layout: Layout<BuiltInLineBreaker>,
-
+    /// Font id to use for this section.
+    ///
+    /// It must be known to the `GlyphBrush` it is being used with,
+    /// either `FontId::default()` or the return of
+    /// [`add_font`](struct.GlyphBrushBuilder.html#method.add_font).
     pub font_id: FontId,
 }
 

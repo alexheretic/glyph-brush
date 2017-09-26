@@ -84,7 +84,7 @@ fn main() {
             scale: Scale::uniform(95.0),
             color: [0.8, 0.8, 0.8, 1.0],
             font_id: italic_font,
-            layout: Layout::Wrap(BuiltInLineBreaker::StandardLineBreaker, HorizontalAlign::Center),
+            layout: Layout::default().h_align(HorizontalAlign::Center),
             z: 0.2,
             ..Section::default()
         });

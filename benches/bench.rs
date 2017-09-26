@@ -30,21 +30,20 @@ fn render_3_medium_sections_fully(b: &mut ::test::Bencher) {
             Section {
                 text,
                 bounds: (600.0, f32::INFINITY),
-                layout: Layout::Wrap(BuiltInLineBreaker::default(), HorizontalAlign::Left),
                 ..Section::default()
             },
             Section {
                 text,
                 screen_position: (600.0, 0.0),
                 bounds: (600.0, f32::INFINITY),
-                layout: Layout::Wrap(BuiltInLineBreaker::default(), HorizontalAlign::Center),
+                layout: Layout::default().h_align(HorizontalAlign::Center),
                 ..Section::default()
             },
             Section {
                 text,
                 screen_position: (1200.0, 0.0),
                 bounds: (600.0, f32::INFINITY),
-                layout: Layout::Wrap(BuiltInLineBreaker::default(), HorizontalAlign::Right),
+                layout: Layout::default().h_align(HorizontalAlign::Right),
                 ..Section::default()
             },
         ],
@@ -70,21 +69,20 @@ fn no_cache_render_3_medium_sections_fully(b: &mut ::test::Bencher) {
             Section {
                 text,
                 bounds: (600.0, f32::INFINITY),
-                layout: Layout::Wrap(BuiltInLineBreaker::default(), HorizontalAlign::Left),
                 ..Section::default()
             },
             Section {
                 text,
                 screen_position: (600.0, 0.0),
                 bounds: (600.0, f32::INFINITY),
-                layout: Layout::Wrap(BuiltInLineBreaker::default(), HorizontalAlign::Center),
+                layout: Layout::default().h_align(HorizontalAlign::Center),
                 ..Section::default()
             },
             Section {
                 text,
                 screen_position: (1200.0, 0.0),
                 bounds: (600.0, f32::INFINITY),
-                layout: Layout::Wrap(BuiltInLineBreaker::default(), HorizontalAlign::Right),
+                layout: Layout::default().h_align(HorizontalAlign::Right),
                 ..Section::default()
             },
         ],
