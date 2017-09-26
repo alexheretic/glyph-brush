@@ -100,13 +100,13 @@ fn main() {
         let (width, height, ..) = main_color.get_dimensions();
 
         // The section is all the info needed for the glyph brush to render a 'section' of text
-        // can use `..SimpleSection::default()` to skip the bits you don't care about
-        let section = SimpleSection {
+        // can use `..Section::default()` to skip the bits you don't care about
+        let section = Section {
             text: &text,
             scale: font_size,
             bounds: (width as f32, height as f32),
             color: [0.8, 0.8, 0.8, 1.0],
-            ..SimpleSection::default()
+            ..Section::default()
         };
 
         // Custom layout logic to render the glyphs is allowed by implementing

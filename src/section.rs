@@ -2,7 +2,7 @@ use super::*;
 use std::f32;
 
 #[derive(Debug, Clone)]
-pub struct Section2<'a> {
+pub struct VariedSection<'a> {
     /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
     pub screen_position: (f32, f32),
     /// Max (width, height) bounds, in pixels from top-left. Defaults to unbounded.
@@ -16,7 +16,7 @@ pub struct Section2<'a> {
     pub text: Vec<SectionText<'a>>,
 }
 
-impl Default for Section2<'static> {
+impl Default for VariedSection<'static> {
     fn default() -> Self {
         Self {
             screen_position: (0.0, 0.0),
@@ -28,11 +28,11 @@ impl Default for Section2<'static> {
     }
 }
 
-impl<'a> Hash for Section2<'a> {
+impl<'a> Hash for VariedSection<'a> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         use ordered_float::OrderedFloat;
 
-        let Section2 {
+        let VariedSection {
             screen_position: (screen_x, screen_y),
             bounds: (bound_w, bound_h),
             z,
@@ -102,3 +102,89 @@ impl<'a> Hash for SectionText<'a> {
 /// Id for a font, the default `FontId(0)` will always be present in a `GlyphBrush`
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub struct FontId(pub usize);
+
+
+/// An object that, along with the [`GlyphPositioner`](trait.GlyphPositioner.html),
+/// contains all the info to render a section of text.
+///
+/// # Example
+///
+/// ```
+/// use gfx_glyph::Section;
+///
+/// let section = Section {
+///     text: "Hello gfx_glyph",
+///     ..Section::default()
+/// };
+/// # let _ = section;
+/// ```
+#[derive(Debug, Clone, Copy)]
+pub struct Section<'a> {
+    /// Text to render
+    pub text: &'a str,
+    /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
+    pub screen_position: (f32, f32),
+    /// Max (width, height) bounds, in pixels from top-left. Defaults to unbounded.
+    pub bounds: (f32, f32),
+    /// Font scale. Defaults to 16
+    pub scale: Scale,
+    /// Rgba color of rendered text. Defaults to black.
+    pub color: [f32; 4],
+    /// Z values for use in depth testing. Defaults to 0.0
+    pub z: f32,
+    /// Built in layout, can overridden with custom layout logic
+    /// see [`queue_custom_layout`](struct.GlyphBrush.html#method.queue_custom_layout)
+    pub layout: Layout<BuiltInLineBreaker>,
+
+    pub font_id: FontId,
+}
+
+impl Default for Section<'static> {
+    fn default() -> Self {
+        Self {
+            text: "",
+            screen_position: (0.0, 0.0),
+            bounds: (f32::INFINITY, f32::INFINITY),
+            scale: Scale::uniform(16.0),
+            color: [0.0, 0.0, 0.0, 1.0],
+            z: 0.0,
+            layout: Layout::default(),
+            font_id: FontId::default(),
+        }
+    }
+}
+
+impl<'a, 'b> From<&'b Section<'a>> for VariedSection<'a> {
+    fn from(s: &'b Section<'a>) -> Self {
+        let Section {
+            text,
+            scale,
+            color,
+            screen_position,
+            bounds,
+            z,
+            layout,
+            font_id,
+        } = *s;
+
+        VariedSection {
+            text: vec![SectionText {
+                text,
+                scale,
+                color,
+                font_id,
+                ..SectionText::default()
+            }],
+            screen_position,
+            bounds,
+            z,
+            layout,
+        }
+    }
+}
+
+impl<'a> From<Section<'a>> for VariedSection<'a> {
+    fn from(s: Section<'a>) -> Self {
+        VariedSection::from(&s)
+    }
+}

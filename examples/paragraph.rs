@@ -1,6 +1,7 @@
 //! An example of paragraph rendering
 //! Controls
 //!
+//! * Resize window to adjust layout
 //! * Scroll to modify font size
 //! * Type to add/remove text
 //! * Ctrl-Scroll to zoom in/out using a transform, this is cheap but notice how rusttype can't
@@ -130,13 +131,13 @@ fn main() {
 
         // The section is all the info needed for the glyph brush to render a 'section' of text.
         // Use `..Section::default()` to skip the bits you don't care about
-        let section = gfx_glyph::SimpleSection {
+        let section = gfx_glyph::Section {
             text: &text,
             scale,
             screen_position: (0.0, 0.0),
             bounds: (width as f32 / 3.15, height as f32),
             color: [0.9, 0.3, 0.3, 1.0],
-            ..SimpleSection::default()
+            ..Section::default()
         };
 
         // Adds a section & layout to the queue for the next call to `draw_queued`, this
@@ -146,24 +147,24 @@ fn main() {
         glyph_brush.queue(section);
 
         use gfx_glyph::*;
-        glyph_brush.queue(SimpleSection {
+        glyph_brush.queue(Section {
             text: &text,
             scale,
             screen_position: (width as f32 / 2.0, 0.0),
             bounds: (width as f32 / 3.15, height as f32),
             color: [0.3, 0.9, 0.3, 1.0],
             layout: Layout::Wrap(BuiltInLineBreaker::StandardLineBreaker, HorizontalAlign::Center),
-            ..SimpleSection::default()
+            ..Section::default()
         });
 
-        glyph_brush.queue(SimpleSection {
+        glyph_brush.queue(Section {
             text: &text,
             scale,
             screen_position: (width as f32, 0.0),
             bounds: (width as f32 / 3.15, height as f32),
             color: [0.3, 0.3, 0.9, 1.0],
             layout: Layout::Wrap(BuiltInLineBreaker::StandardLineBreaker, HorizontalAlign::Right),
-            ..SimpleSection::default()
+            ..Section::default()
         });
 
         // Note: Can be drawn simply with the below, when transforms are not needed:

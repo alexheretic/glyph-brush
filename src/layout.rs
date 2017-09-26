@@ -15,9 +15,9 @@ pub struct SectionGlyphInfo<'a> {
     pub text_index: usize,
 }
 
-impl<'a, 'b> From<&'b Section2<'a>> for SectionGlyphInfo<'a> {
-    fn from(section: &'b Section2<'a>) -> Self {
-        let Section2 { screen_position, bounds, ref text, .. } = *section;
+impl<'a, 'b> From<&'b VariedSection<'a>> for SectionGlyphInfo<'a> {
+    fn from(section: &'b VariedSection<'a>) -> Self {
+        let VariedSection { screen_position, bounds, ref text, .. } = *section;
         Self {
             screen_position,
             bounds,
@@ -563,10 +563,10 @@ mod layout_test {
     fn single_line_chars_left_simple() {
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
             Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left),
-            SimpleSection {
+            Section {
                 text: "hello world",
                 scale: Scale::uniform(20.0),
-                ..SimpleSection::default()
+                ..Section::default()
             }
         );
 
@@ -582,10 +582,10 @@ mod layout_test {
     fn single_line_chars_right() {
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
             Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Right),
-            SimpleSection {
+            Section {
                 text: "hello world",
                 scale: Scale::uniform(20.0),
-                ..SimpleSection::default()
+                ..Section::default()
             }
         );
 
@@ -606,10 +606,10 @@ mod layout_test {
     fn single_line_chars_center() {
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
             Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Center),
-            SimpleSection {
+            Section {
                 text: "hello world",
                 scale: Scale::uniform(20.0),
-                ..SimpleSection::default()
+                ..Section::default()
             }
         );
 
@@ -640,10 +640,10 @@ mod layout_test {
     fn single_line_chars_left_finish_at_newline() {
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
             Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left),
-            SimpleSection {
+            Section {
                 text: "hello\nworld",
                 scale: Scale::uniform(20.0),
-                ..SimpleSection::default()
+                ..Section::default()
             }
         );
 
@@ -663,11 +663,11 @@ mod layout_test {
     fn wrap_word_left() {
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
             Layout::SingleLine(StandardLineBreaker, HorizontalAlign::Left),
-            SimpleSection {
+            Section {
                 text: "hello what's _happening_?",
                 scale: Scale::uniform(20.0),
                 bounds: (85.0, f32::INFINITY), // should only be enough room for the 1st word
-                ..SimpleSection::default()
+                ..Section::default()
             }
         );
 
@@ -686,11 +686,11 @@ mod layout_test {
 
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
             Layout::SingleLine(StandardLineBreaker, HorizontalAlign::Left),
-            SimpleSection {
+            Section {
                 text: "hello what's _happening_?",
                 scale: Scale::uniform(20.0),
                 bounds: (125.0, f32::INFINITY), // should only be enough room for the 1,2 words
-                ..SimpleSection::default()
+                ..Section::default()
             }
         );
 
@@ -711,11 +711,11 @@ mod layout_test {
     fn single_line_little_verticle_room() {
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
             Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left),
-            SimpleSection {
+            Section {
                 text: "hello world",
                 scale: Scale::uniform(20.0),
                 bounds: (f32::INFINITY, 5.0),
-                ..SimpleSection::default()
+                ..Section::default()
             }
         );
 
@@ -725,10 +725,10 @@ mod layout_test {
         // letter `l` should be in the same place as when all the word is visible
         let (all_glyphs, _) = merged_glyphs_and_leftover!(
             Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left),
-            SimpleSection {
+            Section {
                 text: "hello world",
                 scale: Scale::uniform(20.0),
-                ..SimpleSection::default()
+                ..Section::default()
             }
         );
         assert_eq!(all_glyphs[9].id(), A_FONT.glyph('l').unwrap().id());
@@ -740,11 +740,11 @@ mod layout_test {
     fn single_line_little_verticle_room_tail_lost() {
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
             Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left),
-            SimpleSection {
+            Section {
                 text: "hellowor__",
                 scale: Scale::uniform(20.0),
                 bounds: (f32::INFINITY, 5.0),
-                ..SimpleSection::default()
+                ..Section::default()
             }
         );
 
@@ -762,11 +762,11 @@ mod layout_test {
     fn single_line_limited_horizontal_room() {
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
             Layout::SingleLine(AnyCharLineBreaker, HorizontalAlign::Left),
-            SimpleSection {
+            Section {
                 text: "hello world",
                 scale: Scale::uniform(20.0),
                 bounds: (50.0, f32::INFINITY),
-                ..SimpleSection::default()
+                ..Section::default()
             }
         );
 
@@ -789,10 +789,10 @@ mod layout_test {
 
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
             Layout::Wrap(StandardLineBreaker, HorizontalAlign::Left),
-            SimpleSection {
+            Section {
                 text: test_str,
                 scale: Scale::uniform(20.0),
-                ..SimpleSection::default()
+                ..Section::default()
             }
         );
 
@@ -808,7 +808,7 @@ mod layout_test {
     fn leftover_max_vmetrics() {
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
             Layout::SingleLine(StandardLineBreaker, HorizontalAlign::Left),
-            Section2 {
+            VariedSection {
                 text: vec![
                     SectionText {
                         text: "Autumn moonlight, ",
@@ -827,7 +827,7 @@ mod layout_test {
                     },
                 ],
                 bounds: (750.0, f32::INFINITY),
-                ..Section2::default()
+                ..VariedSection::default()
             }
         );
 

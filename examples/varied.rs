@@ -1,17 +1,14 @@
-//! An example of paragraph rendering
+//! An example of rendering multiple fonts, sizes & colours within a single layout
 //! Controls
 //!
-//! * Scroll to modify font size
-//! * Type to add/remove text
-//! * Ctrl-Scroll to zoom in/out using a transform, this is cheap but notice how rusttype can't
-//!   render at full quality without the correct pixel information.
+//! * Resize window to adjust layout
 
+extern crate cgmath;
 extern crate gfx;
+extern crate gfx_glyph;
 extern crate gfx_window_glutin;
 extern crate glutin;
 extern crate pretty_env_logger;
-extern crate gfx_glyph;
-extern crate cgmath;
 extern crate spin_sleep;
 
 use glutin::GlContext;
@@ -22,27 +19,36 @@ use gfx_glyph::*;
 fn main() {
     pretty_env_logger::init().expect("log");
 
-    // winit wayland is currently still wip
-    if cfg!(target_os = "linux") && env::var("WINIT_UNIX_BACKEND").is_err() {
-        env::set_var("WINIT_UNIX_BACKEND", "x11");
+    if cfg!(target_os = "linux") {
+        // winit wayland is currently still wip
+        if env::var("WINIT_UNIX_BACKEND").is_err() {
+            env::set_var("WINIT_UNIX_BACKEND", "x11");
+        }
+        // disables vsync sometimes on x11
+        if env::var("vblank_mode").is_err() {
+            env::set_var("vblank_mode", "0");
+        }
     }
 
     if cfg!(debug_assertions) && env::var("yes_i_really_want_debug_mode").is_err() {
-        eprintln!("Note: Release mode will improve performance greatly.\n    \
-            e.g. use `cargo run --example complex_layout --release`");
+        eprintln!(
+            "Note: Release mode will improve performance greatly.\n    \
+             e.g. use `cargo run --example varied --release`"
+        );
     }
 
     let mut events_loop = glutin::EventsLoop::new();
     let title = "gfx_glyph example - resize to see multi-text layout";
-    let window_builder = glutin::WindowBuilder::new()
-        .with_title(title)
-        .with_dimensions(1024, 576);
-    let context = glutin::ContextBuilder::new();
+    let window_builder = glutin::WindowBuilder::new().with_title(title).with_dimensions(1024, 576);
+    let context = glutin::ContextBuilder::new().with_vsync(false);
     let (window, mut device, mut factory, mut main_color, mut main_depth) =
-        gfx_window_glutin::init::<format::Srgba8, format::Depth>(window_builder, context, &events_loop);
+        gfx_window_glutin::init::<format::Srgba8, format::Depth>(
+            window_builder,
+            context,
+            &events_loop,
+        );
 
-    let mut builder = GlyphBrushBuilder::using_font(include_bytes!("Arial Unicode.ttf") as &[u8])
-        .initial_cache_size((1024, 1024));
+    let mut builder = GlyphBrushBuilder::using_font(include_bytes!("Arial Unicode.ttf") as &[u8]);
     let sans_font = FontId::default();
     let italic_font = builder.add_font(include_bytes!("OpenSans-Italic.ttf") as &[u8]);
     let serif_font = builder.add_font(include_bytes!("GaramondNo8-Reg.ttf") as &[u8]);
@@ -53,7 +59,7 @@ fn main() {
     let mut encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
 
     let mut running = true;
-    let mut loop_helper = spin_sleep::LoopHelper::builder().build_without_target_rate();
+    let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(250.0);
 
     while running {
         loop_helper.loop_start();
@@ -65,12 +71,13 @@ fn main() {
                     WindowEvent::KeyboardInput {
                         input: KeyboardInput { virtual_keycode: Some(VirtualKeyCode::Escape), .. },
                         ..
-                    } | WindowEvent::Closed => running = false,
+                    } |
+                    WindowEvent::Closed => running = false,
                     WindowEvent::Resized(width, height) => {
                         window.resize(width, height);
                         gfx_window_glutin::update_views(&window, &mut main_color, &mut main_depth);
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
             }
         });
@@ -80,7 +87,7 @@ fn main() {
         let (width, height, ..) = main_color.get_dimensions();
         let (width, height) = (width as f32, height as f32);
 
-        glyph_brush.queue(Section2 {
+        glyph_brush.queue(VariedSection {
             bounds: (width * 0.49, height),
             text: vec![
                 SectionText {
@@ -102,10 +109,10 @@ fn main() {
                     font_id: sans_font,
                 },
             ],
-            ..Section2::default()
+            ..VariedSection::default()
         });
 
-        glyph_brush.queue(Section2 {
+        glyph_brush.queue(VariedSection {
             bounds: (width * 0.49, height),
             screen_position: (width * 0.51, 0.0),
             text: vec![
@@ -128,7 +135,7 @@ fn main() {
                     font_id: sans_font,
                 },
             ],
-            ..Section2::default()
+            ..VariedSection::default()
         });
 
         glyph_brush.draw_queued(&mut encoder, &main_color, &main_depth).expect("draw");
@@ -140,5 +147,6 @@ fn main() {
         if let Some(rate) = loop_helper.report_rate() {
             window.set_title(&format!("{} - {:.0} FPS", title, rate));
         }
+        loop_helper.loop_sleep();
     }
 }
