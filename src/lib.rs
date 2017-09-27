@@ -217,7 +217,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
 
         for g in self.calculate_glyph_cache[&section_hash]
             .glyphs.iter()
-            .flat_map(|&(ref g, ..)| g.iter())
+            .flat_map(|&GlyphedSectionText(ref g, ..)| g.iter())
         {
             if let Some(Rect{ min, max }) = g.pixel_bounding_box() {
                 if no_match || min.x < x.0 { x.0 = min.x; }
@@ -306,7 +306,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
             });
         }
         trace!("layout.calculate_glyphs in {:.3}ms",
-            start.elapsed().subsec_nanos() as f64 / 1_000_000_f64);
+            f64::from(start.elapsed().subsec_nanos()) / 1_000_000_f64);
         section_hash
     }
 
@@ -346,7 +346,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         let mut gpu_cache_finished = start.elapsed();
 
         let (screen_width, screen_height, _, _) = target.get_dimensions();
-        let (screen_width, screen_height) = (screen_width as u32, screen_height as u32);
+        let (screen_width, screen_height) = (u32::from(screen_width), u32::from(screen_height));
 
         let current_text_state = hash(&self.section_buffer);
 
@@ -361,7 +361,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                 for section_hash in &self.section_buffer {
                     let GlyphedSection { ref glyphs, .. } =
                         self.calculate_glyph_cache[section_hash];
-                    for &(ref glyphs, _, font_id) in glyphs {
+                    for &GlyphedSectionText(ref glyphs, _, font_id) in glyphs {
                         for glyph in glyphs {
                             self.font_cache.queue_glyph(font_id.0, glyph.clone());
                             no_text = false;
@@ -421,9 +421,9 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                         = self.calculate_glyph_cache[section_hash];
 
                     glyphs.iter()
-                        .flat_map(|&(ref glyphs, color, font_id)| {
+                        .flat_map(|&GlyphedSectionText(ref glyphs, color, font_id)| {
                             text_vertices(
-                                &glyphs,
+                                glyphs,
                                 color,
                                 font_id,
                                 &self.font_cache,
@@ -499,10 +499,10 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         self.clear_section_buffer();
 
         trace!("draw in {:.3}ms (gpu cache {:.3}ms, vertices {:.3}ms, draw-call {:.3}ms)",
-            start.elapsed().subsec_nanos() as f64 / 1_000_000_f64,
-            gpu_cache_finished.subsec_nanos() as f64 / 1_000_000_f64,
-            verts_created.subsec_nanos() as f64 / 1_000_000_f64,
-            draw_finished.subsec_nanos() as f64 / 1_000_000_f64);
+            f64::from(start.elapsed().subsec_nanos()) / 1_000_000_f64,
+            f64::from(gpu_cache_finished.subsec_nanos()) / 1_000_000_f64,
+            f64::from(verts_created.subsec_nanos()) / 1_000_000_f64,
+            f64::from(draw_finished.subsec_nanos()) / 1_000_000_f64);
 
         Ok(())
     }
@@ -557,9 +557,12 @@ struct DrawnGlyphBrush<R: gfx::Resources> {
 #[derive(Clone)]
 struct GlyphedSection {
     bounds: Rect<f32>,
-    glyphs: Vec<(Vec<PositionedGlyph>, Color, FontId)>,
+    glyphs: Vec<GlyphedSectionText>,
     z: f32,
 }
+
+#[derive(Clone)]
+pub struct GlyphedSectionText(pub Vec<PositionedGlyph>, pub Color, pub FontId);
 
 /// Returns a Font from font bytes info or an error reason.
 pub fn font<'a, B: Into<SharedBytes<'a>>>(font_bytes: B) -> Result<Font<'a>, &'static str> {

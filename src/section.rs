@@ -221,7 +221,6 @@ impl<'a, 'b> From<&'b Section<'a>> for VariedSection<'a> {
                 scale,
                 color,
                 font_id,
-                ..SectionText::default()
             }],
             screen_position,
             bounds,

@@ -1,4 +1,4 @@
-//! Forked from rusttype::gpu_cache, with rect_for cache misses fixed.
+//! Forked from `rusttype::gpu_cache`, with `rect_for` cache misses fixed.
 //!
 //! This module provides capabilities for managing a cache of rendered glyphs in GPU memory, with the goal of
 //! minimisng the size and frequency of glyph uploads to GPU memory from the CPU.
@@ -364,7 +364,7 @@ impl Cache {
             if row_top.is_none() {
                 let mut gap = None;
                 // See if there is space for a new row
-                for (start, end) in self.space_end_for_start.iter() {
+                for (start, end) in &self.space_end_for_start {
                     if end - start >= height {
                         gap = Some((*start, *end));
                         break;
@@ -372,7 +372,7 @@ impl Cache {
                 }
                 if gap.is_none() {
                     // Remove old rows until room is available
-                    while self.rows.len() > 0 {
+                    while !self.rows.is_empty() {
                         // check that the oldest row isn't also in use
                         if !in_use_rows.contains(self.rows.front().unwrap().0) {
                             // Remove row
@@ -395,16 +395,17 @@ impl Cache {
                                 gap = Some((new_start, new_end));
                                 break
                             }
-                        } else {
-                            // all rows left are in use
-                            // try a clean insert of all needed glyphs
-                            // if that doesn't work, fail
-                            if self.queue_retry { // already trying a clean insert, don't do it again
-                                return Err(CacheWriteErr::NoRoomForWholeQueue);
-                            } else { // signal that a retry is needed
-                                queue_success = false;
-                                break 'per_glyph;
-                            }
+                        }
+                        // all rows left are in use
+                        // try a clean insert of all needed glyphs
+                        // if that doesn't work, fail
+                        else if self.queue_retry {
+                            // already trying a clean insert, don't do it again
+                            return Err(CacheWriteErr::NoRoomForWholeQueue);
+                        }
+                        else { // signal that a retry is needed
+                            queue_success = false;
+                            break 'per_glyph;
                         }
                     }
                 }
@@ -440,9 +441,7 @@ impl Cache {
                 pixels[(y as usize, x as usize)] = v;
             });
             // transfer
-            uploader(
-                rect,
-                &pixels.as_slice());
+            uploader(rect, pixels.as_slice());
             // add the glyph to the row
             row.glyphs.push((spec, rect, pixels));
             row.width += width;

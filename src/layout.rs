@@ -65,9 +65,10 @@ impl<'a> GlyphInfo<'a> {
     }
 
     /// Returns a new GlyphInfo instance whose
-    /// [`remaining_chars()`](struct.GlyphInfo.html#method.remaining_chars) method will skip additional chars.
+    /// [`remaining_chars()`](struct.GlyphInfo.html#method.remaining_chars)
+    /// method will skip additional chars.
     pub fn skip(&self, skip: usize) -> GlyphInfo<'a> {
-        let mut clone = self.clone();
+        let mut clone = *self;
         clone.skip += skip;
         clone
     }
@@ -102,7 +103,7 @@ pub trait GlyphPositioner: Hash {
     /// return the same result when called with the same arguments. If not consider disabling
     /// [`cache_glyph_positioning`](struct.GlyphBrushBuilder.html#method.cache_glyph_positioning).
     fn calculate_glyphs<'a, G>(&self, font: &HashMap<FontId, Font>, section: G)
-        -> Vec<(Vec<PositionedGlyph>, Color, FontId)>
+        -> Vec<GlyphedSectionText>
         where G: Into<SectionGlyphInfo<'a>>;
     /// Return a rectangle according to the requested render position and bounds appropriate
     /// for the glyph layout.
@@ -199,7 +200,7 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
         &self,
         font_map: &HashMap<FontId, Font>,
         section: G,
-    ) -> Vec<(Vec<PositionedGlyph>, Color, FontId)> {
+    ) -> Vec<GlyphedSectionText> {
         self.calculate_glyphs_and_leftover(font_map, &section.into()).0
     }
 
@@ -285,7 +286,7 @@ impl<L: LineBreaker> Layout<L> {
         &self,
         font_map: &HashMap<FontId, Font>,
         section: &SectionGlyphInfo<'a>,
-    ) -> (Vec<(Vec<PositionedGlyph>, Color, FontId)>, Option<LayoutLeftover<'a>>) {
+    ) -> (Vec<GlyphedSectionText>, Option<LayoutLeftover<'a>>) {
         match *self {
             Layout::SingleLine { line_breaker, h_align, v_align } => {
                 single_line(font_map, line_breaker, h_align, v_align, section)
@@ -300,13 +301,15 @@ impl<L: LineBreaker> Layout<L> {
 /// Positions glyphs in a single line left to right with the screen position marking
 /// the top-left corner.
 /// Returns (positioned-glyphs, text that could not be positioned (outside bounds))
+///
+/// TODO this is the guts of the layout code, it should be split up more as it's fairly unweildy now
 fn single_line<'a, L: LineBreaker>(
     font_map: &HashMap<FontId, Font>,
     line_breaker: L,
     h_align: HorizontalAlign,
     v_align: VerticalAlign,
     section_glyph_info: &SectionGlyphInfo<'a>,
-) -> (Vec<(Vec<PositionedGlyph>, Color, FontId)>, Option<LayoutLeftover<'a>>) {
+) -> (Vec<GlyphedSectionText>, Option<LayoutLeftover<'a>>) {
 
     match v_align {
         VerticalAlign::Top => {}
@@ -317,7 +320,7 @@ fn single_line<'a, L: LineBreaker>(
         bounds: (bound_w, bound_h),
         .. } = *section_glyph_info;
 
-    let mut result: Vec<(Vec<PositionedGlyph>, _, _)> = Vec::new();
+    let mut result: Vec<GlyphedSectionText> = Vec::new();
     let mut leftover = None;
 
     let mut caret = point(0.0, 0.0);
@@ -370,7 +373,7 @@ fn single_line<'a, L: LineBreaker>(
 
         let mut last_glyph_id = None;
 
-        let mut line_breaks = line_breaker.line_breaks(&glyph_info);
+        let mut line_breaks = line_breaker.line_breaks(glyph_info);
         let mut previous_break = None;
         let mut next_break = line_breaks.next();
         let mut glyphs = vec![];
@@ -393,7 +396,7 @@ fn single_line<'a, L: LineBreaker>(
                     ));
                     if !glyphs.is_empty() {
                         shift_previous_ascent_by!(ascent_adjustment);
-                        result.push((glyphs, color, font_id));
+                        result.push(GlyphedSectionText(glyphs, color, font_id));
                     }
                     break 'sections;
                 }
@@ -427,7 +430,7 @@ fn single_line<'a, L: LineBreaker>(
                             ));
                             if !glyphs.is_empty() {
                                 shift_previous_ascent_by!(ascent_adjustment);
-                                result.push((glyphs, color, font_id));
+                                result.push(GlyphedSectionText(glyphs, color, font_id));
                             }
                             break 'sections;
                         }
@@ -452,13 +455,13 @@ fn single_line<'a, L: LineBreaker>(
                         glyphs.clear();
                         leftover = Some(LayoutLeftover::OutOfWidthBound(
                             caret,
-                            section_glyph_info.with_info(info_index, glyph_info.clone()),
+                            section_glyph_info.with_info(info_index, *glyph_info),
                             max_line_v.unwrap(),
                         ));
                     }
                     if !glyphs.is_empty() {
                         shift_previous_ascent_by!(ascent_adjustment);
-                        result.push((glyphs, color, font_id));
+                        result.push(GlyphedSectionText(glyphs, color, font_id));
                     }
                     break 'sections;
                 }
@@ -479,7 +482,7 @@ fn single_line<'a, L: LineBreaker>(
             if shift_previous_ascent_by!(ascent_adjustment) {
                 max_line_v = Some(v_metrics);
             }
-            result.push((glyphs, color, font_id));
+            result.push(GlyphedSectionText(glyphs, color, font_id));
         }
 
         if let Some(idx) = vertically_hidden_tail_start {
@@ -494,7 +497,17 @@ fn single_line<'a, L: LineBreaker>(
         }
     }
 
-    if !result.is_empty() {
+    adjust_for_alignment(&mut result, h_align, section_glyph_info);
+
+    (result, leftover)
+}
+
+fn adjust_for_alignment(
+    line: &mut Vec<GlyphedSectionText>,
+    h_align: HorizontalAlign,
+    &SectionGlyphInfo { screen_position: (screen_x, ..), .. }: &SectionGlyphInfo,
+) {
+    if !line.is_empty() {
         match h_align {
             HorizontalAlign::Left => (), // all done
             HorizontalAlign::Right | HorizontalAlign::Center => {
@@ -503,7 +516,7 @@ fn single_line<'a, L: LineBreaker>(
                 // Central alignment is attained from left by shifting the line
                 // leftwards by half the rightmost x distance from render position
                 let rightmost_x_offset = {
-                    let last = result.last().and_then(|s| s.0.last()).unwrap();
+                    let last = line.last().and_then(|s| s.0.last()).unwrap();
                     last.pixel_bounding_box()
                         .map(|bb| bb.max.x as f32)
                         .unwrap_or_else(|| last.position().x)
@@ -511,11 +524,15 @@ fn single_line<'a, L: LineBreaker>(
                         - screen_x
                 };
                 let shift_left = {
-                    if h_align == HorizontalAlign::Right { rightmost_x_offset }
-                    else { rightmost_x_offset / 2.0 }
+                    if h_align == HorizontalAlign::Right {
+                        rightmost_x_offset
+                    }
+                    else {
+                        rightmost_x_offset / 2.0
+                    }
                 };
 
-                for part in &mut result {
+                for part in line.iter_mut() {
                     let mut shifted = Vec::with_capacity(part.0.len());
 
                     for glyph in part.0.drain(..) {
@@ -526,12 +543,11 @@ fn single_line<'a, L: LineBreaker>(
 
                     part.0 = shifted;
                 }
-            },
+            }
         }
     }
-
-    (result, leftover)
 }
+
 
 fn paragraph<'a, L: LineBreaker>(
     font_map: &HashMap<FontId, Font>,
@@ -539,7 +555,7 @@ fn paragraph<'a, L: LineBreaker>(
     h_align: HorizontalAlign,
     v_align: VerticalAlign,
     mut section: SectionGlyphInfo<'a>)
-    -> (Vec<(Vec<PositionedGlyph>, Color, FontId)>, Option<LayoutLeftover<'a>>)
+    -> (Vec<GlyphedSectionText>, Option<LayoutLeftover<'a>>)
 {
     let mut out = vec![];
     let mut paragraph_leftover = None;

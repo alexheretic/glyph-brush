@@ -3,7 +3,6 @@
 //!
 //! * Resize window to adjust layout
 
-extern crate cgmath;
 extern crate gfx;
 extern crate gfx_glyph;
 extern crate gfx_window_glutin;
@@ -85,7 +84,7 @@ fn main() {
         encoder.clear(&main_color, [0.02, 0.02, 0.02, 1.0]);
 
         let (width, height, ..) = main_color.get_dimensions();
-        let (width, height) = (width as f32, height as f32);
+        let (width, height) = (f32::from(width), f32::from(height));
 
         glyph_brush.queue(VariedSection {
             bounds: (width * 0.49, height),

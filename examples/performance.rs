@@ -98,13 +98,14 @@ fn main() {
         encoder.clear(&main_color, [0.02, 0.02, 0.02, 1.0]);
 
         let (width, height, ..) = main_color.get_dimensions();
+        let (width, height) = (f32::from(width), f32::from(height));
 
         // The section is all the info needed for the glyph brush to render a 'section' of text
         // can use `..Section::default()` to skip the bits you don't care about
         let section = Section {
             text: &text,
             scale: font_size,
-            bounds: (width as f32, height as f32),
+            bounds: (width, height),
             color: [0.8, 0.8, 0.8, 1.0],
             ..Section::default()
         };
@@ -154,7 +155,7 @@ impl gfx_glyph::GlyphPositioner for CustomContiguousParagraphLayout {
         &self,
         fonts: &HashMap<FontId, Font>,
         section: G
-    ) -> Vec<(Vec<PositionedGlyph>, [f32; 4], FontId)> {
+    ) -> Vec<GlyphedSectionText> {
 
         let mut glyph_info = section.into();
         let original_screen_x = glyph_info.screen_position.0;

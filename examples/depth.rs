@@ -1,4 +1,3 @@
-extern crate cgmath;
 extern crate gfx;
 extern crate gfx_glyph;
 extern crate gfx_window_glutin;
@@ -74,7 +73,7 @@ fn main() {
         encoder.clear_depth(&main_depth, 1.0);
 
         let (width, height, ..) = main_color.get_dimensions();
-        let (width, height) = (width as f32, height as f32);
+        let (width, height) = (f32::from(width), f32::from(height));
 
         // first section is queued, and therefore drawn, first with lower z
         glyph_brush.queue(Section {
@@ -86,7 +85,6 @@ fn main() {
             font_id: italic_font,
             layout: Layout::default().h_align(HorizontalAlign::Center),
             z: 0.2,
-            ..Section::default()
         });
 
         // 2nd section is drawn last but with higher z,

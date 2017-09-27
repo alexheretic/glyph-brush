@@ -2,11 +2,17 @@
 #[cfg(feature = "bench")]
 extern crate test;
 
+#[cfg(feature = "bench")]
 extern crate gfx;
+#[cfg(feature = "bench")]
 extern crate gfx_core;
+#[cfg(feature = "bench")]
 extern crate gfx_glyph;
+#[cfg(feature = "bench")]
 extern crate gfx_window_glutin;
+#[cfg(feature = "bench")]
 extern crate glutin;
+#[cfg(feature = "bench")]
 extern crate pretty_env_logger;
 
 #[cfg(feature = "bench")]
@@ -189,6 +195,12 @@ fn bench(
     let mut encoder: gfx::Encoder<_, _> = gfx_noop::NoopCommandBuffer.into();
 
     let mut glyph_brush = brush.build(factory.clone());
+
+    // once before, to warm up cache benches
+    for section in sections.iter() {
+        glyph_brush.queue(*section);
+    }
+    glyph_brush.draw_queued(&mut encoder, &main_color, &main_depth).expect("draw");
 
     b.iter(|| {
         for section in sections.iter() {
