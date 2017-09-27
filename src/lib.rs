@@ -72,6 +72,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use gfx_core::memory::Typed;
 use std::i32;
+use std::borrow::{Cow, Borrow};
 use std::error::Error;
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry;
@@ -204,14 +205,14 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     pub fn pixel_bounds_custom_layout<'a, S, L>(&mut self, section: S, custom_layout: &L)
         -> Option<Rect<i32>>
         where L: GlyphPositioner + Hash,
-              S: Into<VariedSection<'a>>,
+              S: Into<Cow<'a, VariedSection<'a>>>,
     {
         let section = section.into();
         let mut x = (0, 0);
         let mut y = (0, 0);
         let mut no_match = true;
 
-        let section_hash = self.cache_glyphs(&section, custom_layout);
+        let section_hash = self.cache_glyphs(section.borrow(), custom_layout);
         self.keep_in_cache.insert(section_hash);
 
         for g in self.calculate_glyph_cache[&section_hash]
@@ -241,8 +242,9 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     /// whole number pixel rectangle that can contain the section.
     ///
     /// If the section is empty or would result in no drawn glyphs will return `None`
-    pub fn pixel_bounds<'a, S>(&mut self, section: S) -> Option<Rect<i32>>
-        where S: Into<VariedSection<'a>>,
+    pub fn pixel_bounds<'a, S>(&mut self, section: S)
+        -> Option<Rect<i32>>
+        where S: Into<Cow<'a, VariedSection<'a>>>,
     {
         let section = section.into();
         let layout = section.layout;
@@ -257,7 +259,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     /// [`Layout`](enum.Layout.html) simply use [`queue`](struct.GlyphBrush.html#method.queue)
     pub fn queue_custom_layout<'a, S, G>(&mut self, section: S, custom_layout: &G)
         where G: GlyphPositioner,
-              S: Into<VariedSection<'a>>
+              S: Into<Cow<'a, VariedSection<'a>>>,
     {
         let section = section.into();
         if cfg!(debug_assertions) {
@@ -273,7 +275,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     /// [`draw_queued`](struct.GlyphBrush.html#method.draw_queued). Can be called multiple times
     /// to queue multiple sections for drawing.
     pub fn queue<'a, S>(&mut self, section: S)
-        where S: Into<VariedSection<'a>>,
+        where S: Into<Cow<'a, VariedSection<'a>>>,
     {
         let section = section.into();
         let layout = section.layout;

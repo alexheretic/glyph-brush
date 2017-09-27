@@ -55,6 +55,18 @@ impl Default for VariedSection<'static> {
     }
 }
 
+impl<'a> From<VariedSection<'a>> for Cow<'a, VariedSection<'a>> {
+    fn from(owned: VariedSection<'a>) -> Self {
+        Cow::Owned(owned)
+    }
+}
+
+impl<'a, 'b> From<&'b VariedSection<'a>> for Cow<'b, VariedSection<'a>> {
+    fn from(owned: &'b VariedSection<'a>) -> Self {
+        Cow::Borrowed(owned)
+    }
+}
+
 impl<'a> Hash for VariedSection<'a> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         use ordered_float::OrderedFloat;
@@ -222,5 +234,18 @@ impl<'a, 'b> From<&'b Section<'a>> for VariedSection<'a> {
 impl<'a> From<Section<'a>> for VariedSection<'a> {
     fn from(s: Section<'a>) -> Self {
         VariedSection::from(&s)
+    }
+}
+
+
+impl<'a> From<Section<'a>> for Cow<'a, VariedSection<'a>> {
+    fn from(section: Section<'a>) -> Self {
+        Cow::Owned(VariedSection::from(section))
+    }
+}
+
+impl<'a, 'b> From<&'b Section<'a>> for Cow<'a, VariedSection<'a>> {
+    fn from(section: &'b Section<'a>) -> Self {
+        Cow::Owned(VariedSection::from(section))
     }
 }
