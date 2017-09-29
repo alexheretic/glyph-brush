@@ -2,12 +2,18 @@
 #[cfg(feature = "bench")]
 extern crate test;
 
+#[cfg(feature = "bench")]
 extern crate gfx;
+#[cfg(feature = "bench")]
 extern crate gfx_core;
-extern crate gfx_window_glutin;
-extern crate glutin;
-extern crate pretty_env_logger;
+#[cfg(feature = "bench")]
 extern crate gfx_glyph;
+#[cfg(feature = "bench")]
+extern crate gfx_window_glutin;
+#[cfg(feature = "bench")]
+extern crate glutin;
+#[cfg(feature = "bench")]
+extern crate pretty_env_logger;
 
 #[cfg(feature = "bench")]
 mod gfx_noop;
@@ -24,27 +30,31 @@ fn render_3_medium_sections_fully(b: &mut ::test::Bencher) {
     let brush = GlyphBrushBuilder::using_font(TEST_FONT);
     let text = include_str!("lipsum.txt");
 
-    bench(b,
+    bench(
+        b,
         &[
             Section {
                 text,
                 bounds: (600.0, f32::INFINITY),
-                layout: Layout::Wrap(StandardLineBreaker, HorizontalAlign::Left),
-                ..Section::default() },
+                ..Section::default()
+            },
             Section {
                 text,
                 screen_position: (600.0, 0.0),
                 bounds: (600.0, f32::INFINITY),
-                layout: Layout::Wrap(StandardLineBreaker, HorizontalAlign::Center),
-                ..Section::default() },
+                layout: Layout::default().h_align(HorizontalAlign::Center),
+                ..Section::default()
+            },
             Section {
                 text,
                 screen_position: (1200.0, 0.0),
                 bounds: (600.0, f32::INFINITY),
-                layout: Layout::Wrap(StandardLineBreaker, HorizontalAlign::Right),
-                ..Section::default() },
+                layout: Layout::default().h_align(HorizontalAlign::Right),
+                ..Section::default()
+            },
         ],
-        brush);
+        brush,
+    );
 }
 
 #[bench]
@@ -59,27 +69,31 @@ fn no_cache_render_3_medium_sections_fully(b: &mut ::test::Bencher) {
         .cache_glyph_drawing(false);
     let text = include_str!("lipsum.txt");
 
-    bench(b,
+    bench(
+        b,
         &[
             Section {
                 text,
                 bounds: (600.0, f32::INFINITY),
-                layout: Layout::Wrap(StandardLineBreaker, HorizontalAlign::Left),
-                ..Section::default() },
+                ..Section::default()
+            },
             Section {
                 text,
                 screen_position: (600.0, 0.0),
                 bounds: (600.0, f32::INFINITY),
-                layout: Layout::Wrap(StandardLineBreaker, HorizontalAlign::Center),
-                ..Section::default() },
+                layout: Layout::default().h_align(HorizontalAlign::Center),
+                ..Section::default()
+            },
             Section {
                 text,
                 screen_position: (1200.0, 0.0),
                 bounds: (600.0, f32::INFINITY),
-                layout: Layout::Wrap(StandardLineBreaker, HorizontalAlign::Right),
-                ..Section::default() }
+                layout: Layout::default().h_align(HorizontalAlign::Right),
+                ..Section::default()
+            },
         ],
-        brush);
+        brush,
+    );
 }
 
 #[bench]
@@ -90,13 +104,7 @@ fn render_1_large_section_partially(b: &mut ::test::Bencher) {
     let brush = GlyphBrushBuilder::using_font(TEST_FONT);
     let text = include_str!("lots_of_lipsum.txt");
 
-    bench(b,
-        &[Section {
-            text,
-            bounds: (600.0, 600.0),
-            ..Section::default()
-        }],
-        brush);
+    bench(b, &[Section { text, bounds: (600.0, 600.0), ..Section::default() }], brush);
 }
 
 #[bench]
@@ -110,13 +118,7 @@ fn no_cache_render_1_large_section_partially(b: &mut ::test::Bencher) {
         .cache_glyph_drawing(false);
     let text = include_str!("lots_of_lipsum.txt");
 
-    bench(b,
-        &[Section {
-            text,
-            bounds: (600.0, 600.0),
-            ..Section::default()
-        }],
-        brush);
+    bench(b, &[Section { text, bounds: (600.0, 600.0), ..Section::default() }], brush);
 }
 
 #[bench]
@@ -167,11 +169,11 @@ fn no_cache_render_100_small_sections_fully(b: &mut ::test::Bencher) {
 }
 
 #[cfg(feature = "bench")]
-fn bench<L: gfx_glyph::LineBreaker>(
+fn bench(
     b: &mut ::test::Bencher,
-    sections: &[gfx_glyph::Section<'static, L>],
-    brush: gfx_glyph::GlyphBrushBuilder)
-{
+    sections: &[gfx_glyph::Section<'static>],
+    brush: gfx_glyph::GlyphBrushBuilder,
+) {
     use gfx::format;
     use std::env;
 
@@ -188,10 +190,17 @@ fn bench<L: gfx_glyph::LineBreaker>(
         gfx_window_glutin::init::<format::Srgba8, format::Depth>(
             glutin::WindowBuilder::new().with_dimensions(1, 1),
             glutin::ContextBuilder::new(),
-            &events_loop);
+            &events_loop,
+        );
     let mut encoder: gfx::Encoder<_, _> = gfx_noop::NoopCommandBuffer.into();
 
     let mut glyph_brush = brush.build(factory.clone());
+
+    // once before, to warm up cache benches
+    for section in sections.iter() {
+        glyph_brush.queue(*section);
+    }
+    glyph_brush.draw_queued(&mut encoder, &main_color, &main_depth).expect("draw");
 
     b.iter(|| {
         for section in sections.iter() {

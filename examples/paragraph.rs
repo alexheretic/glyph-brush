@@ -1,6 +1,7 @@
 //! An example of paragraph rendering
 //! Controls
 //!
+//! * Resize window to adjust layout
 //! * Scroll to modify font size
 //! * Type to add/remove text
 //! * Ctrl-Scroll to zoom in/out using a transform, this is cheap but notice how rusttype can't
@@ -126,6 +127,7 @@ fn main() {
         encoder.clear(&main_color, [0.02, 0.02, 0.02, 1.0]);
 
         let (width, height, ..) = main_color.get_dimensions();
+        let (width, height) = (f32::from(width), f32::from(height));
         let scale = font_size;
 
         // The section is all the info needed for the glyph brush to render a 'section' of text.
@@ -134,10 +136,13 @@ fn main() {
             text: &text,
             scale,
             screen_position: (0.0, 0.0),
-            bounds: (width as f32 / 3.15, height as f32),
+            bounds: (width / 3.15, height),
             color: [0.9, 0.3, 0.3, 1.0],
             ..Section::default()
         };
+
+        // bounds of a section can be fetched with `pixel_bounds`
+        let _bounds: Option<Rect<i32>> = glyph_brush.pixel_bounds(section);
 
         // Adds a section & layout to the queue for the next call to `draw_queued`, this
         // can be called multiple times for different sections that want to use the same
@@ -149,20 +154,20 @@ fn main() {
         glyph_brush.queue(Section {
             text: &text,
             scale,
-            screen_position: (width as f32 / 2.0, 0.0),
-            bounds: (width as f32 / 3.15, height as f32),
+            screen_position: (width / 2.0, 0.0),
+            bounds: (width / 3.15, height),
             color: [0.3, 0.9, 0.3, 1.0],
-            layout: Layout::Wrap(StandardLineBreaker, HorizontalAlign::Center),
+            layout: Layout::default().h_align(HorizontalAlign::Center),
             ..Section::default()
         });
 
         glyph_brush.queue(Section {
             text: &text,
             scale,
-            screen_position: (width as f32, 0.0),
-            bounds: (width as f32 / 3.15, height as f32),
+            screen_position: (width, 0.0),
+            bounds: (width / 3.15, height),
             color: [0.3, 0.3, 0.9, 1.0],
-            layout: Layout::Wrap(StandardLineBreaker, HorizontalAlign::Right),
+            layout: Layout::default().h_align(HorizontalAlign::Right),
             ..Section::default()
         });
 
