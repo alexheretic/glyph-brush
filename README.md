@@ -36,12 +36,13 @@ glyph_brush.queue(some_other_section);
 glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth).unwrap();
 ```
 
-## Limitations
-The current implementation only supports OpenGL 3.0 or later. But other rendering languages (that are supported by gfx) should be easy enough to add. Send in your PRs!
-
 ## Examples
 Have a look at
 * `cargo run --example paragraph --release`
 * `cargo run --example performance --release`
 * `cargo run --example varied --release`
 * `cargo run --example depth --release`
+
+
+## Limitations
+The current implementation supports OpenGL *(3.0 or later)*. However, other rendering languages (that are supported by gfx) should be easy enough to add. Send in your PRs!
