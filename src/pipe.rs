@@ -37,7 +37,7 @@ gfx_defines!{
 
 gfx_pipeline_base!( glyph_pipe {
     vbuf: VertexBuffer<GlyphVertex>,
-    font_tex: TextureSampler<TexFormView>,
+    font_tex: gfx::pso::resource::TextureSampler<TexFormView>,
     transform: Global<[[f32; 4]; 4]>,
     out: RawRenderTarget,
     out_depth: RawDepthTarget,

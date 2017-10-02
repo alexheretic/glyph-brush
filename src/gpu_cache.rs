@@ -62,12 +62,15 @@ impl Ord for PGlyphSpec {
 
 impl PGlyphSpec {
     /// Returns if this cached glyph can be considered to match another at input tolerances
-    fn matches(&self, other: &PGlyphSpec, scale_tolerance: f32, position_tolerance: f32) -> bool {
-        self.font_id == other.font_id && self.glyph_id == other.glyph_id
-            && (self.scale.x - other.scale.x).abs() < scale_tolerance
-            && (self.scale.y - other.scale.y).abs() < scale_tolerance
-            && (self.offset.x - other.offset.x).abs() < position_tolerance
-            && (self.offset.y - other.offset.y).abs() < position_tolerance
+    fn matches(&self, other: &PGlyphSpec, scale_tolerance: f32, position_tolerance: f32)
+        -> bool
+    {
+        self.font_id == other.font_id &&
+            self.glyph_id == other.glyph_id &&
+            (self.scale.x - other.scale.x).abs() < scale_tolerance &&
+            (self.scale.y - other.scale.y).abs() < scale_tolerance &&
+            (self.offset.x - other.offset.x).abs() < position_tolerance &&
+            (self.offset.y - other.offset.y).abs() < position_tolerance
     }
 
     /// Returns a data view that is implicitly equal-able/hash-able/orderable
@@ -144,7 +147,7 @@ struct Row {
 }
 
 /// An implementation of a dynamic GPU glyph cache. See the module documentation for more information.
-pub struct Cache {
+pub struct Cache<'font> {
     scale_tolerance: f32,
     position_tolerance: f32,
     width: u32,
@@ -152,7 +155,7 @@ pub struct Cache {
     rows: LinkedHashMap<u32, Row>,
     space_start_for_end: HashMap<u32, u32>,
     space_end_for_start: HashMap<u32, u32>,
-    queue: Vec<(usize, PositionedGlyph<'static>)>,
+    queue: Vec<(usize, PositionedGlyph<'font>)>,
     queue_retry: bool,
     all_glyphs: BTreeMap<PGlyphSpec, (u32, u32)>
 }
@@ -187,7 +190,7 @@ fn normalise_pixel_offset(mut offset: Vector<f32>) -> Vector<f32> {
 }
 
 #[allow(dead_code)] // from fork (keep in case we want to reuse this module)
-impl Cache {
+impl<'font> Cache<'font> {
     /// Constructs a new cache. Note that this is just the CPU side of the cache. The GPU texture is managed
     /// by the user.
     ///
@@ -209,8 +212,12 @@ impl Cache {
     /// # Panics
     ///
     /// `scale_tolerance` or `position_tolerance` are less than or equal to zero.
-    pub fn new(width: u32, height: u32,
-               scale_tolerance: f32, position_tolerance: f32) -> Cache {
+    pub fn new<'a>(
+        width: u32,
+        height: u32,
+        scale_tolerance: f32,
+        position_tolerance: f32,
+    ) -> Cache<'a> {
         assert!(scale_tolerance >= 0.0);
         assert!(position_tolerance >= 0.0);
         let scale_tolerance = scale_tolerance.max(0.001);
@@ -228,6 +235,7 @@ impl Cache {
             all_glyphs: BTreeMap::new()
         }
     }
+
     /// Sets the scale tolerance for the cache. See the documentation for `Cache::new` for more information.
     ///
     /// # Panics
@@ -265,9 +273,9 @@ impl Cache {
     /// Queue a glyph for caching by the next call to `cache_queued`. `font_id` is used to
     /// disambiguate glyphs from different fonts. The user should ensure that `font_id` is unique to the
     /// font the glyph is from.
-    pub fn queue_glyph(&mut self, font_id: usize, glyph: PositionedGlyph) {
+    pub fn queue_glyph(&mut self, font_id: usize, glyph: PositionedGlyph<'font>) {
         if glyph.pixel_bounding_box().is_some() {
-            self.queue.push((font_id, glyph.standalone()));
+            self.queue.push((font_id, glyph));
         }
     }
     /// Clears the cache. Does not affect the glyph queue.
@@ -613,9 +621,9 @@ fn cache_test() {
     use ::FontCollection;
     use ::Scale;
     use ::point;
-    let mut cache = Cache::new(32, 32, 0.1, 0.1);
     let font_data = include_bytes!("../examples/Arial Unicode.ttf");
     let font = FontCollection::from_bytes(font_data as &[u8]).into_font().unwrap();
+    let mut cache = Cache::new(32, 32, 0.1, 0.1);
     let strings = [
         ("Hello World!", 15.0),
         ("Hello World!", 14.0),
@@ -671,8 +679,14 @@ mod cache_bench_tests {
     use ::{FontCollection, Scale, Font, point};
 
     const FONT_ID: usize = 0;
-    const FONT_BYTES: &[u8] = include_bytes!("../examples/Arial Unicode.ttf");
     const TEST_STR: &str = include_str!("../tests/lipsum.txt");
+
+    lazy_static! {
+        static ref FONT: Font<'static> = FontCollection
+            ::from_bytes(include_bytes!("../examples/Arial Unicode.ttf") as &[u8])
+            .into_font()
+            .unwrap();
+    }
 
     /// Reproduces Err(GlyphNotCached) issue & serves as a general purpose cache benchmark
     #[bench]
@@ -718,13 +732,12 @@ mod cache_bench_tests {
     }
 
     fn test_glyphs() -> Vec<PositionedGlyph<'static>> {
-        let font = FontCollection::from_bytes(FONT_BYTES).into_font().unwrap();
         let mut glyphs = vec![];
         // Set of scales, found through brute force, to reproduce GlyphNotCached issue
         // Cache settings also affect this, it occurs when position_tolerance is < 1.0
         for scale in &[25_f32, 24.5, 25.01, 24.7, 24.99] {
-            for glyph in layout_paragraph(&font, Scale::uniform(*scale), 500, TEST_STR) {
-                glyphs.push(glyph.standalone());
+            for glyph in layout_paragraph(&FONT, Scale::uniform(*scale), 500, TEST_STR) {
+                glyphs.push(glyph);
             }
         }
         glyphs
