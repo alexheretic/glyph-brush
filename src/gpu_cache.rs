@@ -29,35 +29,65 @@ use rusttype::{PositionedGlyph, Rect, Scale, GlyphId, Vector};
 use std::collections::{HashMap, HashSet, BTreeMap};
 use std::collections::Bound::{Included, Unbounded};
 use linked_hash_map::LinkedHashMap;
+use ordered_float::OrderedFloat;
+use std::cmp::{PartialEq, Eq, Ord, PartialOrd, Ordering};
 
-#[derive(PartialEq, PartialOrd, Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 struct PGlyphSpec {
     font_id: usize,
     glyph_id: GlyphId,
     scale: Scale,
-    offset: Vector<f32>
+    offset: Vector<f32>,
 }
 
-impl ::std::cmp::Eq for PGlyphSpec {}
+impl PartialEq for PGlyphSpec {
+    fn eq(&self, other: &PGlyphSpec) -> bool {
+        self.to_orderable() == other.to_orderable()
+    }
+}
 
-impl ::std::cmp::Ord for PGlyphSpec {
-    fn cmp(&self, other: &PGlyphSpec) -> ::std::cmp::Ordering {
-        self.partial_cmp(other).unwrap()
+impl Eq for PGlyphSpec {}
+
+impl PartialOrd for PGlyphSpec {
+    fn partial_cmp(&self, other: &PGlyphSpec) -> Option<Ordering> {
+        self.to_orderable().partial_cmp(&other.to_orderable())
+    }
+}
+
+impl Ord for PGlyphSpec {
+    fn cmp(&self, other: &PGlyphSpec) -> Ordering {
+        self.to_orderable().cmp(&other.to_orderable())
     }
 }
 
 impl PGlyphSpec {
-    /// Returns if this cached glyph can be considered to match another
-    /// at input tolerances
-    fn matches(&self, other: &PGlyphSpec, scale_tolerance: f32, position_tolerance: f32)
-        -> bool
-    {
-        self.font_id == other.font_id &&
-            self.glyph_id == other.glyph_id &&
-            (self.scale.x - other.scale.x).abs() < scale_tolerance &&
-            (self.scale.y - other.scale.y).abs() < scale_tolerance &&
-            (self.offset.x - other.offset.x).abs() < position_tolerance &&
-            (self.offset.y - other.offset.y).abs() < position_tolerance
+    /// Returns if this cached glyph can be considered to match another at input tolerances
+    fn matches(&self, other: &PGlyphSpec, scale_tolerance: f32, position_tolerance: f32) -> bool {
+        self.font_id == other.font_id && self.glyph_id == other.glyph_id
+            && (self.scale.x - other.scale.x).abs() < scale_tolerance
+            && (self.scale.y - other.scale.y).abs() < scale_tolerance
+            && (self.offset.x - other.offset.x).abs() < position_tolerance
+            && (self.offset.y - other.offset.y).abs() < position_tolerance
+    }
+
+    /// Returns a data view that is implicitly equal-able/hash-able/orderable
+    fn to_orderable(&self) -> (
+        usize,
+        GlyphId,
+        OrderedFloat<f32>,
+        OrderedFloat<f32>,
+        OrderedFloat<f32>,
+        OrderedFloat<f32>,
+    ) {
+        let PGlyphSpec { font_id, glyph_id, scale, offset } = *self;
+        (
+            font_id,
+            glyph_id,
+            OrderedFloat(scale.x),
+            OrderedFloat(scale.y),
+            OrderedFloat(offset.x),
+            OrderedFloat(offset.y),
+        )
     }
 }
 
