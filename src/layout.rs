@@ -103,8 +103,8 @@ pub trait GlyphPositioner: Hash {
     /// Calculate a sequence of positioned glyphs to render. Custom implementations should always
     /// return the same result when called with the same arguments. If not consider disabling
     /// [`cache_glyph_positioning`](struct.GlyphBrushBuilder.html#method.cache_glyph_positioning).
-    fn calculate_glyphs<'a, G>(&self, font: &HashMap<FontId, Font>, section: G)
-        -> Vec<GlyphedSectionText>
+    fn calculate_glyphs<'a, 'font, G>(&self, font: &HashMap<FontId, Font<'font>>, section: G)
+        -> Vec<GlyphedSectionText<'font>>
         where G: Into<SectionGlyphInfo<'a>>;
     /// Return a rectangle according to the requested render position and bounds appropriate
     /// for the glyph layout.
@@ -197,11 +197,11 @@ impl<L: LineBreaker> Layout<L> {
 }
 
 impl<L: LineBreaker> GlyphPositioner for Layout<L> {
-    fn calculate_glyphs<'a, G: Into<SectionGlyphInfo<'a>>>(
+    fn calculate_glyphs<'font, 'a, G: Into<SectionGlyphInfo<'a>>>(
         &self,
-        font_map: &HashMap<FontId, Font>,
+        font_map: &HashMap<FontId, Font<'font>>,
         section: G,
-    ) -> Vec<GlyphedSectionText> {
+    ) -> Vec<GlyphedSectionText<'font>> {
         self.calculate_glyphs_and_leftover(font_map, &section.into()).0
     }
 
@@ -283,11 +283,11 @@ pub enum LayoutLeftover<'a> {
 }
 
 impl<L: LineBreaker> Layout<L> {
-    pub fn calculate_glyphs_and_leftover<'a>(
+    pub fn calculate_glyphs_and_leftover<'a, 'font>(
         &self,
-        font_map: &HashMap<FontId, Font>,
+        font_map: &HashMap<FontId, Font<'font>>,
         section: &SectionGlyphInfo<'a>,
-    ) -> (Vec<GlyphedSectionText>, Option<LayoutLeftover<'a>>) {
+    ) -> (Vec<GlyphedSectionText<'font>>, Option<LayoutLeftover<'a>>) {
         match *self {
             Layout::SingleLine { line_breaker, h_align, v_align } => {
                 single_line(font_map, line_breaker, h_align, v_align, section)
@@ -304,13 +304,13 @@ impl<L: LineBreaker> Layout<L> {
 /// Returns (positioned-glyphs, text that could not be positioned (outside bounds))
 ///
 /// TODO this is the guts of the layout code, it should be split up more as it's fairly unweildy now
-fn single_line<'a, L: LineBreaker>(
-    font_map: &HashMap<FontId, Font>,
+fn single_line<'font, 'a, L: LineBreaker>(
+    font_map: &HashMap<FontId, Font<'font>>,
     line_breaker: L,
     h_align: HorizontalAlign,
     v_align: VerticalAlign,
     section_glyph_info: &SectionGlyphInfo<'a>,
-) -> (Vec<GlyphedSectionText>, Option<LayoutLeftover<'a>>) {
+) -> (Vec<GlyphedSectionText<'font>>, Option<LayoutLeftover<'a>>) {
 
     match v_align {
         VerticalAlign::Top => {}
@@ -321,7 +321,7 @@ fn single_line<'a, L: LineBreaker>(
         bounds: (bound_w, bound_h),
         .. } = *section_glyph_info;
 
-    let mut result: Vec<GlyphedSectionText> = Vec::new();
+    let mut result: Vec<GlyphedSectionText<'font>> = Vec::new();
     let mut leftover = None;
 
     let mut caret = point(0.0, 0.0);
@@ -355,7 +355,7 @@ fn single_line<'a, L: LineBreaker>(
 
     'sections: for (info_index, glyph_info) in section_glyph_info.remaining_info() {
         let GlyphInfo { scale, color, font_id, .. } = *glyph_info;
-        let font = &font_map[&font_id];
+        let font = font_map.get(&font_id).unwrap();
 
         let mut v_metrics = font.v_metrics(scale);
         if let Some(max) = max_line_v {
@@ -504,7 +504,7 @@ fn single_line<'a, L: LineBreaker>(
                 vertically_hidden_tail_start = None;
             }
             caret.x += glyph.unpositioned().h_metrics().advance_width;
-            glyphs.push(glyph.standalone());
+            glyphs.push(glyph);
         }
 
         if !glyphs.is_empty() {
@@ -577,14 +577,13 @@ fn adjust_for_alignment(
     }
 }
 
-
-fn paragraph<'a, L: LineBreaker>(
-    font_map: &HashMap<FontId, Font>,
+fn paragraph<'a, 'font, L: LineBreaker>(
+    font_map: &HashMap<FontId, Font<'font>>,
     line_breaker: L,
     h_align: HorizontalAlign,
     v_align: VerticalAlign,
     mut section: SectionGlyphInfo<'a>)
-    -> (Vec<GlyphedSectionText>, Option<LayoutLeftover<'a>>)
+    -> (Vec<GlyphedSectionText<'font>>, Option<LayoutLeftover<'a>>)
 {
     let mut out = vec![];
     let mut paragraph_leftover = None;

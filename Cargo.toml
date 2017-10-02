@@ -11,7 +11,7 @@ readme="README.md"
 
 [dependencies]
 log = "0.3"
-rusttype = "0.2.3"
+rusttype = { path = "../rusttype" } #"0.3"
 gfx = "0.16"
 gfx_core = "0.7"
 unicode-normalization = "0.1"

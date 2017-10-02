@@ -151,11 +151,11 @@ pub struct CustomContiguousParagraphLayout;
 impl gfx_glyph::GlyphPositioner for CustomContiguousParagraphLayout {
 
     /// Calculate a sequence of positioned glyphs to render
-    fn calculate_glyphs<'a, G: Into<SectionGlyphInfo<'a>>>(
+    fn calculate_glyphs<'a, 'font, G: Into<SectionGlyphInfo<'a>>>(
         &self,
-        fonts: &HashMap<FontId, Font>,
-        section: G
-    ) -> Vec<GlyphedSectionText> {
+        fonts: &HashMap<FontId, Font<'font>>,
+        section: G,
+    ) -> Vec<GlyphedSectionText<'font>> {
 
         let mut glyph_info = section.into();
         let original_screen_x = glyph_info.screen_position.0;
