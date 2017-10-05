@@ -21,8 +21,8 @@ sequential frames.
 extern crate gfx_glyph;
 use gfx_glyph::{Section, GlyphBrushBuilder};
 
-let arial: &[u8] = include_bytes!("GaramondNo8-Reg.ttf");
-let mut glyph_brush = GlyphBrushBuilder::using_font(arial)
+let garamond: &[u8] = include_bytes!("GaramondNo8-Reg.ttf");
+let mut glyph_brush = GlyphBrushBuilder::using_font(garamond)
     .build(gfx_factory.clone());
 
 let section = Section {
