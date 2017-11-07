@@ -26,7 +26,7 @@
 //! # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
 //!
 //! let arial: &[u8] = include_bytes!("../examples/Arial Unicode.ttf");
-//! let mut glyph_brush = GlyphBrushBuilder::using_font(arial)
+//! let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(arial)
 //!     .build(gfx_factory.clone());
 //!
 //! # let some_other_section = Section { text: "another", ..Section::default() };
@@ -154,7 +154,7 @@ fn hash<H: Hash>(hashable: &H) -> u64 {
 /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
 ///
 /// # let arial: &[u8] = include_bytes!("../examples/Arial Unicode.ttf");
-/// # let mut glyph_brush = GlyphBrushBuilder::using_font(arial)
+/// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(arial)
 /// #     .build(gfx_factory.clone());
 ///
 /// # let some_other_section = Section { text: "another", ..Section::default() };

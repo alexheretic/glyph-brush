@@ -19,14 +19,13 @@ use super::*;
 /// #         &events_loop);
 ///
 /// let arial: &[u8] = include_bytes!("../examples/Arial Unicode.ttf");
-/// let mut glyph_brush = GlyphBrushBuilder::using_font(arial)
+/// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(arial)
 ///     .build(gfx_factory.clone());
 /// # let _ = glyph_brush;
 /// # }
 /// ```
-#[derive(Debug)]
 pub struct GlyphBrushBuilder<'a> {
-    font_data: Vec<SharedBytes<'a>>,
+    font_data: Vec<Font<'a>>,
     initial_cache_size: (u32, u32),
     gpu_cache_scale_tolerance: f32,
     gpu_cache_position_tolerance: f32,
@@ -38,9 +37,13 @@ pub struct GlyphBrushBuilder<'a> {
 impl<'a> GlyphBrushBuilder<'a> {
     /// Specifies the default font data used to render glyphs.
     /// Referenced with `FontId(0)`, which is default.
-    pub fn using_font<B: Into<SharedBytes<'a>>>(font_0_data: B) -> Self {
+    pub fn using_font_bytes<B: Into<SharedBytes<'a>>>(font_0_data: B) -> Self {
+        Self::using_font(font(font_0_data).unwrap())
+    }
+
+    pub fn using_font(font_0_data: Font<'a>) -> Self {
         GlyphBrushBuilder {
-            font_data: vec![font_0_data.into()],
+            font_data: vec![font_0_data],
             initial_cache_size: (256, 256),
             gpu_cache_scale_tolerance: 0.5,
             gpu_cache_position_tolerance: 0.1,
@@ -52,8 +55,15 @@ impl<'a> GlyphBrushBuilder<'a> {
 
     /// Adds additional fonts to the one added in [`using_font`](#method.using_font).
     /// Returns a [`FontId`](struct.FontId.html) to reference this font.
-    pub fn add_font<B: Into<SharedBytes<'a>>>(&mut self, font_data: B) -> FontId {
-        self.font_data.push(font_data.into());
+    pub fn add_font_bytes<B: Into<SharedBytes<'a>>>(&mut self, font_data: B) -> FontId {
+        self.font_data.push(font(font_data.into()).unwrap());
+        FontId(self.font_data.len() - 1)
+    }
+
+    /// Adds additional fonts to the one added in [`using_font`](#method.using_font).
+    /// Returns a [`FontId`](struct.FontId.html) to reference this font.
+    pub fn add_font(&mut self, font_data: Font<'a>) -> FontId {
+        self.font_data.push(font_data);
         FontId(self.font_data.len() - 1)
     }
 
@@ -127,7 +137,7 @@ impl<'a> GlyphBrushBuilder<'a> {
     /// # use gfx_glyph::GlyphBrushBuilder;
     /// # fn main() {
     /// # let some_font: &[u8] = include_bytes!("../examples/Arial Unicode.ttf");
-    /// GlyphBrushBuilder::using_font(some_font)
+    /// GlyphBrushBuilder::using_font_bytes(some_font)
     ///     .depth_test(gfx::preset::depth::LESS_EQUAL_WRITE)
     ///     // ...
     /// # ;
@@ -153,7 +163,7 @@ impl<'a> GlyphBrushBuilder<'a> {
 
         GlyphBrush {
             fonts: self.font_data.into_iter().enumerate()
-                .map(|(idx, data)| (FontId(idx), font(data).unwrap()))
+                .map(|(idx, data)| (FontId(idx), data))
                 .collect(),
             font_cache: Cache::new(
                 cache_width,

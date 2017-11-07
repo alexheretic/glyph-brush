@@ -36,11 +36,11 @@ fn main() {
             &events_loop,
         );
 
-    let mut builder = GlyphBrushBuilder::using_font(include_bytes!("Arial Unicode.ttf") as &[u8])
+    let mut builder = GlyphBrushBuilder::using_font_bytes(include_bytes!("Arial Unicode.ttf") as &[u8])
         // Enable depth testing with less-equal drawing and update the depth buffer
         .depth_test(gfx::preset::depth::LESS_EQUAL_WRITE);
 
-    let italic_font = builder.add_font(include_bytes!("OpenSans-Italic.ttf") as &[u8]);
+    let italic_font = builder.add_font_bytes(include_bytes!("OpenSans-Italic.ttf") as &[u8]);
     let mut glyph_brush = builder.build(factory.clone());
 
     let mut encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();

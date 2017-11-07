@@ -44,7 +44,7 @@ fn main() {
     let (window, mut device, mut factory, mut main_color, mut main_depth) =
         gfx_window_glutin::init::<format::Srgba8, format::DepthStencil>(window_builder, context, &events_loop);
 
-    let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(include_bytes!("Arial Unicode.ttf") as &[u8])
+    let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(include_bytes!("Arial Unicode.ttf") as &[u8])
         .initial_cache_size((1024, 1024))
         .build(factory.clone());
 
