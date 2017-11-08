@@ -41,6 +41,8 @@ impl<'a> GlyphBrushBuilder<'a> {
         Self::using_font(font(font_0_data).unwrap())
     }
 
+    /// Specifies the default font used to render glyphs.
+    /// Referenced with `FontId(0)`, which is default.
     pub fn using_font(font_0_data: Font<'a>) -> Self {
         GlyphBrushBuilder {
             font_data: vec![font_0_data],
@@ -53,14 +55,16 @@ impl<'a> GlyphBrushBuilder<'a> {
         }
     }
 
-    /// Adds additional fonts to the one added in [`using_font`](#method.using_font).
+    /// Adds additional fonts to the one added in [`using_font`](#method.using_font) /
+    /// [`using_font_bytes`](#method.using_font_bytes).
     /// Returns a [`FontId`](struct.FontId.html) to reference this font.
     pub fn add_font_bytes<B: Into<SharedBytes<'a>>>(&mut self, font_data: B) -> FontId {
         self.font_data.push(font(font_data.into()).unwrap());
         FontId(self.font_data.len() - 1)
     }
 
-    /// Adds additional fonts to the one added in [`using_font`](#method.using_font).
+    /// Adds additional fonts to the one added in [`using_font`](#method.using_font) /
+    /// [`using_font_bytes`](#method.using_font_bytes).
     /// Returns a [`FontId`](struct.FontId.html) to reference this font.
     pub fn add_font(&mut self, font_data: Font<'a>) -> FontId {
         self.font_data.push(font_data);
@@ -155,11 +159,6 @@ impl<'a> GlyphBrushBuilder<'a> {
     {
         let (cache_width, cache_height) = self.initial_cache_size;
         let font_cache_tex = create_texture(&mut factory, cache_width, cache_height).unwrap();
-
-        // let mut font_map = HashMap::with_capacity(self.font_data.len());
-        // for (idx, data) in self.font_data.into_iter().enumerate() {
-        //     font_map.insert(FontId(idx), )
-        // }
 
         GlyphBrush {
             fonts: self.font_data.into_iter().enumerate()

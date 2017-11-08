@@ -27,7 +27,7 @@ fn render_3_medium_sections_fully(b: &mut ::test::Bencher) {
     use std::f32;
     use gfx_glyph::*;
 
-    let brush = GlyphBrushBuilder::using_font(TEST_FONT);
+    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
     let text = include_str!("lipsum.txt");
 
     bench(
@@ -64,7 +64,7 @@ fn no_cache_render_3_medium_sections_fully(b: &mut ::test::Bencher) {
     use std::f32;
     use gfx_glyph::*;
 
-    let brush = GlyphBrushBuilder::using_font(TEST_FONT)
+    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
         .cache_glyph_positioning(false)
         .cache_glyph_drawing(false);
     let text = include_str!("lipsum.txt");
@@ -101,7 +101,7 @@ fn no_cache_render_3_medium_sections_fully(b: &mut ::test::Bencher) {
 fn render_1_large_section_partially(b: &mut ::test::Bencher) {
     use gfx_glyph::*;
 
-    let brush = GlyphBrushBuilder::using_font(TEST_FONT);
+    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
     let text = include_str!("lots_of_lipsum.txt");
 
     bench(b, &[Section { text, bounds: (600.0, 600.0), ..Section::default() }], brush);
@@ -113,7 +113,7 @@ fn render_1_large_section_partially(b: &mut ::test::Bencher) {
 fn no_cache_render_1_large_section_partially(b: &mut ::test::Bencher) {
     use gfx_glyph::*;
 
-    let brush = GlyphBrushBuilder::using_font(TEST_FONT)
+    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
         .cache_glyph_positioning(false)
         .cache_glyph_drawing(false);
     let text = include_str!("lots_of_lipsum.txt");
@@ -127,7 +127,7 @@ fn render_100_small_sections_fully(b: &mut ::test::Bencher) {
     use std::f32;
     use gfx_glyph::*;
 
-    let brush = GlyphBrushBuilder::using_font(TEST_FONT);
+    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
     let text = include_str!("small_lipsum.txt");
 
     let mut section_layouts = vec![];
@@ -150,7 +150,7 @@ fn no_cache_render_100_small_sections_fully(b: &mut ::test::Bencher) {
     use std::f32;
     use gfx_glyph::*;
 
-    let brush = GlyphBrushBuilder::using_font(TEST_FONT)
+    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
         .cache_glyph_positioning(false)
         .cache_glyph_drawing(false);
     let text = include_str!("small_lipsum.txt");

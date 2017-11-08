@@ -22,7 +22,7 @@ extern crate gfx_glyph;
 use gfx_glyph::{Section, GlyphBrushBuilder};
 
 let garamond: &[u8] = include_bytes!("GaramondNo8-Reg.ttf");
-let mut glyph_brush = GlyphBrushBuilder::using_font(garamond)
+let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(garamond)
     .build(gfx_factory.clone());
 
 let section = Section {
