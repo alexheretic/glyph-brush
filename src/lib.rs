@@ -76,6 +76,8 @@ use std::borrow::{Cow, Borrow};
 use std::error::Error;
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry;
+use std::iter;
+use std::slice;
 use std::time::*;
 use pipe::*;
 
@@ -106,6 +108,14 @@ pub type HMetrics = rusttype::HMetrics;
 pub type VMetrics = rusttype::VMetrics;
 /// Aliased type to allow lib usage without declaring underlying **rusttype** lib
 pub type GlyphId = rusttype::GlyphId;
+
+/// An iterator over `PositionedGlyph`s from the `GlyphBrush`
+pub type PositionedGlyphIter<'a, 'b> =
+    iter::FlatMap<
+        slice::Iter<'a, GlyphedSectionText>,
+        slice::Iter<'b, PositionedGlyph>,
+        fn(&'a GlyphedSectionText) -> slice::Iter<'b, PositionedGlyph>
+    >;
 
 pub(crate) type Color = [f32; 4];
 
@@ -249,6 +259,34 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         let section = section.into();
         let layout = section.layout;
         self.pixel_bounds_custom_layout(section, &layout)
+    }
+
+    /// Returns an iterator over the `PositionedGlyph`s of the given section with a custom layout.
+    ///
+    /// If the glyphs have already been cached this will skip re-computing them.
+    pub fn cached_glyphs_custom_layout<'a, S, L>(&mut self, section: S, custom_layout: &L)
+        -> PositionedGlyphIter
+        where L: GlyphPositioner + Hash,
+              S: Into<Cow<'a, VariedSection<'a>>>,
+    {
+        let section = section.into();
+        let section_hash = self.cache_glyphs(section.borrow(), custom_layout);
+        self.keep_in_cache.insert(section_hash);
+        self.calculate_glyph_cache[&section_hash]
+            .glyphs.iter()
+            .flat_map(|&GlyphedSectionText(ref g, ..)| g.iter())
+    }
+
+    /// Returns an iterator over the `PositionedGlyph`s of the given section.
+    ///
+    /// If the glyphs have already been cached this will skip re-computing them.
+    pub fn cached_glyphs<'a, S>(&mut self, section: S)
+        -> PositionedGlyphIter
+        where S: Into<Cow<'a, VariedSection<'a>>>,
+    {
+        let section = section.into();
+        let layout = section.layout;
+        self.cached_glyphs_custom_layout(section, &layout)
     }
 
     /// Queues a section/layout to be drawn by the next call of
