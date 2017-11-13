@@ -280,7 +280,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     /// Returns an iterator over the `PositionedGlyph`s of the given section.
     ///
     /// If the glyphs have already been cached this will skip re-computing them.
-    pub fn ,glyphsglyphs<'a, S>(&mut self, section: S)
+    pub fn glyphs<'a, S>(&mut self, section: S)
         -> PositionedGlyphIter
         where S: Into<Cow<'a, VariedSection<'a>>>,
     {
