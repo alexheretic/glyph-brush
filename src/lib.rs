@@ -264,7 +264,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     /// Returns an iterator over the `PositionedGlyph`s of the given section with a custom layout.
     ///
     /// If the glyphs have already been cached this will skip re-computing them.
-    pub fn cached_glyphs_custom_layout<'a, S, L>(&mut self, section: S, custom_layout: &L)
+    pub fn glyphs_custom_layout<'a, S, L>(&mut self, section: S, custom_layout: &L)
         -> PositionedGlyphIter
         where L: GlyphPositioner + Hash,
               S: Into<Cow<'a, VariedSection<'a>>>,
@@ -280,7 +280,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     /// Returns an iterator over the `PositionedGlyph`s of the given section.
     ///
     /// If the glyphs have already been cached this will skip re-computing them.
-    pub fn cached_glyphs<'a, S>(&mut self, section: S)
+    pub fn ,glyphsglyphs<'a, S>(&mut self, section: S)
         -> PositionedGlyphIter
         where S: Into<Cow<'a, VariedSection<'a>>>,
     {
