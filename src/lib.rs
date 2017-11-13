@@ -179,6 +179,18 @@ fn hash<H: Hash>(hashable: &H) -> u64 {
 /// glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth).unwrap();
 /// # }
 /// ```
+///
+/// # Caching behaviour
+///
+/// Calls to [`GlyphBrush::queue`](#method.queue),
+/// [`GlyphBrush::pixel_bounds`](#method.pixel_bounds), [`GlyphBrush::glyphs`](#method.glyphs)
+/// calculated the positioned glyphs for a section.
+/// This is cached so future calls to any of the methods for the same section are much
+/// cheaper. In the case of [`GlyphBrush::queue`](#method.queue) the calculations will also be
+/// used for actual drawing.
+///
+/// The cache for a section will be **cleared** after a [`GlyphBrush::draw_queued`](#method.draw_queued)
+/// call when that section has not been used since the previous draw call.
 pub struct GlyphBrush<'a, R: gfx::Resources, F: gfx::Factory<R>>{
     fonts: HashMap<FontId, rusttype::Font<'a>>,
     font_cache: Cache,
@@ -211,7 +223,9 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     /// Returns the pixel bounding box for the input section using a custom layout.
     /// The box is a conservative whole number pixel rectangle that can contain the section.
     ///
-    /// If the section is empty or would result in no drawn glyphs will return `None`
+    /// If the section is empty or would result in no drawn glyphs will return `None`.
+    ///
+    /// Benefits from caching, see [caching behaviour](#caching-behaviour).
     pub fn pixel_bounds_custom_layout<'a, S, L>(&mut self, section: S, custom_layout: &L)
         -> Option<Rect<i32>>
         where L: GlyphPositioner + Hash,
@@ -251,7 +265,9 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     /// Returns the pixel bounding box for the input section. The box is a conservative
     /// whole number pixel rectangle that can contain the section.
     ///
-    /// If the section is empty or would result in no drawn glyphs will return `None`
+    /// If the section is empty or would result in no drawn glyphs will return `None`.
+    ///
+    /// Benefits from caching, see [caching behaviour](#caching-behaviour).
     pub fn pixel_bounds<'a, S>(&mut self, section: S)
         -> Option<Rect<i32>>
         where S: Into<Cow<'a, VariedSection<'a>>>,
@@ -263,7 +279,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
 
     /// Returns an iterator over the `PositionedGlyph`s of the given section with a custom layout.
     ///
-    /// If the glyphs have already been cached this will skip re-computing them.
+    /// Benefits from caching, see [caching behaviour](#caching-behaviour).
     pub fn glyphs_custom_layout<'a, S, L>(&mut self, section: S, custom_layout: &L)
         -> PositionedGlyphIter
         where L: GlyphPositioner + Hash,
@@ -279,7 +295,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
 
     /// Returns an iterator over the `PositionedGlyph`s of the given section.
     ///
-    /// If the glyphs have already been cached this will skip re-computing them.
+    /// Benefits from caching, see [caching behaviour](#caching-behaviour).
     pub fn glyphs<'a, S>(&mut self, section: S)
         -> PositionedGlyphIter
         where S: Into<Cow<'a, VariedSection<'a>>>,
@@ -295,6 +311,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     ///
     /// Used to provide custom `GlyphPositioner` logic, if using built-in
     /// [`Layout`](enum.Layout.html) simply use [`queue`](struct.GlyphBrush.html#method.queue)
+    ///
+    /// Benefits from caching, see [caching behaviour](#caching-behaviour).
     pub fn queue_custom_layout<'a, S, G>(&mut self, section: S, custom_layout: &G)
         where G: GlyphPositioner,
               S: Into<Cow<'a, VariedSection<'a>>>,
@@ -312,6 +330,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     /// Queues a section/layout to be drawn by the next call of
     /// [`draw_queued`](struct.GlyphBrush.html#method.draw_queued). Can be called multiple times
     /// to queue multiple sections for drawing.
+    ///
+    /// Benefits from caching, see [caching behaviour](#caching-behaviour).
     pub fn queue<'a, S>(&mut self, section: S)
         where S: Into<Cow<'a, VariedSection<'a>>>,
     {
@@ -351,6 +371,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     /// Draws all queued sections onto a render target, applying a position transform (e.g.
     /// a projection).
     /// See [`queue`](struct.GlyphBrush.html#method.queue).
+    ///
+    /// Trims the cache, see [caching behaviour](#caching-behaviour).
     pub fn draw_queued<C, T, D>(
         &mut self,
         encoder: &mut gfx::Encoder<R, C>,
@@ -367,6 +389,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     /// Draws all queued sections onto a render target, applying a position transform (e.g.
     /// a projection).
     /// See [`queue`](struct.GlyphBrush.html#method.queue).
+    ///
+    /// Trims the cache, see [caching behaviour](#caching-behaviour).
     pub fn draw_queued_with_transform<C, T, D>(
         &mut self,
         transform: [[f32; 4]; 4],
