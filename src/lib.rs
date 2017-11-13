@@ -286,7 +286,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     {
         let section = section.into();
         let layout = section.layout;
-        self.cached_glyphs_custom_layout(section, &layout)
+        self.glyphs_custom_layout(section, &layout)
     }
 
     /// Queues a section/layout to be drawn by the next call of
