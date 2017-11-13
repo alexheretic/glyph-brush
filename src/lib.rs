@@ -184,7 +184,7 @@ fn hash<H: Hash>(hashable: &H) -> u64 {
 ///
 /// Calls to [`GlyphBrush::queue`](#method.queue),
 /// [`GlyphBrush::pixel_bounds`](#method.pixel_bounds), [`GlyphBrush::glyphs`](#method.glyphs)
-/// calculated the positioned glyphs for a section.
+/// calculate the positioned glyphs for a section.
 /// This is cached so future calls to any of the methods for the same section are much
 /// cheaper. In the case of [`GlyphBrush::queue`](#method.queue) the calculations will also be
 /// used for actual drawing.
