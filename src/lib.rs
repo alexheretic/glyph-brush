@@ -116,11 +116,11 @@ pub type VMetrics = rusttype::VMetrics;
 pub type GlyphId = rusttype::GlyphId;
 
 /// An iterator over `PositionedGlyph`s from the `GlyphBrush`
-pub type PositionedGlyphIter<'a, 'b> =
+pub type PositionedGlyphIter<'a, 'font> =
     iter::FlatMap<
-        slice::Iter<'a, GlyphedSectionText>,
-        slice::Iter<'b, PositionedGlyph>,
-        fn(&'a GlyphedSectionText) -> slice::Iter<'b, PositionedGlyph>
+        slice::Iter<'a, GlyphedSectionText<'font>>,
+        slice::Iter<'a, rusttype::PositionedGlyph<'font>>,
+        fn(&'a GlyphedSectionText<'font>) -> slice::Iter<'a, PositionedGlyph<'font>>
     >;
 
 pub(crate) type Color = [f32; 4];
@@ -197,16 +197,16 @@ fn hash<H: Hash>(hashable: &H) -> u64 {
 ///
 /// The cache for a section will be **cleared** after a [`GlyphBrush::draw_queued`](#method.draw_queued)
 /// call when that section has not been used since the previous draw call.
-pub struct GlyphBrush<'a, R: gfx::Resources, F: gfx::Factory<R>>{
-    fonts: HashMap<FontId, rusttype::Font<'a>>,
-    font_cache: Cache<'a>,
+pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>> {
+    fonts: HashMap<FontId, rusttype::Font<'font>>,
+    font_cache: Cache<'font>,
     font_cache_tex: (gfx::handle::Texture<R, TexSurface>, gfx_core::handle::ShaderResourceView<R, f32>),
     factory: F,
     draw_cache: Option<DrawnGlyphBrush<R>>,
 
     // cache of section-layout hash -> computed glyphs, this avoid repeated glyph computation
     // for identical layout/sections common to repeated frame rendering
-    calculate_glyph_cache: HashMap<u64, GlyphedSection<'a>>,
+    calculate_glyph_cache: HashMap<u64, GlyphedSection<'font>>,
 
     // buffer of section-layout hashs (that must exist in the calculate_glyph_cache)
     // to be rendered on the next `draw_queued` call
@@ -286,8 +286,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     /// Returns an iterator over the `PositionedGlyph`s of the given section with a custom layout.
     ///
     /// Benefits from caching, see [caching behaviour](#caching-behaviour).
-    pub fn glyphs_custom_layout<'a, S, L>(&mut self, section: S, custom_layout: &L)
-        -> PositionedGlyphIter
+    pub fn glyphs_custom_layout<'a, 'b, S, L>(&'b mut self, section: S, custom_layout: &L)
+        -> PositionedGlyphIter<'b, 'font>
         where L: GlyphPositioner + Hash,
               S: Into<Cow<'a, VariedSection<'a>>>,
     {
@@ -302,8 +302,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     /// Returns an iterator over the `PositionedGlyph`s of the given section.
     ///
     /// Benefits from caching, see [caching behaviour](#caching-behaviour).
-    pub fn glyphs<'a, S>(&mut self, section: S)
-        -> PositionedGlyphIter
+    pub fn glyphs<'a, 'b, S>(&'b mut self, section: S)
+        -> PositionedGlyphIter<'b, 'font>
         where S: Into<Cow<'a, VariedSection<'a>>>,
     {
         let section = section.into();
