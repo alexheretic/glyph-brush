@@ -138,7 +138,7 @@ impl<'font> HeadlessGlyphBrush<'font> {
     }
 
     /// Returns the calculate_glyph_cache key for this sections glyphs
-    pub(crate) fn cache_glyphs<L>(&mut self, section: &VariedSection, layout: &L) -> u64
+    fn cache_glyphs<L>(&mut self, section: &VariedSection, layout: &L) -> u64
         where L: GlyphPositioner,
     {
         let section_hash = hash(&(section, layout));
