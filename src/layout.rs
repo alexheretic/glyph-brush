@@ -349,6 +349,9 @@ fn single_line<'a, L: LineBreaker>(
         }
     };
 
+    // Record (char, next_break)
+    let mut last_char_break = None;
+
     'sections: for (info_index, glyph_info) in section_glyph_info.remaining_info() {
         let GlyphInfo { scale, color, font_id, .. } = *glyph_info;
         let font = &font_map[&font_id];
@@ -371,9 +374,28 @@ fn single_line<'a, L: LineBreaker>(
             caret_initialized = true;
         }
 
+        // check if previous section should have hard broken, this can happen as "blah\n" is
+        // indestinguishable from "blah" to the line break iterator.
+        if let Some((index, c, Some(LineBreak::Hard(offset)))) = last_char_break.take() {
+            if offset == index + 1 {
+                let mut last_end = String::with_capacity(5);
+                last_end.push(c);
+                last_end.push(' ');
+                let breaker = line_breaker.line_breaks(&last_end).next();
+                if let Some(LineBreak::Hard(1)) = breaker {
+                    leftover = Some(LayoutLeftover::HardBreak(
+                        caret,
+                        section_glyph_info.with_info(info_index, *glyph_info),
+                        v_metrics,
+                    ));
+                    break 'sections;
+                }
+            }
+        }
+
         let mut last_glyph_id = None;
 
-        let mut line_breaks = line_breaker.line_breaks(glyph_info);
+        let mut line_breaks = line_breaker.line_breaks(glyph_info.substring());
         let mut previous_break = None;
         let mut next_break = line_breaks.next();
         let mut glyphs = vec![];
@@ -387,8 +409,10 @@ fn single_line<'a, L: LineBreaker>(
                 else { break; }
             }
 
+            last_char_break = Some((index, c, next_break));
+
             if let Some(LineBreak::Hard(offset)) = next_break {
-                if offset == index && offset != glyph_info.text.len() {
+                if offset == index {
                     leftover = Some(LayoutLeftover::HardBreak(
                         caret,
                         section_glyph_info.with_info(info_index, glyph_info.skip(index)),
@@ -607,6 +631,8 @@ mod layout_test {
     use super::*;
     use std::f32;
     use BuiltInLineBreaker::*;
+    use ordered_float::OrderedFloat;
+    use std::collections::*;
 
     lazy_static! {
         static ref A_FONT: Font<'static> = FontCollection::
@@ -943,5 +969,48 @@ mod layout_test {
             let y_pos = g.position().y;
             assert_relative_eq!(y_pos, max_v_metrics.ascent);
         }
+    }
+
+    #[test]
+    fn eol_new_line_hard_breaks() {
+        let (glyphs, _) = merged_glyphs_and_leftover!(
+            Layout::default_wrap(),
+            VariedSection {
+                text: vec![
+                    SectionText {
+                        text: "Autumn moonlight, \n",
+                        ..SectionText::default()
+                    },
+                    SectionText {
+                        text: "a worm digs silently ",
+                        ..SectionText::default()
+                    },
+                    SectionText {
+                        text: "\n",
+                        ..SectionText::default()
+                    },
+                    SectionText {
+                        text: "into the chestnut.",
+                        ..SectionText::default()
+                    },
+                ],
+                ..VariedSection::default()
+            }
+        );
+
+        let y_ords: HashSet<OrderedFloat<f32>> = glyphs.iter()
+            .map(|g| OrderedFloat(g.position().y))
+            .collect();
+
+        println!("Y ords: {:?}", y_ords);
+        assert_eq!(y_ords.len(), 3, "expected 3 distinct lines");
+
+        assert_glyph_order!(glyphs, "Autumn moonlight, a worm digs silently into the chestnut.");
+
+        assert_eq!(glyphs[18].id(), A_FONT.glyph('a').unwrap().id());
+        assert!(glyphs[18].position().y > glyphs[0].position().y);
+
+        assert_eq!(glyphs[39].id(), A_FONT.glyph('i').unwrap().id());
+        assert!(glyphs[39].position().y > glyphs[18].position().y);
     }
 }
