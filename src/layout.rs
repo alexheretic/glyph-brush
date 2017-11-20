@@ -2,6 +2,7 @@ use super::*;
 use std::iter::{Skip, Enumerate};
 use std::slice::Iter;
 use std::str::Chars;
+use std::str;
 use unicode_normalization::*;
 
 #[derive(Debug, Clone)]
@@ -349,8 +350,8 @@ fn single_line<'a, L: LineBreaker>(
         }
     };
 
-    // Record (char, next_break)
-    let mut last_char_break = None;
+    // Record (index, char, next_break)
+    let mut last_char_break: Option<(_, char, _)> = None;
 
     'sections: for (info_index, glyph_info) in section_glyph_info.remaining_info() {
         let GlyphInfo { scale, color, font_id, .. } = *glyph_info;
@@ -378,17 +379,21 @@ fn single_line<'a, L: LineBreaker>(
         // indestinguishable from "blah" to the line break iterator.
         if let Some((index, c, Some(LineBreak::Hard(offset)))) = last_char_break.take() {
             if offset == index + 1 {
-                let mut last_end = String::with_capacity(5);
-                last_end.push(c);
-                last_end.push(' ');
-                let breaker = line_breaker.line_breaks(&last_end).next();
-                if let Some(LineBreak::Hard(1)) = breaker {
-                    leftover = Some(LayoutLeftover::HardBreak(
-                        caret,
-                        section_glyph_info.with_info(info_index, *glyph_info),
-                        v_metrics,
-                    ));
-                    break 'sections;
+                // to check if the previous end char (say '$') should hard break construct
+                // a str "$ " an check if the line break logic flags a hard break at index 1
+                let mut last_end_bytes: [u8; 5] = [0; 5];
+                c.encode_utf8(&mut last_end_bytes);
+                last_end_bytes[c.len_utf8()] = b' ';
+                if let Ok(last_end_padded) = str::from_utf8(&last_end_bytes[0..c.len_utf8()+1]) {
+                    let breaker = line_breaker.line_breaks(last_end_padded).next();
+                    if let Some(LineBreak::Hard(1)) = breaker {
+                        leftover = Some(LayoutLeftover::HardBreak(
+                            caret,
+                            section_glyph_info.with_info(info_index, *glyph_info),
+                            v_metrics,
+                        ));
+                        break 'sections;
+                    }
                 }
             }
         }
