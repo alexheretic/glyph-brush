@@ -158,14 +158,6 @@ impl<'font> HeadlessGlyphBrush<'font> {
 
         section_hash
     }
-
-    /// Invalidates any cached computations.
-    ///
-    /// This is useful if environment values outside of passed section/layout data
-    /// has changed, e.g. screen resolution.
-    pub fn clear_cache(&mut self) {
-        self.calculate_glyph_cache.clear();
-    }
 }
 
 
