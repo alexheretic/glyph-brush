@@ -396,11 +396,12 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         transform: [[f32; 4]; 4],
         mut encoder: &mut gfx::Encoder<R, C>,
         target: &gfx::handle::RenderTargetView<R, T>,
-        depth_target: &gfx::handle::DepthStencilView<R, D>)
-        -> Result<(), String>
-        where C: gfx::CommandBuffer<R>,
-              T: format::RenderFormat,
-              D: format::DepthFormat,
+        depth_target: &gfx::handle::DepthStencilView<R, D>,
+    ) -> Result<(), String>
+    where
+        C: gfx::CommandBuffer<R>,
+        T: format::RenderFormat,
+        D: format::DepthFormat,
     {
         let start = Instant::now();
 
@@ -410,7 +411,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         let (screen_width, screen_height, _, _) = target.get_dimensions();
         let (screen_width, screen_height) = (u32::from(screen_width), u32::from(screen_height));
 
-        let current_text_state = hash(&self.section_buffer);
+        let current_text_state = hash(&(&self.section_buffer, screen_width, screen_height));
 
         if !self.cache_glyph_drawing ||
             self.draw_cache.is_none() ||
