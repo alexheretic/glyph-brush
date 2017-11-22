@@ -56,6 +56,7 @@ extern crate unicode_normalization;
 extern crate ordered_float;
 extern crate xi_unicode;
 extern crate linked_hash_map;
+extern crate backtrace;
 
 mod section;
 mod layout;
@@ -63,6 +64,8 @@ mod gpu_cache;
 mod linebreak;
 mod pipe;
 mod builder;
+#[macro_use]
+mod trace;
 
 use gfx::traits::FactoryExt;
 use rusttype::{FontCollection, point, vector};
@@ -80,6 +83,7 @@ use std::iter;
 use std::slice;
 use std::time::*;
 use pipe::*;
+use log::LogLevel;
 
 pub use section::*;
 pub use layout::*;
@@ -449,9 +453,18 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                     if let Some(ref mut cache) = self.draw_cache {
                         cache.texture_updated = true;
                     }
-                    info!("Increasing glyph texture size {old:?} -> {new:?}, as {reason:?}. \
-                        Consider building using `.initial_cache_size{new:?}` to avoid resizing",
-                        old = (width, height), new = (new_width, new_height), reason = err);
+
+                    if log_enabled!(LogLevel::Warn) {
+                        warn!(
+                            "Increasing glyph texture size {old:?} -> {new:?}, as {reason:?}. \
+                            Consider building with `.initial_cache_size({new:?})` to avoid \
+                            resizing. Called from:\n{trace}",
+                            old = (width, height),
+                            new = (new_width, new_height),
+                            reason = err,
+                            trace = outer_backtrace!()
+                        );
+                    }
 
                     let new_cache = Cache::new(new_width,
                                                new_height,
