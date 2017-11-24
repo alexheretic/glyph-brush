@@ -1,4 +1,4 @@
-#version 130
+#version 150
 
 uniform sampler2D font_tex;
 
