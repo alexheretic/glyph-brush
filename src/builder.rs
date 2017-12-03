@@ -41,11 +41,25 @@ impl<'a> GlyphBrushBuilder<'a> {
         Self::using_font(font(font_0_data).unwrap())
     }
 
+    pub fn using_fonts_bytes<B, V>(font_data: V) -> Self
+    where
+        B: Into<SharedBytes<'a>>,
+        V: Into<Vec<B>>,
+    {
+        Self::using_fonts(
+            font_data.into().into_iter().map(|data| font(data).unwrap()).collect::<Vec<_>>(),
+        )
+    }
+
     /// Specifies the default font used to render glyphs.
     /// Referenced with `FontId(0)`, which is default.
-    pub fn using_font(font_0_data: Font<'a>) -> Self {
+    pub fn using_font(font_0: Font<'a>) -> Self {
+        Self::using_fonts(vec![font_0])
+    }
+
+    pub fn using_fonts<V: Into<Vec<Font<'a>>>>(fonts: V) -> Self {
         GlyphBrushBuilder {
-            font_data: vec![font_0_data],
+            font_data: fonts.into(),
             initial_cache_size: (256, 256),
             gpu_cache_scale_tolerance: 0.5,
             gpu_cache_position_tolerance: 0.1,
@@ -154,14 +168,17 @@ impl<'a> GlyphBrushBuilder<'a> {
 
     /// Builds a `GlyphBrush` using the input gfx factory
     pub fn build<R, F>(self, mut factory: F) -> GlyphBrush<'a, R, F>
-        where R: gfx::Resources,
-              F: gfx::Factory<R>
+    where
+        R: gfx::Resources,
+        F: gfx::Factory<R>,
     {
         let (cache_width, cache_height) = self.initial_cache_size;
         let font_cache_tex = create_texture(&mut factory, cache_width, cache_height).unwrap();
 
         GlyphBrush {
-            fonts: self.font_data.into_iter().enumerate()
+            fonts: self.font_data
+                .into_iter()
+                .enumerate()
                 .map(|(idx, data)| (FontId(idx), data))
                 .collect(),
             font_cache: Cache::new(

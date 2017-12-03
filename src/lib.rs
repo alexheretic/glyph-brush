@@ -67,6 +67,7 @@ mod builder;
 #[macro_use]
 mod trace;
 mod headless;
+mod glyph_calculator;
 
 use gfx::traits::FactoryExt;
 use rusttype::{FontCollection, point, vector};
@@ -91,6 +92,7 @@ pub use layout::*;
 pub use linebreak::*;
 pub use builder::*;
 pub use headless::*;
+pub use glyph_calculator::*;
 
 /// Aliased type to allow lib usage without declaring underlying **rusttype** lib
 pub type Font<'a> = rusttype::Font<'a>;
@@ -224,15 +226,8 @@ pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>> {
     depth_test: gfx::state::Depth,
 }
 
-impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
-
-    /// Returns the pixel bounding box for the input section using a custom layout.
-    /// The box is a conservative whole number pixel rectangle that can contain the section.
-    ///
-    /// If the section is empty or would result in no drawn glyphs will return `None`.
-    ///
-    /// Benefits from caching, see [caching behaviour](#caching-behaviour).
-    pub fn pixel_bounds_custom_layout<'a, S, L>(&mut self, section: S, custom_layout: &L)
+impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphCalculator<'font> for GlyphBrush<'font, R, F> {
+    fn pixel_bounds_custom_layout<'a, S, L>(&mut self, section: S, custom_layout: &L)
         -> Option<Rect<i32>>
         where L: GlyphPositioner + Hash,
               S: Into<Cow<'a, VariedSection<'a>>>,
@@ -268,25 +263,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         }
     }
 
-    /// Returns the pixel bounding box for the input section. The box is a conservative
-    /// whole number pixel rectangle that can contain the section.
-    ///
-    /// If the section is empty or would result in no drawn glyphs will return `None`.
-    ///
-    /// Benefits from caching, see [caching behaviour](#caching-behaviour).
-    pub fn pixel_bounds<'a, S>(&mut self, section: S)
-        -> Option<Rect<i32>>
-        where S: Into<Cow<'a, VariedSection<'a>>>,
-    {
-        let section = section.into();
-        let layout = section.layout;
-        self.pixel_bounds_custom_layout(section, &layout)
-    }
-
-    /// Returns an iterator over the `PositionedGlyph`s of the given section with a custom layout.
-    ///
-    /// Benefits from caching, see [caching behaviour](#caching-behaviour).
-    pub fn glyphs_custom_layout<'a, 'b, S, L>(&'b mut self, section: S, custom_layout: &L)
+    fn glyphs_custom_layout<'a, 'b, S, L>(&'b mut self, section: S, custom_layout: &L)
         -> PositionedGlyphIter<'b, 'font>
         where L: GlyphPositioner + Hash,
               S: Into<Cow<'a, VariedSection<'a>>>,
@@ -298,19 +275,9 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
             .glyphs.iter()
             .flat_map(|&GlyphedSectionText(ref g, ..)| g.iter())
     }
+}
 
-    /// Returns an iterator over the `PositionedGlyph`s of the given section.
-    ///
-    /// Benefits from caching, see [caching behaviour](#caching-behaviour).
-    pub fn glyphs<'a, 'b, S>(&'b mut self, section: S)
-        -> PositionedGlyphIter<'b, 'font>
-        where S: Into<Cow<'a, VariedSection<'a>>>,
-    {
-        let section = section.into();
-        let layout = section.layout;
-        self.glyphs_custom_layout(section, &layout)
-    }
-
+impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     /// Queues a section/layout to be drawn by the next call of
     /// [`draw_queued`](struct.GlyphBrush.html#method.draw_queued). Can be called multiple times
     /// to queue multiple sections for drawing.
