@@ -1,4 +1,4 @@
-/// Returns a `String` backtrace from after the 'gfx_glyph' bits outwards
+/// Returns a `String` backtrace from just after the `gfx_glyph` bits outwards
 macro_rules! outer_backtrace {
     () => {{
         use std::fmt::Write;
