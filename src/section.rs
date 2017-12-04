@@ -1,5 +1,6 @@
 use super::*;
 use std::f32;
+use super::owned_section::*;
 
 /// An object that contains all the info to render a varied section of text. That is one including
 /// many parts with differing fonts/scales/colors bowing to a single layout.
@@ -91,6 +92,18 @@ impl<'a> Hash for VariedSection<'a> {
     }
 }
 
+impl<'a> VariedSection<'a> {
+    pub fn to_owned(&self) -> OwnedVariedSection {
+        OwnedVariedSection {
+            screen_position: self.screen_position,
+            bounds: self.bounds,
+            z: self.z,
+            layout: self.layout,
+            text: self.text.iter().map(|t| t.to_owned()).collect(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct SectionText<'a> {
     /// Text to render
@@ -139,6 +152,17 @@ impl<'a> Hash for SectionText<'a> {
         ];
 
         (text, font_id, ord_floats).hash(state);
+    }
+}
+
+impl<'a> SectionText<'a> {
+    pub fn to_owned(&self) -> OwnedSectionText {
+        OwnedSectionText {
+            text: self.text.to_owned(),
+            scale: self.scale,
+            color: self.color,
+            font_id: self.font_id,
+        }
     }
 }
 

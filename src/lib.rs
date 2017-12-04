@@ -68,6 +68,7 @@ mod builder;
 mod trace;
 mod headless;
 mod glyph_calculator;
+mod owned_section;
 
 use gfx::traits::FactoryExt;
 use rusttype::{FontCollection, point, vector};
@@ -81,8 +82,7 @@ use std::borrow::{Cow, Borrow};
 use std::error::Error;
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry;
-use std::iter;
-use std::slice;
+use std::{fmt, slice, iter};
 use std::time::*;
 use pipe::*;
 use log::LogLevel;
@@ -93,6 +93,7 @@ pub use linebreak::*;
 pub use builder::*;
 pub use headless::*;
 pub use glyph_calculator::*;
+pub use owned_section::*;
 
 /// Aliased type to allow lib usage without declaring underlying **rusttype** lib
 pub type Font<'a> = rusttype::Font<'a>;
@@ -224,6 +225,12 @@ pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>> {
     cache_glyph_drawing: bool,
 
     depth_test: gfx::state::Depth,
+}
+
+impl<'font, R: gfx::Resources, F: gfx::Factory<R>> fmt::Debug for GlyphBrush<'font, R, F> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "GlyphBrush")
+    }
 }
 
 impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphCalculator<'font> for GlyphBrush<'font, R, F> {
