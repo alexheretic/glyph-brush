@@ -1,7 +1,7 @@
 extern crate gfx_core;
 
-use gfx_core::{Resources, IndexType, VertexCount};
-use gfx_core::{state, target, command, pso, shade, texture};
+use gfx_core::{IndexType, Resources, VertexCount};
+use gfx_core::{command, pso, shade, state, target, texture};
 
 pub struct NoopCommandBuffer;
 impl<R: Resources> command::Buffer<R> for NoopCommandBuffer {
@@ -17,25 +17,53 @@ impl<R: Resources> command::Buffer<R> for NoopCommandBuffer {
     fn bind_index(&mut self, _: R::Buffer, _: IndexType) {}
     fn set_scissor(&mut self, _: target::Rect) {}
     fn set_ref_values(&mut self, _: state::RefValues) {}
-    fn copy_buffer(&mut self, _: R::Buffer, _: R::Buffer,
-                   _: usize, _: usize,
-                   _: usize) {}
-    fn copy_buffer_to_texture(&mut self,
-                              _: R::Buffer, _: usize,
-                              _: R::Texture, _: texture::Kind,
-                              _: Option<texture::CubeFace>, _: texture::RawImageInfo) {}
-    fn copy_texture_to_buffer(&mut self,
-                              _: R::Texture, _: texture::Kind,
-                              _: Option<texture::CubeFace>, _: texture::RawImageInfo,
-                              _: R::Buffer, _: usize) {}
+    fn copy_buffer(&mut self, _: R::Buffer, _: R::Buffer, _: usize, _: usize, _: usize) {}
+    fn copy_buffer_to_texture(
+        &mut self,
+        _: R::Buffer,
+        _: usize,
+        _: R::Texture,
+        _: texture::Kind,
+        _: Option<texture::CubeFace>,
+        _: texture::RawImageInfo,
+    ) {
+    }
+    fn copy_texture_to_buffer(
+        &mut self,
+        _: R::Texture,
+        _: texture::Kind,
+        _: Option<texture::CubeFace>,
+        _: texture::RawImageInfo,
+        _: R::Buffer,
+        _: usize,
+    ) {
+    }
     fn update_buffer(&mut self, _: R::Buffer, _: &[u8], _: usize) {}
-    fn update_texture(&mut self, _: R::Texture, _: texture::Kind, _: Option<texture::CubeFace>,
-                      _: &[u8], _: texture::RawImageInfo) {}
+    fn update_texture(
+        &mut self,
+        _: R::Texture,
+        _: texture::Kind,
+        _: Option<texture::CubeFace>,
+        _: &[u8],
+        _: texture::RawImageInfo,
+    ) {
+    }
     fn generate_mipmap(&mut self, _: R::ShaderResourceView) {}
     fn clear_color(&mut self, _: R::RenderTargetView, _: command::ClearColor) {}
-    fn clear_depth_stencil(&mut self, _: R::DepthStencilView, _: Option<target::Depth>,
-                           _: Option<target::Stencil>) {}
+    fn clear_depth_stencil(
+        &mut self,
+        _: R::DepthStencilView,
+        _: Option<target::Depth>,
+        _: Option<target::Stencil>,
+    ) {
+    }
     fn call_draw(&mut self, _: VertexCount, _: VertexCount, _: Option<command::InstanceParams>) {}
-    fn call_draw_indexed(&mut self, _: VertexCount, _: VertexCount,
-                         _: VertexCount, _: Option<command::InstanceParams>) {}
+    fn call_draw_indexed(
+        &mut self,
+        _: VertexCount,
+        _: VertexCount,
+        _: VertexCount,
+        _: Option<command::InstanceParams>,
+    ) {
+    }
 }

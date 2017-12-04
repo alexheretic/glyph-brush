@@ -33,11 +33,7 @@ fn render_3_medium_sections_fully(b: &mut ::test::Bencher) {
     bench(
         b,
         &[
-            Section {
-                text,
-                bounds: (600.0, f32::INFINITY),
-                ..Section::default()
-            },
+            Section { text, bounds: (600.0, f32::INFINITY), ..Section::default() },
             Section {
                 text,
                 screen_position: (600.0, 0.0),
@@ -72,11 +68,7 @@ fn no_cache_render_3_medium_sections_fully(b: &mut ::test::Bencher) {
     bench(
         b,
         &[
-            Section {
-                text,
-                bounds: (600.0, f32::INFINITY),
-                ..Section::default()
-            },
+            Section { text, bounds: (600.0, f32::INFINITY), ..Section::default() },
             Section {
                 text,
                 screen_position: (600.0, 0.0),

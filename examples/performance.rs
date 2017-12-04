@@ -1,8 +1,8 @@
 extern crate gfx;
+extern crate gfx_glyph;
 extern crate gfx_window_glutin;
 extern crate glutin;
 extern crate pretty_env_logger;
-extern crate gfx_glyph;
 extern crate spin_sleep;
 
 use glutin::GlContext;
@@ -34,16 +34,18 @@ fn main() {
 
     let mut events_loop = glutin::EventsLoop::new();
     let title = "gfx_glyph rendering 100,000 glyphs - scroll to size, type to modify";
-    let window_builder = glutin::WindowBuilder::new()
-        .with_title(title)
-        .with_dimensions(1024, 576);
-    let context = glutin::ContextBuilder::new()
-        .with_vsync(false);
+    let window_builder = glutin::WindowBuilder::new().with_title(title).with_dimensions(1024, 576);
+    let context = glutin::ContextBuilder::new().with_vsync(false);
     let (window, mut device, mut factory, mut main_color, mut main_depth) =
-        gfx_window_glutin::init::<format::Srgba8, format::Depth>(window_builder, context, &events_loop);
+        gfx_window_glutin::init::<format::Srgba8, format::Depth>(
+            window_builder,
+            context,
+            &events_loop,
+        );
 
-    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(include_bytes!("Arial Unicode.ttf") as &[u8])
-        .initial_cache_size((2048, 2048))
+    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(
+        include_bytes!("Arial Unicode.ttf") as &[u8],
+    ).initial_cache_size((2048, 2048))
         .gpu_cache_position_tolerance(1.0)
         .build(factory.clone());
 
@@ -65,14 +67,18 @@ fn main() {
                 match event {
                     WindowEvent::Closed => running = false,
                     WindowEvent::KeyboardInput {
-                        input: KeyboardInput {
-                            state: ElementState::Pressed,
-                            virtual_keycode: Some(keypress),
-                            .. },
+                        input:
+                            KeyboardInput {
+                                state: ElementState::Pressed,
+                                virtual_keycode: Some(keypress),
+                                ..
+                            },
                         ..
                     } => match keypress {
                         VirtualKeyCode::Escape => running = false,
-                        VirtualKeyCode::Back => { text.pop(); },
+                        VirtualKeyCode::Back => {
+                            text.pop();
+                        }
                         _ => (),
                     },
                     WindowEvent::ReceivedCharacter(c) => if c != '\u{7f}' && c != '\u{8}' {
@@ -81,16 +87,22 @@ fn main() {
                     WindowEvent::Resized(width, height) => {
                         window.resize(width, height);
                         gfx_window_glutin::update_views(&window, &mut main_color, &mut main_depth);
-                    },
-                    WindowEvent::MouseWheel{ delta: MouseScrollDelta::LineDelta(_, y), .. } => {
+                    }
+                    WindowEvent::MouseWheel {
+                        delta: MouseScrollDelta::LineDelta(_, y), ..
+                    } => {
                         // increase/decrease font size with mouse wheel
                         let mut size = font_size.x / window.hidpi_factor();
-                        if y > 0.0 { size += (size / 4.0).max(2.0) }
-                        else { size *= 4.0 / 5.0 };
+                        if y > 0.0 {
+                            size += (size / 4.0).max(2.0)
+                        }
+                        else {
+                            size *= 4.0 / 5.0
+                        };
                         size = size.max(1.0);
                         font_size = Scale::uniform(size * window.hidpi_factor());
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
             }
         });
@@ -149,14 +161,12 @@ fn main() {
 pub struct CustomContiguousParagraphLayout;
 
 impl gfx_glyph::GlyphPositioner for CustomContiguousParagraphLayout {
-
     /// Calculate a sequence of positioned glyphs to render
     fn calculate_glyphs<'a, 'font, G: Into<SectionGlyphInfo<'a>>>(
         &self,
         fonts: &HashMap<FontId, Font<'font>>,
         section: G,
     ) -> Vec<GlyphedSectionText<'font>> {
-
         let mut glyph_info = section.into();
         let original_screen_x = glyph_info.screen_position.0;
         let original_bound_w = glyph_info.bounds.0;
@@ -182,7 +192,9 @@ impl gfx_glyph::GlyphPositioner for CustomContiguousParagraphLayout {
                     glyph_info.screen_position.0 = original_screen_x;
                     glyph_info.bounds.1 -= advance_height;
                     glyph_info.bounds.0 = original_bound_w;
-                    if glyph_info.bounds.1 < 0.0 { break; }
+                    if glyph_info.bounds.1 < 0.0 {
+                        break;
+                    }
                 }
                 Some(LayoutLeftover::OutOfHeightBound(..)) | None => break,
             }

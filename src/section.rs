@@ -80,13 +80,8 @@ impl<'a> Hash for VariedSection<'a> {
             ref text,
         } = *self;
 
-        let ord_floats: &[OrderedFloat<_>] = &[
-            screen_x.into(),
-            screen_y.into(),
-            bound_w.into(),
-            bound_h.into(),
-            z.into(),
-        ];
+        let ord_floats: &[OrderedFloat<_>] =
+            &[screen_x.into(), screen_y.into(), bound_w.into(), bound_h.into(), z.into()];
 
         (layout, text, ord_floats).hash(state);
     }
@@ -135,12 +130,7 @@ impl<'a> Hash for SectionText<'a> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         use ordered_float::OrderedFloat;
 
-        let SectionText {
-            text,
-            scale,
-            color,
-            font_id
-        } = *self;
+        let SectionText { text, scale, color, font_id } = *self;
 
         let ord_floats: &[OrderedFloat<_>] = &[
             scale.x.into(),
@@ -228,24 +218,10 @@ impl Default for Section<'static> {
 
 impl<'a, 'b> From<&'b Section<'a>> for VariedSection<'a> {
     fn from(s: &'b Section<'a>) -> Self {
-        let Section {
-            text,
-            scale,
-            color,
-            screen_position,
-            bounds,
-            z,
-            layout,
-            font_id,
-        } = *s;
+        let Section { text, scale, color, screen_position, bounds, z, layout, font_id } = *s;
 
         VariedSection {
-            text: vec![SectionText {
-                text,
-                scale,
-                color,
-                font_id,
-            }],
+            text: vec![SectionText { text, scale, color, font_id }],
             screen_position,
             bounds,
             z,

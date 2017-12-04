@@ -58,8 +58,8 @@ fn main() {
                     WindowEvent::KeyboardInput {
                         input: KeyboardInput { virtual_keycode: Some(VirtualKeyCode::Escape), .. },
                         ..
-                    } |
-                    WindowEvent::Closed => running = false,
+                    }
+                    | WindowEvent::Closed => running = false,
                     WindowEvent::Resized(width, height) => {
                         window.resize(width, height);
                         gfx_window_glutin::update_views(&window, &mut main_color, &mut main_depth);

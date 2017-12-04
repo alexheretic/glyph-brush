@@ -25,7 +25,7 @@ impl LineBreak {
 /// Producer of a [`LineBreak`](enum.LineBreak.html) iterator. Used to allow to the
 /// [`Layout`](enum.Layout.html) to be line break aware in a generic way.
 pub trait LineBreaker: fmt::Debug + Copy + Hash {
-    fn line_breaks<'a>(&self, glyph_info: &'a str) -> Box<Iterator<Item=LineBreak> + 'a>;
+    fn line_breaks<'a>(&self, glyph_info: &'a str) -> Box<Iterator<Item = LineBreak> + 'a>;
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -60,7 +60,9 @@ impl<'a> Iterator for AnyCharLineBreakerIter<'a> {
                 if self.current_break.as_ref().unwrap().0 < index + 1 {
                     self.current_break = self.breaks.next();
                 }
-                else { break; }
+                else {
+                    break;
+                }
             }
             if let Some((break_index, true)) = self.current_break {
                 if break_index == index + 1 {
@@ -69,18 +71,24 @@ impl<'a> Iterator for AnyCharLineBreakerIter<'a> {
             }
             Some(LineBreak::Soft(index + 1))
         }
-        else { None }
+        else {
+            None
+        }
     }
 }
 
 impl LineBreaker for BuiltInLineBreaker {
-    fn line_breaks<'a>(&self, text: &'a str) -> Box<Iterator<Item=LineBreak> + 'a> {
+    fn line_breaks<'a>(&self, text: &'a str) -> Box<Iterator<Item = LineBreak> + 'a> {
         match *self {
             BuiltInLineBreaker::UnicodeLineBreaker => {
-                Box::new(xi_unicode::LineBreakIterator::new(text)
-                    .map(|(offset, hard)| {
-                        if hard { LineBreak::Hard(offset) } else { LineBreak::Soft(offset)}
-                    }))
+                Box::new(xi_unicode::LineBreakIterator::new(text).map(|(offset, hard)| {
+                    if hard {
+                        LineBreak::Hard(offset)
+                    }
+                    else {
+                        LineBreak::Soft(offset)
+                    }
+                }))
             }
             BuiltInLineBreaker::AnyCharLineBreaker => {
                 let mut unicode_breaker = xi_unicode::LineBreakIterator::new(text);

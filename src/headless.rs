@@ -250,9 +250,6 @@ impl<'a> HeadlessGlyphBrushBuilder<'a> {
             .map(|(idx, data)| (FontId(idx), data))
             .collect();
 
-        HeadlessGlyphBrush {
-            fonts,
-            calculate_glyph_cache: Mutex::new(HashMap::new()),
-        }
+        HeadlessGlyphBrush { fonts, calculate_glyph_cache: Mutex::new(HashMap::new()) }
     }
 }

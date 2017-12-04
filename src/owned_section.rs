@@ -29,7 +29,7 @@ impl Default for OwnedVariedSection {
 }
 
 impl OwnedVariedSection {
-    pub fn to_borrowed<'a>(&'a self) -> VariedSection<'a> {
+    pub fn to_borrowed(&self) -> VariedSection {
         VariedSection {
             screen_position: self.screen_position,
             bounds: self.bounds,

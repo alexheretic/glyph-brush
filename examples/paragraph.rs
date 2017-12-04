@@ -7,12 +7,12 @@
 //! * Ctrl-Scroll to zoom in/out using a transform, this is cheap but notice how rusttype can't
 //!   render at full quality without the correct pixel information.
 
+extern crate cgmath;
 extern crate gfx;
+extern crate gfx_glyph;
 extern crate gfx_window_glutin;
 extern crate glutin;
 extern crate pretty_env_logger;
-extern crate gfx_glyph;
-extern crate cgmath;
 extern crate spin_sleep;
 
 use cgmath::Matrix4;
@@ -31,21 +31,26 @@ fn main() {
     }
 
     if cfg!(debug_assertions) && env::var("yes_i_really_want_debug_mode").is_err() {
-        eprintln!("Note: Release mode will improve performance greatly.\n    \
-            e.g. use `cargo run --example paragraph --release`");
+        eprintln!(
+            "Note: Release mode will improve performance greatly.\n    \
+             e.g. use `cargo run --example paragraph --release`"
+        );
     }
 
     let mut events_loop = glutin::EventsLoop::new();
     let title = "gfx_glyph example - scroll to size, type to modify, ctrl-scroll to transform zoom";
-    let window_builder = glutin::WindowBuilder::new()
-        .with_title(title)
-        .with_dimensions(1024, 576);
+    let window_builder = glutin::WindowBuilder::new().with_title(title).with_dimensions(1024, 576);
     let context = glutin::ContextBuilder::new();
     let (window, mut device, mut factory, mut main_color, mut main_depth) =
-        gfx_window_glutin::init::<format::Srgba8, format::DepthStencil>(window_builder, context, &events_loop);
+        gfx_window_glutin::init::<format::Srgba8, format::DepthStencil>(
+            window_builder,
+            context,
+            &events_loop,
+        );
 
-    let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(include_bytes!("Arial Unicode.ttf") as &[u8])
-        .initial_cache_size((1024, 1024))
+    let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(
+        include_bytes!("Arial Unicode.ttf") as &[u8],
+    ).initial_cache_size((1024, 1024))
         .build(factory.clone());
 
     let mut text: String = include_str!("lipsum.txt").into();
@@ -68,15 +73,19 @@ fn main() {
                 match event {
                     WindowEvent::Closed => running = false,
                     WindowEvent::KeyboardInput {
-                        input: KeyboardInput {
-                            state: ElementState::Pressed,
-                            virtual_keycode: Some(keypress),
-                            .. },
+                        input:
+                            KeyboardInput {
+                                state: ElementState::Pressed,
+                                virtual_keycode: Some(keypress),
+                                ..
+                            },
                         ..
                     } => match keypress {
                         VirtualKeyCode::Escape => running = false,
-                        VirtualKeyCode::Back => { text.pop(); },
-                        VirtualKeyCode::LControl | VirtualKeyCode::RControl => { ctrl = true },
+                        VirtualKeyCode::Back => {
+                            text.pop();
+                        }
+                        VirtualKeyCode::LControl | VirtualKeyCode::RControl => ctrl = true,
                         _ => (),
                     },
                     WindowEvent::KeyboardInput {
@@ -89,13 +98,19 @@ fn main() {
                     WindowEvent::Resized(width, height) => {
                         window.resize(width, height);
                         gfx_window_glutin::update_views(&window, &mut main_color, &mut main_depth);
-                    },
-                    WindowEvent::MouseWheel{ delta: MouseScrollDelta::LineDelta(_, y), .. } => {
+                    }
+                    WindowEvent::MouseWheel {
+                        delta: MouseScrollDelta::LineDelta(_, y), ..
+                    } => {
                         if ctrl {
                             let old_zoom = zoom;
                             // increase/decrease zoom
-                            if y > 0.0 { zoom += 0.1 }
-                            else { zoom -= 0.1 };
+                            if y > 0.0 {
+                                zoom += 0.1
+                            }
+                            else {
+                                zoom -= 0.1
+                            };
                             zoom = zoom.min(1.0).max(0.1);
                             if (zoom - old_zoom).abs() > 1e-2 {
                                 print!("\r                            \r");
@@ -107,8 +122,12 @@ fn main() {
                             // increase/decrease font size
                             let old_size = font_size.x;
                             let mut size = font_size.x / window.hidpi_factor();
-                            if y > 0.0 { size += (size / 4.0).max(2.0) }
-                            else { size *= 4.0 / 5.0 };
+                            if y > 0.0 {
+                                size += (size / 4.0).max(2.0)
+                            }
+                            else {
+                                size *= 4.0 / 5.0
+                            };
                             size = size.max(1.0);
                             font_size = gfx_glyph::Scale::uniform(size * window.hidpi_factor());
                             if (font_size.x - old_size).abs() > 1e-2 {
@@ -117,9 +136,8 @@ fn main() {
                                 io::stdout().flush().ok().unwrap();
                             }
                         }
-
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
             }
         });
@@ -183,11 +201,9 @@ fn main() {
         // Note: Drawing in the case the text is unchanged from the previous frame (a common case)
         // is essentially free as the vertices are reused & gpu cache updating interaction
         // can be skipped.
-        glyph_brush.draw_queued_with_transform(
-            transform.into(),
-            &mut encoder,
-            &main_color,
-            &main_depth).expect("draw");
+        glyph_brush
+            .draw_queued_with_transform(transform.into(), &mut encoder, &main_color, &main_depth)
+            .expect("draw");
 
         encoder.flush(&mut device);
         window.swap_buffers().unwrap();

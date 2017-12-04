@@ -8,8 +8,12 @@ pub struct RawDepthTarget;
 
 impl<'a> DataLink<'a> for RawDepthTarget {
     type Init = (format::Format, state::Depth);
-    fn new() -> Self { RawDepthTarget }
-    fn is_active(&self) -> bool { true }
+    fn new() -> Self {
+        RawDepthTarget
+    }
+    fn is_active(&self) -> bool {
+        true
+    }
     fn link_depth_stencil(&mut self, init: &Self::Init) -> Option<pso::DepthStencilDesc> {
         Some((init.0, init.1.into()))
     }
@@ -17,13 +21,16 @@ impl<'a> DataLink<'a> for RawDepthTarget {
 
 impl<R: Resources> DataBind<R> for RawDepthTarget {
     type Data = handle::RawDepthStencilView<R>;
-    fn bind_to(&self,
-               out: &mut RawDataSet<R>,
-               data: &Self::Data,
-               man: &mut handle::Manager<R>,
-               _: &mut AccessInfo<R>) {
+    fn bind_to(
+        &self,
+        out: &mut RawDataSet<R>,
+        data: &Self::Data,
+        man: &mut handle::Manager<R>,
+        _: &mut AccessInfo<R>,
+    ) {
         let dsv = data;
-        out.pixel_targets.add_depth_stencil(man.ref_dsv(dsv), true, false, dsv.get_dimensions());
+        out.pixel_targets
+            .add_depth_stencil(man.ref_dsv(dsv), true, false, dsv.get_dimensions());
     }
 }
 
@@ -47,9 +54,8 @@ impl<'a> glyph_pipe::Init<'a> {
     pub fn new(
         color_format: format::Format,
         depth_format: format::Format,
-        depth_test: state::Depth)
-        -> Self
-    {
+        depth_test: state::Depth,
+    ) -> Self {
         glyph_pipe::Init {
             vbuf: (),
             font_tex: "font_tex",
