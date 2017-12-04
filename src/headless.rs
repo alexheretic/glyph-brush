@@ -1,4 +1,5 @@
 use super::*;
+use std::fmt;
 use std::mem;
 use std::sync::{Mutex, MutexGuard};
 
@@ -53,6 +54,12 @@ pub struct HeadlessGlyphBrush<'font> {
     calculate_glyph_cache: Mutex<HashMap<u64, GlyphedSection<'font>>>,
 }
 
+impl<'font> fmt::Debug for HeadlessGlyphBrush<'font> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "HeadlessGlyphBrush")
+    }
+}
+
 impl<'font> HeadlessGlyphBrush<'font> {
     pub fn cache_scope<'a>(&'a self) -> HeadlessGlyphCacheGuard<'a, 'font> {
         HeadlessGlyphCacheGuard {
@@ -86,6 +93,12 @@ impl<'brush, 'font> HeadlessGlyphCacheGuard<'brush, 'font> {
         }
 
         section_hash
+    }
+}
+
+impl<'brush, 'font> fmt::Debug for HeadlessGlyphCacheGuard<'brush, 'font> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "HeadlessGlyphCacheGuard")
     }
 }
 
