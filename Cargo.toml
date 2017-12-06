@@ -23,12 +23,12 @@ backtrace = "0.3"
 [dev-dependencies]
 pretty_env_logger = "0.1"
 approx = "0.1"
-gfx_window_glutin = "0.18"
-glutin = "0.10"
+gfx_window_glutin = "0.19"
+glutin = "0.11"
 time = "0.1"
 cgmath = "0.15"
 spin_sleep = "0.3"
-lazy_static = "0.2"
+lazy_static = "1"
 
 [features]
 # Compiles benchmark code, to be avoided normally as this currently requires nightly rust
