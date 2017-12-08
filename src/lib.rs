@@ -73,7 +73,6 @@ mod pipe;
 mod builder;
 #[macro_use]
 mod trace;
-mod headless;
 mod glyph_calculator;
 mod owned_section;
 
@@ -98,7 +97,6 @@ pub use section::*;
 pub use layout::*;
 pub use linebreak::*;
 pub use builder::*;
-pub use headless::*;
 pub use glyph_calculator::*;
 pub use owned_section::*;
 
@@ -237,7 +235,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> fmt::Debug for GlyphBrush<'fo
     }
 }
 
-impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphCalculator<'font>
+impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphCruncher<'font>
     for GlyphBrush<'font, R, F> {
     fn pixel_bounds_custom_layout<'a, S, L>(
         &mut self,
