@@ -2,7 +2,7 @@ extern crate gfx;
 extern crate gfx_glyph;
 extern crate gfx_window_glutin;
 extern crate glutin;
-extern crate pretty_env_logger;
+extern crate env_logger;
 extern crate spin_sleep;
 
 use glutin::GlContext;
@@ -11,7 +11,7 @@ use std::env;
 use gfx_glyph::*;
 
 fn main() {
-    pretty_env_logger::init().expect("log");
+    env_logger::init();
 
     // winit wayland is currently still wip
     if cfg!(target_os = "linux") && env::var("WINIT_UNIX_BACKEND").is_err() {

@@ -49,7 +49,7 @@ extern crate approx;
 #[macro_use]
 extern crate lazy_static;
 #[cfg(test)]
-extern crate pretty_env_logger;
+extern crate env_logger;
 #[cfg(feature = "bench")]
 extern crate test;
 
@@ -91,7 +91,6 @@ use std::collections::hash_map::Entry;
 use std::{fmt, iter, slice};
 use std::time::*;
 use pipe::*;
-use log::LogLevel;
 
 pub use section::*;
 pub use layout::*;
@@ -453,7 +452,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                         cache.texture_updated = true;
                     }
 
-                    if log_enabled!(LogLevel::Warn) {
+                    if log_enabled!(log::Level::Warn) {
                         warn!(
                             "Increasing glyph texture size {old:?} -> {new:?}, as {reason:?}. \
                              Consider building with `.initial_cache_size({new:?})` to avoid \

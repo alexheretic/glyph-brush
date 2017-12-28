@@ -651,7 +651,7 @@ mod layout_test {
 
     macro_rules! merged_glyphs_and_leftover {
         ($layout:expr, $section:expr) => {{
-            let _ = ::pretty_env_logger::init();
+            let _ = ::env_logger::try_init();
 
             let mut font_map = HashMap::new();
             font_map.insert(FontId(0), A_FONT.clone());

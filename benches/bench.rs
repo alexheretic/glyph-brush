@@ -13,7 +13,7 @@ extern crate gfx_window_glutin;
 #[cfg(feature = "bench")]
 extern crate glutin;
 #[cfg(feature = "bench")]
-extern crate pretty_env_logger;
+extern crate env_logger;
 
 #[cfg(feature = "bench")]
 mod gfx_noop;
@@ -169,7 +169,7 @@ fn bench(
     use gfx::format;
     use std::env;
 
-    let _ = pretty_env_logger::init();
+    let _ = env_logger::try_init();
 
     // winit wayland is currently still wip
     if cfg!(target_os = "linux") && env::var("WINIT_UNIX_BACKEND").is_err() {

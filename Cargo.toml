@@ -10,7 +10,7 @@ exclude = ["examples/*.ttf", "examples/*.txt", "benches/*.*"]
 readme="README.md"
 
 [dependencies]
-log = "0.3"
+log = "0.4"
 rusttype = "0.3"
 gfx = "0.16"
 gfx_core = "0.7"
@@ -21,7 +21,7 @@ linked-hash-map = "0.5"
 backtrace = "0.3"
 
 [dev-dependencies]
-pretty_env_logger = "0.1"
+env_logger = "0.5.0-rc.1"
 approx = "0.1"
 gfx_window_glutin = "0.19"
 glutin = "0.11"
