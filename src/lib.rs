@@ -792,7 +792,7 @@ where
     let tex = factory.create_texture(
         kind,
         1 as texture::Level,
-        gfx::memory::SHADER_RESOURCE,
+        gfx::memory::Bind::SHADER_RESOURCE,
         gfx::memory::Usage::Dynamic,
         Some(<TexChannel as format::ChannelTyped>::get_channel_type()),
     )?;
