@@ -15,12 +15,13 @@ extern crate glutin;
 extern crate env_logger;
 extern crate spin_sleep;
 
-use cgmath::Matrix4;
+use cgmath::{Matrix4, Transform, Rad};
 use glutin::GlContext;
 use gfx::{format, Device};
 use std::env;
 use std::io;
 use std::io::Write;
+use std::f32::consts::PI as PI32;
 
 fn main() {
     env_logger::init();
@@ -38,7 +39,7 @@ fn main() {
     }
 
     let mut events_loop = glutin::EventsLoop::new();
-    let title = "gfx_glyph example - scroll to size, type to modify, ctrl-scroll to transform zoom";
+    let title = "gfx_glyph example - scroll to size, type to modify, ctrl-scroll to gpu zoom, ctrl-shift-scroll to gpu rotate";
     let window_builder = glutin::WindowBuilder::new().with_title(title).with_dimensions(1024, 576);
     let context = glutin::ContextBuilder::new();
     let (window, mut device, mut factory, mut main_color, mut main_depth) =
@@ -60,6 +61,7 @@ fn main() {
     let mut running = true;
     let mut font_size = gfx_glyph::Scale::uniform(18.0 * window.hidpi_factor());
     let mut zoom: f32 = 1.0;
+    let mut angle = 0.0;
     let mut ctrl = false;
     let mut loop_helper = spin_sleep::LoopHelper::builder().build_without_target_rate();
 
@@ -100,17 +102,33 @@ fn main() {
                         gfx_window_glutin::update_views(&window, &mut main_color, &mut main_depth);
                     }
                     WindowEvent::MouseWheel {
-                        delta: MouseScrollDelta::LineDelta(_, y), ..
+                        delta: MouseScrollDelta::LineDelta(_, y),
+                        modifiers: ModifiersState { ctrl, shift, .. },
+                        ..
                     } => {
-                        if ctrl {
+                        if ctrl && shift {
+                            if y > 0.0 {
+                                angle += 0.02 * PI32;
+                            }
+                            else {
+                                angle -= 0.02 * PI32;
+                            }
+                            if (angle % (PI32 * 2.0)).abs() < 0.01 {
+                                angle = 0.0;
+                            }
+                            print!("\r                            \r");
+                            print!("transform-angle -> {:.2} * π", angle / PI32);
+                            io::stdout().flush().ok().unwrap();
+                        }
+                        else if ctrl && !shift {
                             let old_zoom = zoom;
                             // increase/decrease zoom
                             if y > 0.0 {
-                                zoom += 0.1
+                                zoom += 0.1;
                             }
                             else {
-                                zoom -= 0.1
-                            };
+                                zoom -= 0.1;
+                            }
                             zoom = zoom.min(1.0).max(0.1);
                             if (zoom - old_zoom).abs() > 1e-2 {
                                 print!("\r                            \r");
@@ -193,7 +211,23 @@ fn main() {
         // `glyph_brush.draw_queued(&mut encoder, &main_color, &main_depth).expect("draw");`
 
         // Here an example transform is used as a cheap zoom out (controlled with ctrl-scroll)
-        let transform = Matrix4::from_scale(zoom);
+        let transform_zoom = Matrix4::from_scale(zoom);
+
+        // Orthographic rotation transform
+        let transform_rotate = {
+            let aspect = width / height;
+            let projection = cgmath::ortho(
+                0.0 - 1.0 * aspect,
+                0.0 + 1.0 * aspect,
+                0.0 - 1.0,
+                0.0 + 1.0,
+                1.0,
+                -1.0,
+            );
+            projection * Matrix4::from_angle_z(Rad(angle)) * projection.inverse_transform().unwrap()
+        };
+
+        let transform = transform_rotate * transform_zoom;
 
         // Finally once per frame you want to actually draw all the sections you've submitted
         // with `queue` calls.
