@@ -216,11 +216,13 @@ fn main() {
         // Orthographic rotation transform
         let transform_rotate = {
             let aspect = width / height;
+            let zoom = 1.0;
+            let origin = (0.0, 0.0); // top-corner: `let origin = (1.0 * aspect, -1.0);`
             let projection = cgmath::ortho(
-                0.0 - 1.0 * aspect,
-                0.0 + 1.0 * aspect,
-                0.0 - 1.0,
-                0.0 + 1.0,
+                origin.0 - zoom * aspect,
+                origin.0 + zoom * aspect,
+                origin.1 - zoom,
+                origin.1 + zoom,
                 1.0,
                 -1.0,
             );
