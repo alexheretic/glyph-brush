@@ -22,31 +22,19 @@ impl<R: Resources> command::Buffer<R> for NoopCommandBuffer {
         &mut self,
         _: R::Buffer,
         _: usize,
-        _: R::Texture,
-        _: texture::Kind,
-        _: Option<texture::CubeFace>,
-        _: texture::RawImageInfo,
+        _: texture::TextureCopyRegion<R::Texture>,
     ) {
     }
     fn copy_texture_to_buffer(
         &mut self,
-        _: R::Texture,
-        _: texture::Kind,
-        _: Option<texture::CubeFace>,
-        _: texture::RawImageInfo,
+        _: texture::TextureCopyRegion<R::Texture>,
         _: R::Buffer,
         _: usize,
     ) {
     }
     fn update_buffer(&mut self, _: R::Buffer, _: &[u8], _: usize) {}
-    fn update_texture(
-        &mut self,
-        _: R::Texture,
-        _: texture::Kind,
-        _: Option<texture::CubeFace>,
-        _: &[u8],
-        _: texture::RawImageInfo,
-    ) {
+    fn update_texture(&mut self, _: texture::TextureCopyRegion<R::Texture>, _: &[u8]) {
+
     }
     fn generate_mipmap(&mut self, _: R::ShaderResourceView) {}
     fn clear_color(&mut self, _: R::RenderTargetView, _: command::ClearColor) {}
@@ -64,6 +52,12 @@ impl<R: Resources> command::Buffer<R> for NoopCommandBuffer {
         _: VertexCount,
         _: VertexCount,
         _: Option<command::InstanceParams>,
+    ) {
+    }
+    fn copy_texture_to_texture(
+        &mut self,
+        _: texture::TextureCopyRegion<R::Texture>,
+        _: texture::TextureCopyRegion<R::Texture>,
     ) {
     }
 }

@@ -621,8 +621,7 @@ fn cache_test() {
     use ::FontCollection;
     use ::Scale;
     use ::point;
-    let font_data = include_bytes!("../examples/Arial Unicode.ttf");
-    let font = FontCollection::from_bytes(font_data as &[u8]).into_font().unwrap();
+    let font = FontCollection::from_bytes(cache_bench_tests::FONT_BYTES).into_font().unwrap();
     let mut cache = Cache::new(32, 32, 0.1, 0.1);
     let strings = [
         ("Hello World!", 15.0),
@@ -647,8 +646,7 @@ fn need_to_check_whole_cache() {
     use ::FontCollection;
     use ::Scale;
     use ::point;
-    let font_data = include_bytes!("../examples/Arial Unicode.ttf");
-    let font = FontCollection::from_bytes(font_data as &[u8]).into_font().unwrap();
+    let font = FontCollection::from_bytes(cache_bench_tests::FONT_BYTES).into_font().unwrap();
 
     let glyph = font.glyph('l').unwrap();
 
@@ -679,20 +677,14 @@ mod cache_bench_tests {
     use ::{FontCollection, Scale, Font, point};
 
     const FONT_ID: usize = 0;
+    pub(crate) const FONT_BYTES: &[u8] = include_bytes!("../tests/WenQuanYiMicroHei.ttf");
     const TEST_STR: &str = include_str!("../tests/lipsum.txt");
-
-    lazy_static! {
-        static ref FONT: Font<'static> = FontCollection
-            ::from_bytes(include_bytes!("../examples/Arial Unicode.ttf") as &[u8])
-            .into_font()
-            .unwrap();
-    }
 
     /// Reproduces Err(GlyphNotCached) issue & serves as a general purpose cache benchmark
     #[bench]
     fn cache_bench_tolerance_p1(b: &mut ::test::Bencher) {
         let glyphs = test_glyphs();
-        let mut cache = Cache::new(512, 512, 0.1, 0.1);
+        let mut cache = Cache::new(768, 768, 0.1, 0.1);
 
         b.iter(|| {
             for glyph in &glyphs {
@@ -713,7 +705,7 @@ mod cache_bench_tests {
     #[bench]
     fn cache_bench_tolerance_1(b: &mut ::test::Bencher) {
         let glyphs = test_glyphs();
-        let mut cache = Cache::new(512, 512, 0.1, 1.0);
+        let mut cache = Cache::new(768, 768, 0.1, 1.0);
 
         b.iter(|| {
             for glyph in &glyphs {
@@ -732,18 +724,19 @@ mod cache_bench_tests {
     }
 
     fn test_glyphs() -> Vec<PositionedGlyph<'static>> {
+        let font = FontCollection::from_bytes(FONT_BYTES).into_font().unwrap();
         let mut glyphs = vec![];
         // Set of scales, found through brute force, to reproduce GlyphNotCached issue
         // Cache settings also affect this, it occurs when position_tolerance is < 1.0
         for scale in &[25_f32, 24.5, 25.01, 24.7, 24.99] {
-            for glyph in layout_paragraph(&FONT, Scale::uniform(*scale), 500, TEST_STR) {
+            for glyph in layout_paragraph(&font, Scale::uniform(*scale), 500, TEST_STR) {
                 glyphs.push(glyph);
             }
         }
         glyphs
     }
 
-    fn layout_paragraph<'a>(font: &'a Font,
+    fn layout_paragraph<'a>(font: &Font<'a>,
                             scale: Scale,
                             width: u32,
                             text: &str) -> Vec<PositionedGlyph<'a>> {

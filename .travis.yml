@@ -14,6 +14,7 @@ os:
 - linux
 - osx
 script:
+- echo "TRAVIS_RUST_VERSION $TRAVIS_RUST_VERSION"
 - if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then
     cargo test --features bench;
   else
