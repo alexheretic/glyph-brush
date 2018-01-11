@@ -642,7 +642,8 @@ fn cache_test() {
     use ::FontCollection;
     use ::Scale;
     use ::point;
-    let font = FontCollection::from_bytes(cache_bench_tests::FONT_BYTES).into_font().unwrap();
+    let font_bytes: &[u8] = include_bytes!("../tests/WenQuanYiMicroHei.ttf");
+    let font = FontCollection::from_bytes(font_bytes).into_font().unwrap();
     let mut cache = Cache::new(32, 32, 0.1, 0.1);
     let strings = [
         ("Hello World!", 15.0),
@@ -667,7 +668,8 @@ fn need_to_check_whole_cache() {
     use ::FontCollection;
     use ::Scale;
     use ::point;
-    let font = FontCollection::from_bytes(cache_bench_tests::FONT_BYTES).into_font().unwrap();
+    let font_bytes: &[u8] = include_bytes!("../tests/WenQuanYiMicroHei.ttf");
+    let font = FontCollection::from_bytes(font_bytes).into_font().unwrap();
 
     let glyph = font.glyph('l').unwrap();
 
