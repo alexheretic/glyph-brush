@@ -75,7 +75,6 @@ impl PGlyphSpec {
             (self.offset.y - other.offset.y).abs() < position_tolerance
     }
 
-    #[inline]
     fn key(&self) -> (FontId, GlyphId) {
         (self.font_id, self.glyph_id)
     }
