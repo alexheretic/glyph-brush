@@ -503,7 +503,7 @@ impl<'font> Cache<'font> {
             in_use_rows.insert(row_top);
 
             self.all_glyphs.entry(spec.key())
-                .or_insert_with(|| BTreeMap::new())
+                .or_insert_with(BTreeMap::new)
                 .insert(spec, (row_top, row.glyphs.len() as u32 - 1));
         }
         if queue_success {

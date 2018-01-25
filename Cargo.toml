@@ -21,7 +21,7 @@ linked-hash-map = "0.5"
 backtrace = "0.3"
 
 [dev-dependencies]
-env_logger = "0.5.0-rc.1"
+env_logger = "0.5"
 approx = "0.1"
 gfx_window_glutin = "0.20"
 glutin = "0.12"

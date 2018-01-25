@@ -494,13 +494,21 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
             gpu_cache_finished = start.elapsed();
             let gpu_cache_finished_time = start + gpu_cache_finished;
 
-            let verts: Vec<GlyphVertex> = self.section_buffer
-                .iter()
-                .flat_map(|section_hash| {
-                    let GlyphedSection { ref glyphs, bounds, z } =
-                        self.calculate_glyph_cache[section_hash];
+            let verts: Vec<GlyphVertex> = {
+                let sections: Vec<_> = self.section_buffer
+                    .iter()
+                    .map(|hash| &self.calculate_glyph_cache[hash])
+                    .collect();
 
-                    glyphs
+                let mut verts = Vec::with_capacity(sections
+                    .iter()
+                    .flat_map(|section| section.glyphs
+                        .iter()
+                        .map(|glyphs| glyphs.0.len()))
+                    .sum::<usize>() * VERTICES_PER_GLYPH);
+
+                for &GlyphedSection { ref glyphs, bounds, z } in sections {
+                    for v in glyphs
                         .iter()
                         .flat_map(|&GlyphedSectionText(ref glyphs, color, font_id)| {
                             text_vertices(
@@ -513,9 +521,12 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                                 (screen_width as f32, screen_height as f32),
                             )
                         })
-                        .collect::<Vec<_>>()
-                })
-                .collect();
+                    {
+                        verts.push(v)
+                    }
+                }
+                verts
+            };
 
             verts_created = gpu_cache_finished_time.elapsed();
 
@@ -662,6 +673,8 @@ pub fn font<'a, B: Into<SharedBytes<'a>>>(font_bytes: B) -> Result<Font<'a>, &'s
         .ok_or("Font not supported by rusttype")
 }
 
+const VERTICES_PER_GLYPH: usize = 6;
+
 #[inline]
 fn text_vertices(
     glyphs: &[PositionedGlyph],
@@ -673,7 +686,7 @@ fn text_vertices(
     (screen_width, screen_height): (f32, f32),
 ) -> Vec<GlyphVertex> {
     let origin = point(0.0, 0.0);
-    let mut vertices = Vec::with_capacity(glyphs.len() * 6);
+    let mut vertices = Vec::with_capacity(glyphs.len() * VERTICES_PER_GLYPH);
 
     let gl_bounds = Rect {
         min: origin
@@ -736,38 +749,36 @@ fn text_vertices(
                 uv_rect.min.y = uv_rect.max.y - uv_rect.height() * gl_rect.height() / old_height;
             }
 
-            vertices.extend_from_slice(&[
-                GlyphVertex {
-                    pos: [gl_rect.min.x, gl_rect.max.y, z],
-                    tex_pos: [uv_rect.min.x, uv_rect.max.y],
-                    color,
-                },
-                GlyphVertex {
-                    pos: [gl_rect.min.x, gl_rect.min.y, z],
-                    tex_pos: [uv_rect.min.x, uv_rect.min.y],
-                    color,
-                },
-                GlyphVertex {
-                    pos: [gl_rect.max.x, gl_rect.min.y, z],
-                    tex_pos: [uv_rect.max.x, uv_rect.min.y],
-                    color,
-                },
-                GlyphVertex {
-                    pos: [gl_rect.max.x, gl_rect.min.y, z],
-                    tex_pos: [uv_rect.max.x, uv_rect.min.y],
-                    color,
-                },
-                GlyphVertex {
-                    pos: [gl_rect.max.x, gl_rect.max.y, z],
-                    tex_pos: [uv_rect.max.x, uv_rect.max.y],
-                    color,
-                },
-                GlyphVertex {
-                    pos: [gl_rect.min.x, gl_rect.max.y, z],
-                    tex_pos: [uv_rect.min.x, uv_rect.max.y],
-                    color,
-                },
-            ]);
+            vertices.push(GlyphVertex {
+                pos: [gl_rect.min.x, gl_rect.max.y, z],
+                tex_pos: [uv_rect.min.x, uv_rect.max.y],
+                color,
+            });
+            vertices.push(GlyphVertex {
+                pos: [gl_rect.min.x, gl_rect.min.y, z],
+                tex_pos: [uv_rect.min.x, uv_rect.min.y],
+                color,
+            });
+            vertices.push(GlyphVertex {
+                pos: [gl_rect.max.x, gl_rect.min.y, z],
+                tex_pos: [uv_rect.max.x, uv_rect.min.y],
+                color,
+            });
+            vertices.push(GlyphVertex {
+                pos: [gl_rect.max.x, gl_rect.min.y, z],
+                tex_pos: [uv_rect.max.x, uv_rect.min.y],
+                color,
+            });
+            vertices.push(GlyphVertex {
+                pos: [gl_rect.max.x, gl_rect.max.y, z],
+                tex_pos: [uv_rect.max.x, uv_rect.max.y],
+                color,
+            });
+            vertices.push(GlyphVertex {
+                pos: [gl_rect.min.x, gl_rect.max.y, z],
+                tex_pos: [uv_rect.min.x, uv_rect.max.y],
+                color,
+            });
         }
         else if rect.is_err() {
             warn!("Cache miss?: {:?}", rect);
