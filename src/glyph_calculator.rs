@@ -75,8 +75,8 @@ pub trait GlyphCruncher<'font> {
 /// use gfx_glyph::{GlyphCruncher, GlyphCalculatorBuilder, Section};
 /// # fn main() {
 ///
-/// let arial: &[u8] = include_bytes!("../examples/Arial Unicode.ttf");
-/// let glyphs = GlyphCalculatorBuilder::using_font_bytes(arial).build();
+/// let dejavu: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
+/// let glyphs = GlyphCalculatorBuilder::using_font_bytes(dejavu).build();
 ///
 /// let section = Section {
 ///     text: "Hello gfx_glyph",
@@ -249,8 +249,8 @@ impl<'a, 'b> Drop for GlyphCalculatorGuard<'a, 'b> {
 /// use gfx_glyph::GlyphCalculatorBuilder;
 /// # fn main() {
 ///
-/// let arial: &[u8] = include_bytes!("../examples/Arial Unicode.ttf");
-/// let mut glyphs = GlyphCalculatorBuilder::using_font_bytes(arial).build();
+/// let dejavu: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
+/// let mut glyphs = GlyphCalculatorBuilder::using_font_bytes(dejavu).build();
 /// # let _ = glyphs;
 /// # }
 /// ```

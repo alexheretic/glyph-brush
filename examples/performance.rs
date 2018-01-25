@@ -8,7 +8,6 @@ extern crate spin_sleep;
 use glutin::GlContext;
 use gfx::{format, Device};
 use std::env;
-use std::collections::HashMap;
 use gfx_glyph::*;
 
 fn main() {
@@ -44,13 +43,12 @@ fn main() {
         );
 
     let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(
-        include_bytes!("Arial Unicode.ttf") as &[u8],
+        include_bytes!("DejaVuSans.ttf") as &[u8],
     ).initial_cache_size((2048, 2048))
         .gpu_cache_position_tolerance(1.0)
         .build(factory.clone());
 
-    let mut text: String = include_str!("100000_items.txt").into();
-
+    let mut text: String = include_str!("loads-of-unicode.txt").into();
     let mut encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
 
     let mut running = true;
@@ -119,20 +117,15 @@ fn main() {
             scale: font_size,
             bounds: (width, height),
             color: [0.8, 0.8, 0.8, 1.0],
+            layout: Layout::default().line_breaker(BuiltInLineBreaker::AnyCharLineBreaker),
             ..Section::default()
         };
-
-        // Custom layout logic to render the glyphs is allowed by implementing
-        // `gfx_glyph::GlyphPositioner`
-        // Built-in layouts are available e.g. `Layout::default()`
-        // This is an example of implementing your own, see below
-        let layout = CustomContiguousParagraphLayout;
 
         // Adds a section & layout to the queue for the next call to `draw_queued`, this
         // can be called multiple times for different sections that want to use the same
         // font and gpu cache
         // This step computes the glyph positions, this is cached to avoid unnecessary recalculation
-        glyph_brush.queue_custom_layout(&section, &layout);
+        glyph_brush.queue(&section);
 
         // Finally once per frame you want to actually draw all the sections you've submitted
         // with `queue` calls.
@@ -151,60 +144,4 @@ fn main() {
         }
     }
     println!();
-}
-
-/// Example of a custom layout, ie different from the built-in ones see `Layout`
-/// This one is like the default left aligner, but ignores new lines to fill the
-/// screen with characters. Note Hash is required in order to cache the glyph positioning, as
-/// such you'll notice `calculate_glyphs` is only called once per distinct section
-#[derive(Debug, Clone, Copy, Hash)]
-pub struct CustomContiguousParagraphLayout;
-
-impl gfx_glyph::GlyphPositioner for CustomContiguousParagraphLayout {
-    /// Calculate a sequence of positioned glyphs to render
-    fn calculate_glyphs<'a, 'font, G: Into<SectionGlyphInfo<'a>>>(
-        &self,
-        fonts: &HashMap<FontId, Font<'font>>,
-        section: G,
-    ) -> Vec<GlyphedSectionText<'font>> {
-        let mut glyph_info = section.into();
-        let original_screen_x = glyph_info.screen_position.0;
-        let original_bound_w = glyph_info.bounds.0;
-
-        let mut out = vec![];
-        loop {
-            let (glyphs, leftover) = Layout::default_single_line()
-                .line_breaker(BuiltInLineBreaker::AnyCharLineBreaker)
-                .calculate_glyphs_and_leftover(fonts, &glyph_info);
-            out.extend_from_slice(&glyphs);
-            match leftover {
-                Some(LayoutLeftover::HardBreak(point, leftover, _)) => {
-                    // ignore newlines just keep rendering on the same line
-                    glyph_info = leftover;
-                    glyph_info.screen_position.0 = point.x;
-                    glyph_info.bounds.0 = original_bound_w - (point.x - original_screen_x);
-                }
-                Some(LayoutLeftover::OutOfWidthBound(_, leftover, v_metrics)) => {
-                    // use the next line when we run out of width
-                    let advance_height = v_metrics.ascent - v_metrics.descent + v_metrics.line_gap;
-                    glyph_info = leftover;
-                    glyph_info.screen_position.1 += advance_height;
-                    glyph_info.screen_position.0 = original_screen_x;
-                    glyph_info.bounds.1 -= advance_height;
-                    glyph_info.bounds.0 = original_bound_w;
-                    if glyph_info.bounds.1 < 0.0 {
-                        break;
-                    }
-                }
-                Some(LayoutLeftover::OutOfHeightBound(..)) | None => break,
-            }
-        }
-        out
-    }
-    /// Bounds rectangle is the same as built-in left align
-    fn bounds_rect<'a, G: Into<SectionGlyphInfo<'a>>>(&self, section: G) -> Rect<f32> {
-        Layout::default_single_line()
-            .line_breaker(BuiltInLineBreaker::AnyCharLineBreaker)
-            .bounds_rect(section)
-    }
 }

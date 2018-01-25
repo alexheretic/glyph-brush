@@ -48,7 +48,7 @@ fn main() {
         );
 
     let mut builder =
-        GlyphBrushBuilder::using_font_bytes(include_bytes!("Arial Unicode.ttf") as &[u8]);
+        GlyphBrushBuilder::using_font_bytes(include_bytes!("DejaVuSans.ttf") as &[u8]);
     let sans_font = FontId::default();
     let italic_font = builder.add_font_bytes(include_bytes!("OpenSans-Italic.ttf") as &[u8]);
     let serif_font = builder.add_font_bytes(include_bytes!("GaramondNo8-Reg.ttf") as &[u8]);

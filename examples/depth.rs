@@ -36,7 +36,8 @@ fn main() {
             &events_loop,
         );
 
-    let mut builder = GlyphBrushBuilder::using_font_bytes(include_bytes!("Arial Unicode.ttf") as &[u8])
+    let mut builder = GlyphBrushBuilder::using_font_bytes(
+        include_bytes!("DejaVuSans.ttf") as &[u8])
         // Enable depth testing with less-equal drawing and update the depth buffer
         .depth_test(gfx::preset::depth::LESS_EQUAL_WRITE);
 

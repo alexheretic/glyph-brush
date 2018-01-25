@@ -18,8 +18,8 @@ use super::*;
 /// #         glutin::ContextBuilder::new(),
 /// #         &events_loop);
 ///
-/// let arial: &[u8] = include_bytes!("../examples/Arial Unicode.ttf");
-/// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(arial)
+/// let dejavu: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
+/// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu)
 ///     .build(gfx_factory.clone());
 /// # let _ = glyph_brush;
 /// # }
@@ -154,7 +154,7 @@ impl<'a> GlyphBrushBuilder<'a> {
     /// # extern crate gfx_glyph;
     /// # use gfx_glyph::GlyphBrushBuilder;
     /// # fn main() {
-    /// # let some_font: &[u8] = include_bytes!("../examples/Arial Unicode.ttf");
+    /// # let some_font: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
     /// GlyphBrushBuilder::using_font_bytes(some_font)
     ///     .depth_test(gfx::preset::depth::LESS_EQUAL_WRITE)
     ///     // ...
@@ -201,6 +201,9 @@ impl<'a> GlyphBrushBuilder<'a> {
             cache_glyph_drawing: self.cache_glyph_drawing && self.cache_glyph_positioning,
 
             depth_test: self.depth_test,
+
+            #[cfg(feature = "performance_stats")]
+            perf: performance_stats::PerformanceStats::default(),
         }
     }
 }

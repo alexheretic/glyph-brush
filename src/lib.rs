@@ -25,8 +25,8 @@
 //! #         &events_loop);
 //! # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
 //!
-//! let arial: &[u8] = include_bytes!("../examples/Arial Unicode.ttf");
-//! let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(arial)
+//! let dejavu: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
+//! let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu)
 //!     .build(gfx_factory.clone());
 //!
 //! # let some_other_section = Section { text: "another", ..Section::default() };
@@ -75,6 +75,8 @@ mod builder;
 mod trace;
 mod glyph_calculator;
 mod owned_section;
+#[cfg(feature = "performance_stats")]
+mod performance_stats;
 
 use gfx::traits::FactoryExt;
 use rusttype::{point, vector, FontCollection};
@@ -89,7 +91,6 @@ use std::error::Error;
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry;
 use std::{fmt, iter, slice};
-use std::time::*;
 use pipe::*;
 
 pub use section::*;
@@ -171,8 +172,8 @@ fn hash<H: Hash>(hashable: &H) -> u64 {
 /// #         &events_loop);
 /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
 ///
-/// # let arial: &[u8] = include_bytes!("../examples/Arial Unicode.ttf");
-/// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(arial)
+/// # let dejavu: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
+/// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu)
 /// #     .build(gfx_factory.clone());
 ///
 /// # let some_other_section = Section { text: "another", ..Section::default() };
@@ -226,6 +227,9 @@ pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>> {
     cache_glyph_drawing: bool,
 
     depth_test: gfx::state::Depth,
+
+    #[cfg(feature = "performance_stats")]
+    perf: performance_stats::PerformanceStats,
 }
 
 impl<'font, R: gfx::Resources, F: gfx::Factory<R>> fmt::Debug for GlyphBrush<'font, R, F> {
@@ -350,14 +354,20 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
 
         if self.cache_glyph_positioning {
             if let Entry::Vacant(entry) = self.calculate_glyph_cache.entry(section_hash) {
+                #[cfg(feature = "performance_stats")]
+                self.perf.layout_start();
                 entry.insert(GlyphedSection {
                     bounds: layout.bounds_rect(section),
                     glyphs: layout.calculate_glyphs(&self.fonts, section),
                     z: section.z,
                 });
+                #[cfg(feature = "performance_stats")]
+                self.perf.layout_finished();
             }
         }
         else {
+            #[cfg(feature = "performance_stats")]
+            self.perf.layout_start();
             self.calculate_glyph_cache.insert(
                 section_hash,
                 GlyphedSection {
@@ -366,6 +376,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                     z: section.z,
                 },
             );
+            #[cfg(feature = "performance_stats")]
+            self.perf.layout_finished();
         }
         section_hash
     }
@@ -406,10 +418,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         T: format::RenderFormat,
         D: format::DepthFormat,
     {
-        let start = Instant::now();
-
-        let mut verts_created = start.elapsed();
-        let mut gpu_cache_finished = start.elapsed();
+        #[cfg(feature = "performance_stats")]
+        self.perf.draw_start();
 
         let (screen_width, screen_height, _, _) = target.get_dimensions();
         let (screen_width, screen_height) = (u32::from(screen_width), u32::from(screen_height));
@@ -491,8 +501,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
 
                 break;
             }
-            gpu_cache_finished = start.elapsed();
-            let gpu_cache_finished_time = start + gpu_cache_finished;
+            #[cfg(feature = "performance_stats")]
+            self.perf.gpu_cache_done();
 
             let verts: Vec<GlyphVertex> = {
                 let sections: Vec<_> = self.section_buffer
@@ -527,8 +537,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                 }
                 verts
             };
-
-            verts_created = gpu_cache_finished_time.elapsed();
+            #[cfg(feature = "performance_stats")]
+            self.perf.vertex_generation_done();
 
             let (vbuf, slice) = self.factory.create_vertex_buffer_with_slice(&verts, ());
 
@@ -580,25 +590,12 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
             encoder.draw(slice, &pso.1, pipe_data);
         }
 
-        let draw_finished = {
-            let elapsed = start.elapsed();
-            if elapsed > verts_created + gpu_cache_finished {
-                elapsed - (verts_created + gpu_cache_finished)
-            }
-            else {
-                Duration::from_secs(0)
-            }
-        };
-
         self.clear_section_buffer();
 
-        trace!(
-            "draw in {:.3}ms (gpu cache {:.3}ms, vertices {:.3}ms, draw-call {:.3}ms)",
-            f64::from(start.elapsed().subsec_nanos()) / 1_000_000_f64,
-            f64::from(gpu_cache_finished.subsec_nanos()) / 1_000_000_f64,
-            f64::from(verts_created.subsec_nanos()) / 1_000_000_f64,
-            f64::from(draw_finished.subsec_nanos()) / 1_000_000_f64
-        );
+        #[cfg(feature = "performance_stats")] {
+            self.perf.draw_finished();
+            self.perf.log_sluggishness();
+        }
 
         Ok(())
     }

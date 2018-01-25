@@ -33,3 +33,6 @@ lazy_static = "1"
 [features]
 # Compiles benchmark code, to be avoided normally as this currently requires nightly rust
 bench = []
+# Compiles in additional performance stats gathering and info-logging
+# each draw (when slower than 1ms)
+performance_stats = []

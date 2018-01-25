@@ -1,0 +1,2 @@
+# atom ide-rust
+features = ["bench", "performance_stats"]

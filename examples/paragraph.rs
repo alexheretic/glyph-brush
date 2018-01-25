@@ -50,7 +50,7 @@ fn main() {
         );
 
     let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(
-        include_bytes!("Arial Unicode.ttf") as &[u8],
+        include_bytes!("DejaVuSans.ttf") as &[u8],
     ).initial_cache_size((1024, 1024))
         .build(factory.clone());
 
