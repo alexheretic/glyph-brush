@@ -10,6 +10,7 @@ environment:
 matrix:
   allow_failures:
   - channel: nightly
+  fast_finish: true
 install:
 - appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
 - rustup-init -yv --default-toolchain %channel% --default-host %target%

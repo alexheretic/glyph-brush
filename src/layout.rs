@@ -580,7 +580,7 @@ fn paragraph<'a, 'font, L: LineBreaker>(
         let (glyphs, mut leftover) = Layout::SingleLine { line_breaker, h_align, v_align }
             .calculate_glyphs_and_leftover(font_map, &section);
 
-        out.extend_from_slice(&glyphs);
+        out.extend(glyphs);
         if leftover.is_none() {
             break;
         }

@@ -41,4 +41,4 @@ Have a look at
 
 
 ## Limitations
-The current implementation supports OpenGL *(3.2 or later)*. In future we'll support to the new gfx-rs next-gen shaders.
+The current implementation supports OpenGL *(3.2 or later)*. In future we'll support the upcoming gfx-rs ll releases.
