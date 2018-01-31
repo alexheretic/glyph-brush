@@ -65,9 +65,15 @@ impl<'a> GlyphInfo<'a> {
         self.text.nfc().skip(self.skip)
     }
 
+    /// Returns a unicode normalized (byte_index, char) iterator, that respects the
+    /// skipped chars that have already been already processed
+    pub fn remaining_char_indices(&self) -> RemainingNormCharIndices<'a> {
+        RemainingNormCharIndices::new(self.text.nfc().skip(self.skip))
+    }
+
     /// Returns a new GlyphInfo instance whose
     /// [`remaining_chars()`](struct.GlyphInfo.html#method.remaining_chars)
-    /// method will skip additional chars.
+    /// method will skip additional chars (not bytes!)
     pub fn skip(&self, skip: usize) -> GlyphInfo<'a> {
         let mut clone = *self;
         clone.skip += skip;
@@ -88,6 +94,34 @@ impl<'a> From<SectionText<'a>> for GlyphInfo<'a> {
     fn from(section: SectionText<'a>) -> Self {
         let SectionText { text, scale, color, font_id, .. } = section;
         Self { text, scale, skip: 0, color, font_id }
+    }
+}
+
+/// char_indices style iterator for skipped normalized chars
+pub struct RemainingNormCharIndices<'a> {
+    byte_progress: usize,
+    inner: Skip<Recompositions<Chars<'a>>>,
+}
+
+impl<'a> RemainingNormCharIndices<'a> {
+    fn new(remaining: Skip<Recompositions<Chars<'a>>>) -> Self {
+        Self {
+            byte_progress: 0,
+            inner: remaining,
+        }
+    }
+}
+
+impl<'a> Iterator for RemainingNormCharIndices<'a> {
+    type Item = (usize, char);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(n) = self.inner.next() {
+            let byte_index = self.byte_progress;
+            self.byte_progress += n.len_utf8();
+            return Some((byte_index, n));
+        }
+        None
     }
 }
 
@@ -317,6 +351,7 @@ fn single_line<'font, 'a, L: LineBreaker>(
     let mut caret = point(0.0, 0.0);
     let mut caret_initialized = false;
 
+    // char index
     let mut vertically_hidden_tail_start = None;
     let mut max_line_v: Option<VMetrics> = None;
     let mut ascent_adjustment = None;
@@ -393,11 +428,15 @@ fn single_line<'font, 'a, L: LineBreaker>(
         let mut line_breaks = line_breaker.line_breaks(glyph_info.substring());
         let mut previous_break = None;
         let mut next_break = line_breaks.next();
-        let mut glyphs = vec![];
 
-        for (index, c) in glyph_info.remaining_chars().enumerate() {
+        let mut glyphs = vec![];
+        // keep track of pushed byte length
+        let mut glyphs_byte_lens = vec![];
+        let mut glyphs_total_byte_len = 0;
+
+        for (c_index, (byte_index, c)) in glyph_info.remaining_char_indices().enumerate() {
             while next_break.is_some() {
-                if next_break.as_ref().unwrap().offset() < index {
+                if next_break.as_ref().unwrap().offset() < byte_index {
                     previous_break = next_break.take();
                     next_break = line_breaks.next();
                 }
@@ -406,13 +445,13 @@ fn single_line<'font, 'a, L: LineBreaker>(
                 }
             }
 
-            last_char_break = Some((index, c, next_break));
+            last_char_break = Some((byte_index, c, next_break));
 
             if let Some(LineBreak::Hard(offset)) = next_break {
-                if offset == index {
+                if offset == byte_index {
                     leftover = Some(LayoutLeftover::HardBreak(
                         caret,
-                        section_glyph_info.with_info(info_index, glyph_info.skip(index)),
+                        section_glyph_info.with_info(info_index, glyph_info.skip(c_index)),
                         v_metrics,
                     ));
                     if !glyphs.is_empty() {
@@ -441,11 +480,11 @@ fn single_line<'font, 'a, L: LineBreaker>(
             if let Some(bb) = glyph.pixel_bounding_box() {
                 if bb.max.x as f32 > (screen_x + bound_w) {
                     if let Some(line_break) = next_break {
-                        if line_break.offset() == index {
+                        if line_break.offset() == byte_index {
                             // current char is a breaking char
                             leftover = Some(LayoutLeftover::OutOfWidthBound(
                                 caret,
-                                section_glyph_info.with_info(info_index, glyph_info.skip(index)),
+                                section_glyph_info.with_info(info_index, glyph_info.skip(c_index)),
                                 if glyphs.is_empty() { max_line_v.unwrap() } else { v_metrics },
                             ));
                             if !glyphs.is_empty() {
@@ -457,9 +496,9 @@ fn single_line<'font, 'a, L: LineBreaker>(
                     }
 
                     if let Some(line_break) = previous_break {
-                        while glyphs.len() > line_break.offset() {
-                            // TODO glyph count / char count mismatch test
+                        while glyphs_total_byte_len > line_break.offset() {
                             glyphs.pop();
+                            glyphs_total_byte_len -= glyphs_byte_lens.pop().unwrap();
                         }
                         leftover = Some(LayoutLeftover::OutOfWidthBound(
                             caret,
@@ -485,7 +524,7 @@ fn single_line<'font, 'a, L: LineBreaker>(
                 }
                 if bb.min.y as f32 > (screen_y + bound_h) {
                     if vertically_hidden_tail_start.is_none() {
-                        vertically_hidden_tail_start = Some(index);
+                        vertically_hidden_tail_start = Some(c_index);
                     }
                     caret.x += glyph.unpositioned().h_metrics().advance_width;
                     continue;
@@ -494,6 +533,8 @@ fn single_line<'font, 'a, L: LineBreaker>(
             }
             caret.x += glyph.unpositioned().h_metrics().advance_width;
             glyphs.push(glyph);
+            glyphs_byte_lens.push(c.len_utf8());
+            glyphs_total_byte_len += c.len_utf8();
         }
 
         if !glyphs.is_empty() {
@@ -503,12 +544,12 @@ fn single_line<'font, 'a, L: LineBreaker>(
             result.push(GlyphedSectionText(glyphs, color, font_id));
         }
 
-        if let Some(idx) = vertically_hidden_tail_start {
+        if let Some(c_idx) = vertically_hidden_tail_start {
             // if entire tail was vertically hidden then return as unrendered text
             // otherwise ignore
             leftover = Some(LayoutLeftover::OutOfHeightBound(
                 caret,
-                section_glyph_info.with_info(info_index, glyph_info.skip(idx)),
+                section_glyph_info.with_info(info_index, glyph_info.skip(c_idx)),
                 max_line_v.unwrap(),
             ));
             break 'sections;
@@ -620,6 +661,18 @@ fn paragraph<'a, 'font, L: LineBreaker>(
     (out, paragraph_leftover)
 }
 
+#[test]
+fn remaining_norm_char_indices() {
+    let unicode_str = "❤é\nabc";
+    let mut remaining = RemainingNormCharIndices::new(unicode_str.nfc().skip(0));
+    assert_eq!(remaining.next(), Some((0, '❤')));
+    assert_eq!(remaining.next(), Some((3, 'é')));
+    assert_eq!(remaining.next(), Some((5, '\n')));
+    assert_eq!(remaining.next(), Some((6, 'a')));
+    assert_eq!(remaining.next(), Some((7, 'b')));
+    assert_eq!(remaining.next(), Some((8, 'c')));
+}
+
 #[cfg(test)]
 mod layout_test {
     use super::*;
@@ -639,7 +692,7 @@ mod layout_test {
     /// second arg string characters
     macro_rules! assert_glyph_order {
         ($glyphs:expr, $string:expr) => {{
-            let expected_len = $string.len();
+            let expected_len = $string.nfc().count();
             assert_eq!($glyphs.len(), expected_len, "Unexpected number of glyphs");
             let mut glyphs = $glyphs.iter();
             for c in $string.chars() {
@@ -994,5 +1047,43 @@ mod layout_test {
 
         assert_eq!(glyphs[39].id(), A_FONT.glyph('i').unwrap().id());
         assert!(glyphs[39].position().y > glyphs[18].position().y);
+    }
+
+    #[test]
+    fn single_line_multibyte_chars_finish_at_break() {
+        let unicode_str = "❤❤é❤❤\n❤ß❤";
+        assert_eq!(
+            unicode_str,
+            "\u{2764}\u{2764}\u{e9}\u{2764}\u{2764}\n\u{2764}\u{df}\u{2764}",
+            "invisible char funny business",
+        );
+        assert_eq!(unicode_str.len(), 23);
+        assert_eq!(
+            xi_unicode::LineBreakIterator::new(unicode_str).filter(|n| n.1).next(),
+            Some((15, true)),
+        );
+
+        let (glyphs, leftover) = merged_glyphs_and_leftover!(
+            Layout::default_single_line(),
+            Section {
+                text: unicode_str,
+                scale: Scale::uniform(20.0),
+                ..Section::default()
+            }
+        );
+
+        if let Some(LayoutLeftover::HardBreak(_, leftover, ..)) = leftover {
+            assert_eq!(remaining_text(&leftover), "\u{2764}\u{df}\u{2764}");
+        }
+        else {
+            assert!(false, "Unexpected leftover {:?}, after {} glyphs", leftover, glyphs.len());
+        }
+        assert_glyph_order!(glyphs, "\u{2764}\u{2764}\u{e9}\u{2764}\u{2764}");
+        assert_eq!(glyphs[0].position().x, 0.0);
+        assert!(
+            glyphs[4].position().x > 0.0,
+            "unexpected last position {:?}",
+            glyphs[4].position()
+        );
     }
 }
