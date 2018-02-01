@@ -47,7 +47,11 @@ impl<'a> GlyphBrushBuilder<'a> {
         V: Into<Vec<B>>,
     {
         Self::using_fonts(
-            font_data.into().into_iter().map(|data| font(data).unwrap()).collect::<Vec<_>>(),
+            font_data
+                .into()
+                .into_iter()
+                .map(|data| font(data).unwrap())
+                .collect::<Vec<_>>(),
         )
     }
 

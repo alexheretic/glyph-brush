@@ -3,6 +3,8 @@
 extern crate test;
 
 #[cfg(feature = "bench")]
+extern crate env_logger;
+#[cfg(feature = "bench")]
 extern crate gfx;
 #[cfg(feature = "bench")]
 extern crate gfx_core;
@@ -12,8 +14,6 @@ extern crate gfx_glyph;
 extern crate gfx_window_glutin;
 #[cfg(feature = "bench")]
 extern crate glutin;
-#[cfg(feature = "bench")]
-extern crate env_logger;
 
 #[cfg(feature = "bench")]
 mod gfx_noop;
@@ -33,7 +33,11 @@ fn render_3_medium_sections_fully(b: &mut ::test::Bencher) {
     bench(
         b,
         &[
-            Section { text, bounds: (600.0, f32::INFINITY), ..Section::default() },
+            Section {
+                text,
+                bounds: (600.0, f32::INFINITY),
+                ..Section::default()
+            },
             Section {
                 text,
                 screen_position: (600.0, 0.0),
@@ -68,7 +72,11 @@ fn no_cache_render_3_medium_sections_fully(b: &mut ::test::Bencher) {
     bench(
         b,
         &[
-            Section { text, bounds: (600.0, f32::INFINITY), ..Section::default() },
+            Section {
+                text,
+                bounds: (600.0, f32::INFINITY),
+                ..Section::default()
+            },
             Section {
                 text,
                 screen_position: (600.0, 0.0),
@@ -96,7 +104,17 @@ fn render_1_large_section_partially(b: &mut ::test::Bencher) {
     let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
     let text = include_str!("lots_of_lipsum.txt");
 
-    bench(b, &[Section { text, bounds: (600.0, 600.0), ..Section::default() }], brush);
+    bench(
+        b,
+        &[
+            Section {
+                text,
+                bounds: (600.0, 600.0),
+                ..Section::default()
+            },
+        ],
+        brush,
+    );
 }
 
 #[bench]
@@ -110,7 +128,17 @@ fn no_cache_render_1_large_section_partially(b: &mut ::test::Bencher) {
         .cache_glyph_drawing(false);
     let text = include_str!("lots_of_lipsum.txt");
 
-    bench(b, &[Section { text, bounds: (600.0, 600.0), ..Section::default() }], brush);
+    bench(
+        b,
+        &[
+            Section {
+                text,
+                bounds: (600.0, 600.0),
+                ..Section::default()
+            },
+        ],
+        brush,
+    );
 }
 
 #[bench]
@@ -192,12 +220,16 @@ fn bench(
     for section in sections.iter() {
         glyph_brush.queue(*section);
     }
-    glyph_brush.draw_queued(&mut encoder, &main_color, &main_depth).expect("draw");
+    glyph_brush
+        .draw_queued(&mut encoder, &main_color, &main_depth)
+        .expect("draw");
 
     b.iter(|| {
         for section in sections.iter() {
             glyph_brush.queue(*section);
         }
-        glyph_brush.draw_queued(&mut encoder, &main_color, &main_depth).expect("draw");
+        glyph_brush
+            .draw_queued(&mut encoder, &main_color, &main_depth)
+            .expect("draw");
     });
 }

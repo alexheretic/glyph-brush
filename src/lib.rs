@@ -46,10 +46,10 @@
 #[macro_use]
 extern crate approx;
 #[cfg(test)]
+extern crate env_logger;
+#[cfg(test)]
 #[macro_use]
 extern crate lazy_static;
-#[cfg(test)]
-extern crate env_logger;
 #[cfg(feature = "bench")]
 extern crate test;
 
@@ -140,8 +140,12 @@ type TexFormView = <TexForm as format::Formatted>::View;
 type TexSurfaceHandle<R> = handle::Texture<R, TexSurface>;
 type TexShaderView<R> = handle::ShaderResourceView<R, TexFormView>;
 
-const IDENTITY_MATRIX4: [[f32; 4]; 4] =
-    [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]];
+const IDENTITY_MATRIX4: [[f32; 4]; 4] = [
+    [1.0, 0.0, 0.0, 0.0],
+    [0.0, 1.0, 0.0, 0.0],
+    [0.0, 0.0, 1.0, 0.0],
+    [0.0, 0.0, 0.0, 1.0],
+];
 
 fn hash<H: Hash>(hashable: &H) -> u64 {
     let mut s = DefaultHasher::new();
@@ -204,8 +208,10 @@ fn hash<H: Hash>(hashable: &H) -> u64 {
 pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>> {
     fonts: HashMap<FontId, rusttype::Font<'font>>,
     font_cache: Cache<'font>,
-    font_cache_tex:
-        (gfx::handle::Texture<R, TexSurface>, gfx_core::handle::ShaderResourceView<R, f32>),
+    font_cache_tex: (
+        gfx::handle::Texture<R, TexSurface>,
+        gfx_core::handle::ShaderResourceView<R, f32>,
+    ),
     factory: F,
     draw_cache: Option<DrawnGlyphBrush<R>>,
 
@@ -239,7 +245,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> fmt::Debug for GlyphBrush<'fo
 }
 
 impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphCruncher<'font>
-    for GlyphBrush<'font, R, F> {
+    for GlyphBrush<'font, R, F>
+{
     fn pixel_bounds_custom_layout<'a, S, L>(
         &mut self,
         section: S,
@@ -284,7 +291,10 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphCruncher<'font>
             None
         }
         else {
-            Some(Rect { min: Point { x: x.0, y: y.0 }, max: Point { x: x.1, y: y.1 } })
+            Some(Rect {
+                min: Point { x: x.0, y: y.0 },
+                max: Point { x: x.1, y: y.1 },
+            })
         }
     }
 
@@ -421,7 +431,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         #[cfg(feature = "performance_stats")]
         self.perf.draw_start();
 
-        let (screen_width, screen_height, _, _) = target.get_dimensions();
+        let (screen_width, screen_height, ..) = target.get_dimensions();
         let (screen_width, screen_height) = (u32::from(screen_width), u32::from(screen_height));
 
         let current_text_state = hash(&(&self.section_buffer, screen_width, screen_height));
@@ -492,8 +502,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                             self.section_buffer.clear();
                             return Err(format!(
                                 "Failed to create {}x{} glyph texture",
-                                new_width,
-                                new_height
+                                new_width, new_height
                             ));
                         }
                     }
@@ -510,17 +519,21 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                     .map(|hash| &self.calculate_glyph_cache[hash])
                     .collect();
 
-                let mut verts = Vec::with_capacity(sections
-                    .iter()
-                    .flat_map(|section| section.glyphs
+                let mut verts = Vec::with_capacity(
+                    sections
                         .iter()
-                        .map(|glyphs| glyphs.0.len()))
-                    .sum::<usize>() * VERTICES_PER_GLYPH);
+                        .flat_map(|section| section.glyphs.iter().map(|glyphs| glyphs.0.len()))
+                        .sum::<usize>() * VERTICES_PER_GLYPH,
+                );
 
-                for &GlyphedSection { ref glyphs, bounds, z } in sections {
-                    for v in glyphs
-                        .iter()
-                        .flat_map(|&GlyphedSectionText(ref glyphs, color, font_id)| {
+                for &GlyphedSection {
+                    ref glyphs,
+                    bounds,
+                    z,
+                } in sections
+                {
+                    for v in glyphs.iter().flat_map(
+                        |&GlyphedSectionText(ref glyphs, color, font_id)| {
                             text_vertices(
                                 glyphs,
                                 color,
@@ -530,8 +543,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                                 z,
                                 (screen_width as f32, screen_height as f32),
                             )
-                        })
-                    {
+                        },
+                    ) {
                         verts.push(v)
                     }
                 }
@@ -548,7 +561,10 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                 cache.pipe_data.out = target.raw().clone();
                 cache.pipe_data.out_depth = depth_target.raw().clone();
                 if cache.pso.0 != T::get_format() {
-                    cache.pso = (T::get_format(), self.pso_using(T::get_format(), D::get_format()));
+                    cache.pso = (
+                        T::get_format(),
+                        self.pso_using(T::get_format(), D::get_format()),
+                    );
                 }
                 cache.slice = slice;
                 cache.last_text_state = current_text_state;
@@ -568,12 +584,15 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                         glyph_pipe::Data {
                             vbuf,
                             font_tex: (self.font_cache_tex.1.clone(), sampler),
-                            transform: transform,
+                            transform,
                             out: target.raw().clone(),
                             out_depth: depth_target.raw().clone(),
                         }
                     },
-                    pso: (T::get_format(), self.pso_using(T::get_format(), D::get_format())),
+                    pso: (
+                        T::get_format(),
+                        self.pso_using(T::get_format(), D::get_format()),
+                    ),
                     slice,
                     last_text_state: 0,
                     texture_updated: false,
@@ -583,8 +602,12 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
             self.draw_cache = Some(draw_cache);
         }
 
-        if let Some(&mut DrawnGlyphBrush { ref pso, ref slice, ref mut pipe_data, .. }) =
-            self.draw_cache.as_mut()
+        if let Some(&mut DrawnGlyphBrush {
+            ref pso,
+            ref slice,
+            ref mut pipe_data,
+            ..
+        }) = self.draw_cache.as_mut()
         {
             pipe_data.transform = transform;
             encoder.draw(slice, &pso.1, pipe_data);
@@ -592,7 +615,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
 
         self.clear_section_buffer();
 
-        #[cfg(feature = "performance_stats")] {
+        #[cfg(feature = "performance_stats")]
+        {
             self.perf.draw_finished();
             self.perf.log_sluggishness();
         }
@@ -617,7 +641,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
             for h in self.keep_in_cache.drain() {
                 active.insert(h);
             }
-            self.calculate_glyph_cache.retain(|key, _| active.contains(key));
+            self.calculate_glyph_cache
+                .retain(|key, _| active.contains(key));
         }
         else {
             self.section_buffer.clear();
@@ -794,8 +819,11 @@ where
     R: gfx::Resources,
     F: gfx::Factory<R>,
 {
-    let kind =
-        texture::Kind::D2(width as texture::Size, height as texture::Size, texture::AaMode::Single);
+    let kind = texture::Kind::D2(
+        width as texture::Size,
+        height as texture::Size,
+        texture::AaMode::Single,
+    );
 
     let tex = factory.create_texture(
         kind,

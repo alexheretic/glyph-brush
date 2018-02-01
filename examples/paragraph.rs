@@ -8,14 +8,14 @@
 //!   render at full quality without the correct pixel information.
 
 extern crate cgmath;
+extern crate env_logger;
 extern crate gfx;
 extern crate gfx_glyph;
 extern crate gfx_window_glutin;
 extern crate glutin;
-extern crate env_logger;
 extern crate spin_sleep;
 
-use cgmath::{Matrix4, Transform, Rad};
+use cgmath::{Matrix4, Rad, Transform};
 use glutin::GlContext;
 use gfx::{format, Device};
 use std::env;
@@ -40,7 +40,9 @@ fn main() {
 
     let mut events_loop = glutin::EventsLoop::new();
     let title = "gfx_glyph example - scroll to size, type to modify, ctrl-scroll to gpu zoom, ctrl-shift-scroll to gpu rotate";
-    let window_builder = glutin::WindowBuilder::new().with_title(title).with_dimensions(1024, 576);
+    let window_builder = glutin::WindowBuilder::new()
+        .with_title(title)
+        .with_dimensions(1024, 576);
     let context = glutin::ContextBuilder::new();
     let (window, mut device, mut factory, mut main_color, mut main_depth) =
         gfx_window_glutin::init::<format::Srgba8, format::DepthStencil>(
@@ -49,10 +51,10 @@ fn main() {
             &events_loop,
         );
 
-    let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(
-        include_bytes!("DejaVuSans.ttf") as &[u8],
-    ).initial_cache_size((1024, 1024))
-        .build(factory.clone());
+    let mut glyph_brush =
+        gfx_glyph::GlyphBrushBuilder::using_font_bytes(include_bytes!("DejaVuSans.ttf") as &[u8])
+            .initial_cache_size((1024, 1024))
+            .build(factory.clone());
 
     let mut text: String = include_str!("lipsum.txt").into();
 
@@ -91,7 +93,11 @@ fn main() {
                         _ => (),
                     },
                     WindowEvent::KeyboardInput {
-                        input: KeyboardInput { state: ElementState::Released, .. },
+                        input:
+                            KeyboardInput {
+                                state: ElementState::Released,
+                                ..
+                            },
                         ..
                     } => ctrl = false,
                     WindowEvent::ReceivedCharacter(c) => if c != '\u{7f}' && c != '\u{8}' {

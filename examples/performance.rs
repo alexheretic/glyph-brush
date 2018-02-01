@@ -1,8 +1,8 @@
+extern crate env_logger;
 extern crate gfx;
 extern crate gfx_glyph;
 extern crate gfx_window_glutin;
 extern crate glutin;
-extern crate env_logger;
 extern crate spin_sleep;
 
 use glutin::GlContext;
@@ -33,7 +33,9 @@ fn main() {
 
     let mut events_loop = glutin::EventsLoop::new();
     let title = "gfx_glyph rendering 100,000 glyphs - scroll to size, type to modify";
-    let window_builder = glutin::WindowBuilder::new().with_title(title).with_dimensions(1024, 576);
+    let window_builder = glutin::WindowBuilder::new()
+        .with_title(title)
+        .with_dimensions(1024, 576);
     let context = glutin::ContextBuilder::new().with_vsync(false);
     let (window, mut device, mut factory, mut main_color, mut main_depth) =
         gfx_window_glutin::init::<format::Srgba8, format::Depth>(
@@ -42,9 +44,8 @@ fn main() {
             &events_loop,
         );
 
-    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(
-        include_bytes!("DejaVuSans.ttf") as &[u8],
-    ).initial_cache_size((2048, 2048))
+    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(include_bytes!("DejaVuSans.ttf") as &[u8])
+        .initial_cache_size((2048, 2048))
         .gpu_cache_position_tolerance(1.0)
         .build(factory.clone());
 
@@ -87,7 +88,8 @@ fn main() {
                         gfx_window_glutin::update_views(&window, &mut main_color, &mut main_depth);
                     }
                     WindowEvent::MouseWheel {
-                        delta: MouseScrollDelta::LineDelta(_, y), ..
+                        delta: MouseScrollDelta::LineDelta(_, y),
+                        ..
                     } => {
                         // increase/decrease font size with mouse wheel
                         let mut size = font_size.x / window.hidpi_factor();
@@ -133,7 +135,9 @@ fn main() {
         // Note: Drawing in the case the text is unchanged from the previous frame (a common case)
         // is essentially free as the vertices are reused &  gpu cache updating interaction
         // can be skipped.
-        glyph_brush.draw_queued(&mut encoder, &main_color, &main_depth).expect("draw");
+        glyph_brush
+            .draw_queued(&mut encoder, &main_color, &main_depth)
+            .expect("draw");
 
         encoder.flush(&mut device);
         window.swap_buffers().unwrap();

@@ -80,16 +80,16 @@ impl<'a> Iterator for AnyCharLineBreakerIter<'a> {
 impl LineBreaker for BuiltInLineBreaker {
     fn line_breaks<'a>(&self, text: &'a str) -> Box<Iterator<Item = LineBreak> + 'a> {
         match *self {
-            BuiltInLineBreaker::UnicodeLineBreaker => {
-                Box::new(xi_unicode::LineBreakIterator::new(text).map(|(offset, hard)| {
+            BuiltInLineBreaker::UnicodeLineBreaker => Box::new(
+                xi_unicode::LineBreakIterator::new(text).map(|(offset, hard)| {
                     if hard {
                         LineBreak::Hard(offset)
                     }
                     else {
                         LineBreak::Soft(offset)
                     }
-                }))
-            }
+                }),
+            ),
             BuiltInLineBreaker::AnyCharLineBreaker => {
                 let mut unicode_breaker = xi_unicode::LineBreakIterator::new(text);
                 let current_break = unicode_breaker.next();

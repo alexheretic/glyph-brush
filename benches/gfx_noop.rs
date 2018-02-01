@@ -33,9 +33,7 @@ impl<R: Resources> command::Buffer<R> for NoopCommandBuffer {
     ) {
     }
     fn update_buffer(&mut self, _: R::Buffer, _: &[u8], _: usize) {}
-    fn update_texture(&mut self, _: texture::TextureCopyRegion<R::Texture>, _: &[u8]) {
-
-    }
+    fn update_texture(&mut self, _: texture::TextureCopyRegion<R::Texture>, _: &[u8]) {}
     fn generate_mipmap(&mut self, _: R::ShaderResourceView) {}
     fn clear_color(&mut self, _: R::RenderTargetView, _: command::ClearColor) {}
     fn clear_depth_stencil(

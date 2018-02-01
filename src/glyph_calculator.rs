@@ -206,7 +206,10 @@ impl<'brush, 'font> GlyphCruncher<'font> for GlyphCalculatorGuard<'brush, 'font>
             None
         }
         else {
-            Some(Rect { min: Point { x: x.0, y: y.0 }, max: Point { x: x.1, y: y.1 } })
+            Some(Rect {
+                min: Point { x: x.0, y: y.0 },
+                max: Point { x: x.1, y: y.1 },
+            })
         }
     }
 
@@ -265,25 +268,32 @@ impl<'a> GlyphCalculatorBuilder<'a> {
         Self::using_font(font(font_0_data).unwrap())
     }
 
-
     pub fn using_fonts_bytes<B, V>(font_data: V) -> Self
     where
         B: Into<SharedBytes<'a>>,
         V: Into<Vec<B>>,
     {
         Self::using_fonts(
-            font_data.into().into_iter().map(|data| font(data).unwrap()).collect::<Vec<_>>(),
+            font_data
+                .into()
+                .into_iter()
+                .map(|data| font(data).unwrap())
+                .collect::<Vec<_>>(),
         )
     }
 
     /// Specifies the default font used to render glyphs.
     /// Referenced with `FontId(0)`, which is default.
     pub fn using_font(font_0_data: Font<'a>) -> Self {
-        Self { font_data: vec![font_0_data] }
+        Self {
+            font_data: vec![font_0_data],
+        }
     }
 
     pub fn using_fonts<V: Into<Vec<Font<'a>>>>(fonts: V) -> Self {
-        Self { font_data: fonts.into() }
+        Self {
+            font_data: fonts.into(),
+        }
     }
 
     /// Adds additional fonts to the one added in [`using_font`](#method.using_font) /
@@ -310,6 +320,9 @@ impl<'a> GlyphCalculatorBuilder<'a> {
             .map(|(idx, data)| (FontId(idx), data))
             .collect();
 
-        GlyphCalculator { fonts, calculate_glyph_cache: Mutex::new(HashMap::new()) }
+        GlyphCalculator {
+            fonts,
+            calculate_glyph_cache: Mutex::new(HashMap::new()),
+        }
     }
 }

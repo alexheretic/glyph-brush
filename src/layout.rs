@@ -18,7 +18,12 @@ pub struct SectionGlyphInfo<'a> {
 
 impl<'a, 'b> From<&'b VariedSection<'a>> for SectionGlyphInfo<'a> {
     fn from(section: &'b VariedSection<'a>) -> Self {
-        let VariedSection { screen_position, bounds, ref text, .. } = *section;
+        let VariedSection {
+            screen_position,
+            bounds,
+            ref text,
+            ..
+        } = *section;
         Self {
             screen_position,
             bounds,
@@ -92,8 +97,20 @@ impl<'a> GlyphInfo<'a> {
 
 impl<'a> From<SectionText<'a>> for GlyphInfo<'a> {
     fn from(section: SectionText<'a>) -> Self {
-        let SectionText { text, scale, color, font_id, .. } = section;
-        Self { text, scale, skip: 0, color, font_id }
+        let SectionText {
+            text,
+            scale,
+            color,
+            font_id,
+            ..
+        } = section;
+        Self {
+            text,
+            scale,
+            skip: 0,
+            color,
+            font_id,
+        }
     }
 }
 
@@ -145,8 +162,6 @@ pub trait GlyphPositioner: Hash {
         G: Into<SectionGlyphInfo<'a>>;
 }
 
-
-
 /// Built-in [`GlyphPositioner`](trait.GlyphPositioner.html) implementations.
 ///
 /// Takes generic [`LineBreaker`](trait.LineBreaker.html) to indicate the wrapping style.
@@ -162,11 +177,19 @@ pub trait GlyphPositioner: Hash {
 pub enum Layout<L: LineBreaker> {
     /// Renders a single line from left-to-right according to the inner alignment.
     /// Hard breaking will end the line, partially hitting the width bound will end the line.
-    SingleLine { line_breaker: L, h_align: HorizontalAlign, v_align: VerticalAlign },
+    SingleLine {
+        line_breaker: L,
+        h_align: HorizontalAlign,
+        v_align: VerticalAlign,
+    },
     /// Renders multiple lines from left-to-right according to the inner alignment.
     /// Hard breaking characters will cause advancement to another line.
     /// A characters hitting the width bound will also cause another line to start.
-    Wrap { line_breaker: L, h_align: HorizontalAlign, v_align: VerticalAlign },
+    Wrap {
+        line_breaker: L,
+        h_align: HorizontalAlign,
+        v_align: VerticalAlign,
+    },
 }
 
 impl Default for Layout<BuiltInLineBreaker> {
@@ -198,10 +221,24 @@ impl<L: LineBreaker> Layout<L> {
     pub fn h_align(self, h_align: HorizontalAlign) -> Self {
         use Layout::*;
         match self {
-            SingleLine { line_breaker, v_align, .. } => {
-                SingleLine { line_breaker, v_align, h_align }
-            }
-            Wrap { line_breaker, v_align, .. } => Wrap { line_breaker, v_align, h_align },
+            SingleLine {
+                line_breaker,
+                v_align,
+                ..
+            } => SingleLine {
+                line_breaker,
+                v_align,
+                h_align,
+            },
+            Wrap {
+                line_breaker,
+                v_align,
+                ..
+            } => Wrap {
+                line_breaker,
+                v_align,
+                h_align,
+            },
         }
     }
 
@@ -216,8 +253,20 @@ impl<L: LineBreaker> Layout<L> {
     pub fn line_breaker<L2: LineBreaker>(self, line_breaker: L2) -> Layout<L2> {
         use Layout::*;
         match self {
-            SingleLine { h_align, v_align, .. } => SingleLine { line_breaker, v_align, h_align },
-            Wrap { h_align, v_align, .. } => Wrap { line_breaker, v_align, h_align },
+            SingleLine {
+                h_align, v_align, ..
+            } => SingleLine {
+                line_breaker,
+                v_align,
+                h_align,
+            },
+            Wrap {
+                h_align, v_align, ..
+            } => Wrap {
+                line_breaker,
+                v_align,
+                h_align,
+            },
         }
     }
 }
@@ -228,7 +277,8 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
         font_map: &HashMap<FontId, Font<'font>>,
         section: G,
     ) -> Vec<GlyphedSectionText<'font>> {
-        self.calculate_glyphs_and_leftover(font_map, &section.into()).0
+        self.calculate_glyphs_and_leftover(font_map, &section.into())
+            .0
     }
 
     fn bounds_rect<'a, G: Into<SectionGlyphInfo<'a>>>(&self, section: G) -> Rect<f32> {
@@ -238,20 +288,56 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
             ..
         } = section.into();
         match *self {
-            Layout::SingleLine { h_align: HorizontalAlign::Left, .. }
-            | Layout::Wrap { h_align: HorizontalAlign::Left, .. } => Rect {
-                min: Point { x: screen_x, y: screen_y },
-                max: Point { x: screen_x + bound_w, y: screen_y + bound_h },
+            Layout::SingleLine {
+                h_align: HorizontalAlign::Left,
+                ..
+            }
+            | Layout::Wrap {
+                h_align: HorizontalAlign::Left,
+                ..
+            } => Rect {
+                min: Point {
+                    x: screen_x,
+                    y: screen_y,
+                },
+                max: Point {
+                    x: screen_x + bound_w,
+                    y: screen_y + bound_h,
+                },
             },
-            Layout::SingleLine { h_align: HorizontalAlign::Center, .. }
-            | Layout::Wrap { h_align: HorizontalAlign::Center, .. } => Rect {
-                min: Point { x: screen_x - bound_w / 2.0, y: screen_y },
-                max: Point { x: screen_x + bound_w / 2.0, y: screen_y + bound_h },
+            Layout::SingleLine {
+                h_align: HorizontalAlign::Center,
+                ..
+            }
+            | Layout::Wrap {
+                h_align: HorizontalAlign::Center,
+                ..
+            } => Rect {
+                min: Point {
+                    x: screen_x - bound_w / 2.0,
+                    y: screen_y,
+                },
+                max: Point {
+                    x: screen_x + bound_w / 2.0,
+                    y: screen_y + bound_h,
+                },
             },
-            Layout::SingleLine { h_align: HorizontalAlign::Right, .. }
-            | Layout::Wrap { h_align: HorizontalAlign::Right, .. } => Rect {
-                min: Point { x: screen_x - bound_w, y: screen_y },
-                max: Point { x: screen_x, y: screen_y + bound_h },
+            Layout::SingleLine {
+                h_align: HorizontalAlign::Right,
+                ..
+            }
+            | Layout::Wrap {
+                h_align: HorizontalAlign::Right,
+                ..
+            } => Rect {
+                min: Point {
+                    x: screen_x - bound_w,
+                    y: screen_y,
+                },
+                max: Point {
+                    x: screen_x,
+                    y: screen_y + bound_h,
+                },
             },
         }
     }
@@ -315,12 +401,16 @@ impl<L: LineBreaker> Layout<L> {
         section: &SectionGlyphInfo<'a>,
     ) -> (Vec<GlyphedSectionText<'font>>, Option<LayoutLeftover<'a>>) {
         match *self {
-            Layout::SingleLine { line_breaker, h_align, v_align } => {
-                single_line(font_map, line_breaker, h_align, v_align, section)
-            }
-            Layout::Wrap { line_breaker, h_align, v_align } => {
-                paragraph(font_map, line_breaker, h_align, v_align, section.clone())
-            }
+            Layout::SingleLine {
+                line_breaker,
+                h_align,
+                v_align,
+            } => single_line(font_map, line_breaker, h_align, v_align, section),
+            Layout::Wrap {
+                line_breaker,
+                h_align,
+                v_align,
+            } => paragraph(font_map, line_breaker, h_align, v_align, section.clone()),
         }
     }
 }
@@ -342,7 +432,9 @@ fn single_line<'font, 'a, L: LineBreaker>(
     };
 
     let SectionGlyphInfo {
-        screen_position: (screen_x, screen_y), bounds: (bound_w, bound_h), ..
+        screen_position: (screen_x, screen_y),
+        bounds: (bound_w, bound_h),
+        ..
     } = *section_glyph_info;
 
     let mut result: Vec<GlyphedSectionText<'font>> = Vec::new();
@@ -379,7 +471,12 @@ fn single_line<'font, 'a, L: LineBreaker>(
     let mut last_char_break: Option<(_, char, _)> = None;
 
     'sections: for (info_index, glyph_info) in section_glyph_info.remaining_info() {
-        let GlyphInfo { scale, color, font_id, .. } = *glyph_info;
+        let GlyphInfo {
+            scale,
+            color,
+            font_id,
+            ..
+        } = *glyph_info;
         let font = font_map.get(&font_id).unwrap();
 
         let mut v_metrics = font.v_metrics(scale);
@@ -466,7 +563,12 @@ fn single_line<'font, 'a, L: LineBreaker>(
                 continue;
             }
 
-            let base_glyph = if let Some(glyph) = font.glyph(c) { glyph } else { continue };
+            let base_glyph = if let Some(glyph) = font.glyph(c) {
+                glyph
+            }
+            else {
+                continue;
+            };
 
             if let Some(id) = last_glyph_id.take() {
                 caret.x += font.pair_kerning(scale, id, base_glyph.id());
@@ -485,7 +587,12 @@ fn single_line<'font, 'a, L: LineBreaker>(
                             leftover = Some(LayoutLeftover::OutOfWidthBound(
                                 caret,
                                 section_glyph_info.with_info(info_index, glyph_info.skip(c_index)),
-                                if glyphs.is_empty() { max_line_v.unwrap() } else { v_metrics },
+                                if glyphs.is_empty() {
+                                    max_line_v.unwrap()
+                                }
+                                else {
+                                    v_metrics
+                                },
                             ));
                             if !glyphs.is_empty() {
                                 shift_previous_ascent_by!(ascent_adjustment);
@@ -504,7 +611,12 @@ fn single_line<'font, 'a, L: LineBreaker>(
                             caret,
                             section_glyph_info
                                 .with_info(info_index, glyph_info.skip(line_break.offset())),
-                            if glyphs.is_empty() { max_line_v.unwrap() } else { v_metrics },
+                            if glyphs.is_empty() {
+                                max_line_v.unwrap()
+                            }
+                            else {
+                                v_metrics
+                            },
                         ));
                     }
                     else {
@@ -564,7 +676,10 @@ fn single_line<'font, 'a, L: LineBreaker>(
 fn adjust_for_alignment(
     line: &mut Vec<GlyphedSectionText>,
     h_align: HorizontalAlign,
-    &SectionGlyphInfo { screen_position: (screen_x, ..), .. }: &SectionGlyphInfo,
+    &SectionGlyphInfo {
+        screen_position: (screen_x, ..),
+        ..
+    }: &SectionGlyphInfo,
 ) {
     if !line.is_empty() {
         match h_align {
@@ -618,8 +733,11 @@ fn paragraph<'a, 'font, L: LineBreaker>(
     let mut paragraph_leftover = None;
 
     loop {
-        let (glyphs, mut leftover) = Layout::SingleLine { line_breaker, h_align, v_align }
-            .calculate_glyphs_and_leftover(font_map, &section);
+        let (glyphs, mut leftover) = Layout::SingleLine {
+            line_breaker,
+            h_align,
+            v_align,
+        }.calculate_glyphs_and_leftover(font_map, &section);
 
         out.extend(glyphs);
         if leftover.is_none() {
@@ -630,7 +748,11 @@ fn paragraph<'a, 'font, L: LineBreaker>(
             LayoutLeftover::HardBreak(p, remaining_glyphs, v_metrics) => {
                 let advance_height = v_metrics.ascent - v_metrics.descent + v_metrics.line_gap;
                 if remaining_glyphs.bounds.1 - advance_height < 0.0 {
-                    Some(LayoutLeftover::OutOfHeightBound(p, remaining_glyphs, v_metrics))
+                    Some(LayoutLeftover::OutOfHeightBound(
+                        p,
+                        remaining_glyphs,
+                        v_metrics,
+                    ))
                 }
                 else {
                     section = remaining_glyphs;
@@ -643,7 +765,11 @@ fn paragraph<'a, 'font, L: LineBreaker>(
                 let advance_height = v_metrics.ascent - v_metrics.descent + v_metrics.line_gap;
                 // use the next line when we run out of width
                 if remaining_glyphs.bounds.1 - advance_height < 0.0 {
-                    Some(LayoutLeftover::OutOfHeightBound(p, remaining_glyphs, v_metrics))
+                    Some(LayoutLeftover::OutOfHeightBound(
+                        p,
+                        remaining_glyphs,
+                        v_metrics,
+                    ))
                 }
                 else {
                     section = remaining_glyphs;
@@ -727,7 +853,11 @@ mod layout_test {
     fn single_line_chars_left_simple() {
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
             Layout::default_single_line().line_breaker(AnyCharLineBreaker),
-            Section { text: "hello world", scale: Scale::uniform(20.0), ..Section::default() }
+            Section {
+                text: "hello world",
+                scale: Scale::uniform(20.0),
+                ..Section::default()
+            }
         );
 
         assert!(leftover.is_none());
@@ -747,7 +877,11 @@ mod layout_test {
             Layout::default_single_line()
                 .line_breaker(AnyCharLineBreaker)
                 .h_align(HorizontalAlign::Right),
-            Section { text: "hello world", scale: Scale::uniform(20.0), ..Section::default() }
+            Section {
+                text: "hello world",
+                scale: Scale::uniform(20.0),
+                ..Section::default()
+            }
         );
 
         assert!(leftover.is_none());
@@ -772,7 +906,11 @@ mod layout_test {
             Layout::default_single_line()
                 .line_breaker(AnyCharLineBreaker)
                 .h_align(HorizontalAlign::Center),
-            Section { text: "hello world", scale: Scale::uniform(20.0), ..Section::default() }
+            Section {
+                text: "hello world",
+                scale: Scale::uniform(20.0),
+                ..Section::default()
+            }
         );
 
         assert!(leftover.is_none());
@@ -809,7 +947,11 @@ mod layout_test {
     fn single_line_chars_left_finish_at_newline() {
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
             Layout::default_single_line().line_breaker(AnyCharLineBreaker),
-            Section { text: "hello\nworld", scale: Scale::uniform(20.0), ..Section::default() }
+            Section {
+                text: "hello\nworld",
+                scale: Scale::uniform(20.0),
+                ..Section::default()
+            }
         );
 
         if let Some(LayoutLeftover::HardBreak(_, leftover, ..)) = leftover {
@@ -853,7 +995,6 @@ mod layout_test {
             "unexpected last position {:?}",
             glyphs[5].position()
         );
-
 
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
             Layout::default_single_line(),
@@ -899,7 +1040,11 @@ mod layout_test {
         // letter `l` should be in the same place as when all the word is visible
         let (all_glyphs, _) = merged_glyphs_and_leftover!(
             Layout::default_single_line().line_breaker(AnyCharLineBreaker),
-            Section { text: "hello world", scale: Scale::uniform(20.0), ..Section::default() }
+            Section {
+                text: "hello world",
+                scale: Scale::uniform(20.0),
+                ..Section::default()
+            }
         );
         assert_eq!(all_glyphs[9].id(), A_FONT.glyph('l').unwrap().id());
         assert_relative_eq!(all_glyphs[9].position().x, glyphs[4].position().x);
@@ -959,11 +1104,18 @@ mod layout_test {
 
         let (glyphs, leftover) = merged_glyphs_and_leftover!(
             Layout::default_wrap(),
-            Section { text: test_str, scale: Scale::uniform(20.0), ..Section::default() }
+            Section {
+                text: test_str,
+                scale: Scale::uniform(20.0),
+                ..Section::default()
+            }
         );
 
         assert!(leftover.is_none(), "Unexpected leftover {:?}", leftover);
-        assert_glyph_order!(glyphs, "Autumn moonlighta worm digs silentlyinto the chestnut.");
+        assert_glyph_order!(
+            glyphs,
+            "Autumn moonlighta worm digs silentlyinto the chestnut."
+        );
         assert!(
             glyphs[16].position().y > glyphs[0].position().y,
             "second line should be lower than first"
@@ -1025,22 +1177,39 @@ mod layout_test {
             Layout::default_wrap(),
             VariedSection {
                 text: vec![
-                    SectionText { text: "Autumn moonlight, \n", ..SectionText::default() },
-                    SectionText { text: "a worm digs silently ", ..SectionText::default() },
-                    SectionText { text: "\n", ..SectionText::default() },
-                    SectionText { text: "into the chestnut.", ..SectionText::default() },
+                    SectionText {
+                        text: "Autumn moonlight, \n",
+                        ..SectionText::default()
+                    },
+                    SectionText {
+                        text: "a worm digs silently ",
+                        ..SectionText::default()
+                    },
+                    SectionText {
+                        text: "\n",
+                        ..SectionText::default()
+                    },
+                    SectionText {
+                        text: "into the chestnut.",
+                        ..SectionText::default()
+                    },
                 ],
                 ..VariedSection::default()
             }
         );
 
-        let y_ords: HashSet<OrderedFloat<f32>> =
-            glyphs.iter().map(|g| OrderedFloat(g.position().y)).collect();
+        let y_ords: HashSet<OrderedFloat<f32>> = glyphs
+            .iter()
+            .map(|g| OrderedFloat(g.position().y))
+            .collect();
 
         println!("Y ords: {:?}", y_ords);
         assert_eq!(y_ords.len(), 3, "expected 3 distinct lines");
 
-        assert_glyph_order!(glyphs, "Autumn moonlight, a worm digs silently into the chestnut.");
+        assert_glyph_order!(
+            glyphs,
+            "Autumn moonlight, a worm digs silently into the chestnut."
+        );
 
         assert_eq!(glyphs[18].id(), A_FONT.glyph('a').unwrap().id());
         assert!(glyphs[18].position().y > glyphs[0].position().y);
@@ -1053,13 +1222,14 @@ mod layout_test {
     fn single_line_multibyte_chars_finish_at_break() {
         let unicode_str = "❤❤é❤❤\n❤ß❤";
         assert_eq!(
-            unicode_str,
-            "\u{2764}\u{2764}\u{e9}\u{2764}\u{2764}\n\u{2764}\u{df}\u{2764}",
+            unicode_str, "\u{2764}\u{2764}\u{e9}\u{2764}\u{2764}\n\u{2764}\u{df}\u{2764}",
             "invisible char funny business",
         );
         assert_eq!(unicode_str.len(), 23);
         assert_eq!(
-            xi_unicode::LineBreakIterator::new(unicode_str).filter(|n| n.1).next(),
+            xi_unicode::LineBreakIterator::new(unicode_str)
+                .filter(|n| n.1)
+                .next(),
             Some((15, true)),
         );
 
@@ -1076,7 +1246,12 @@ mod layout_test {
             assert_eq!(remaining_text(&leftover), "\u{2764}\u{df}\u{2764}");
         }
         else {
-            assert!(false, "Unexpected leftover {:?}, after {} glyphs", leftover, glyphs.len());
+            assert!(
+                false,
+                "Unexpected leftover {:?}, after {} glyphs",
+                leftover,
+                glyphs.len()
+            );
         }
         assert_glyph_order!(glyphs, "\u{2764}\u{2764}\u{e9}\u{2764}\u{2764}");
         assert_eq!(glyphs[0].position().x, 0.0);

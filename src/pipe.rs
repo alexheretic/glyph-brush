@@ -60,7 +60,12 @@ impl<'a> glyph_pipe::Init<'a> {
             vbuf: (),
             font_tex: "font_tex",
             transform: "transform",
-            out: ("Target0", color_format, state::ColorMask::all(), Some(preset::blend::ALPHA)),
+            out: (
+                "Target0",
+                color_format,
+                state::ColorMask::all(),
+                Some(preset::blend::ALPHA),
+            ),
             out_depth: (depth_format, depth_test),
         }
     }

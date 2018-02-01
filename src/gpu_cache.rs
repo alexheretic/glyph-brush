@@ -31,6 +31,8 @@ use std::collections::Bound::{Included, Unbounded};
 use linked_hash_map::LinkedHashMap;
 use ordered_float::OrderedFloat;
 use std::cmp::{PartialEq, Eq, Ord, PartialOrd, Ordering};
+use std::error;
+use std::fmt;
 
 type FontId = usize;
 
@@ -163,7 +165,6 @@ pub struct Cache<'font> {
     space_end_for_start: HashMap<u32, u32>,
     queue: Vec<(usize, PositionedGlyph<'font>)>,
     queue_retry: bool,
-    // all_glyphs: BTreeMap<PGlyphSpec, (u32, u32)>,
     all_glyphs: HashMap<(FontId, GlyphId), BTreeMap<PGlyphSpec, (u32, u32)>>,
 }
 
@@ -173,6 +174,19 @@ pub enum CacheReadErr {
     /// Indicates that the requested glyph is not present in the cache
     GlyphNotCached
 }
+impl fmt::Display for CacheReadErr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", error::Error::description(self))
+    }
+}
+impl error::Error for CacheReadErr {
+    fn description(&self) -> &str {
+        match *self {
+            CacheReadErr::GlyphNotCached => "Glyph not cached",
+        }
+    }
+}
+
 /// Returned from `Cache::cache_queued`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CacheWriteErr {
@@ -182,6 +196,20 @@ pub enum CacheWriteErr {
     /// the attempt.
     NoRoomForWholeQueue
 }
+impl fmt::Display for CacheWriteErr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", error::Error::description(self))
+    }
+}
+impl error::Error for CacheWriteErr {
+    fn description(&self) -> &str {
+        match *self {
+            CacheWriteErr::GlyphTooLarge => "Glyph too large",
+            CacheWriteErr::NoRoomForWholeQueue => "No room for whole queue",
+        }
+    }
+}
+
 fn normalise_pixel_offset(mut offset: Vector<f32>) -> Vector<f32> {
     if offset.x > 0.5 {
         offset.x -= 1.0;
@@ -307,7 +335,10 @@ impl<'font> Cache<'font> {
     /// The information provided is the rectangular region to insert the pixel data into, and the pixel data
     /// itself. This data is provided in horizontal scanline format (row major), with stride equal to the
     /// rectangle width.
-    pub fn cache_queued<F: FnMut(Rect<u32>, &[u8])>(&mut self, mut uploader: F) -> Result<(), CacheWriteErr> {
+    pub fn cache_queued<F: FnMut(Rect<u32>, &[u8])>(
+        &mut self,
+        mut uploader: F,
+    ) -> Result<(), CacheWriteErr> {
         use vector;
         use point;
         let mut in_use_rows = HashSet::new();
@@ -530,9 +561,8 @@ impl<'font> Cache<'font> {
     pub fn rect_for<'a>(
         &'a self,
         font_id: usize,
-        glyph: &PositionedGlyph)
-        -> Result<Option<(Rect<f32>, Rect<i32>)>, CacheReadErr>
-    {
+        glyph: &PositionedGlyph,
+    ) -> Result<Option<(Rect<f32>, Rect<i32>)>, CacheReadErr> {
         use vector;
         use point;
         let glyph_bb = match glyph.pixel_bounding_box() {

@@ -50,7 +50,7 @@ fi
 
 if [ ! -f benches/control.stdout ]; then
   echo 'benches/control.stdout missing, will not perform a benchmark comparison' >&2
-  echo '  run `./bench --control` to generate from the current source' >&2
+  echo "  run \`./bench --control\` to generate from the current source" >&2
   # just run a bench
   cargo +nightly bench --features bench
 else

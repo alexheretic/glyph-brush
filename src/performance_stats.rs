@@ -79,7 +79,8 @@ impl PerformanceStats {
         }
         let draw = draw.take().unwrap();
 
-        let layout_cost: Duration = layout_calls.iter()
+        let layout_cost: Duration = layout_calls
+            .iter()
             .map(|&Call(start, end)| end - start)
             .sum();
         let draw_cost = draw.all_done - draw.start;
@@ -89,11 +90,11 @@ impl PerformanceStats {
 
         info!(
             "Total {total:.1}ms, \
-            layout ({nlayout}x) {layout:.1}ms, \
-            draw {draw:.1}ms (\
-            gpu-cache {gpu:.1}ms, \
-            vertex-gen {vert:.1}ms, \
-            draw-call {draw_call:.1}ms)",
+             layout ({nlayout}x) {layout:.1}ms, \
+             draw {draw:.1}ms (\
+             gpu-cache {gpu:.1}ms, \
+             vertex-gen {vert:.1}ms, \
+             draw-call {draw_call:.1}ms)",
             total = (draw_cost + layout_cost).subsec_nanos() as f64 / 1_000_000_f64,
             nlayout = layout_calls.len(),
             layout = layout_cost.subsec_nanos() as f64 / 1_000_000_f64,

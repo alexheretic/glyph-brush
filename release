@@ -2,10 +2,11 @@
 
 set -eu
 dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "$dir"
 
-tagname=$(cat Cargo.toml | grep version | cut -d '"' -f2)
+tagname=$(grep version Cargo.toml | cut -d '"' -f2)
 
-if git rev-parse $tagname >/dev/null 2>&1
+if git rev-parse "$tagname" >/dev/null 2>&1
 then
   echo "tag $tagname already exists" >&2
   exit 1
@@ -18,7 +19,7 @@ if ! [[ $REPLY =~ ^[^Nn]$ ]]; then
   exit 0
 fi
 
-git tag -s $tagname -m "Release $tagname"
+git tag -s "$tagname" -m "Release $tagname"
 git push --tags
 
 gio open "https://github.com/alexheretic/gfx-glyph/releases/new?tag=$tagname"

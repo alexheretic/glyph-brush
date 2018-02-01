@@ -3,11 +3,11 @@
 //!
 //! * Resize window to adjust layout
 
+extern crate env_logger;
 extern crate gfx;
 extern crate gfx_glyph;
 extern crate gfx_window_glutin;
 extern crate glutin;
-extern crate env_logger;
 extern crate spin_sleep;
 
 use glutin::GlContext;
@@ -38,7 +38,9 @@ fn main() {
 
     let mut events_loop = glutin::EventsLoop::new();
     let title = "gfx_glyph example - resize to see multi-text layout";
-    let window_builder = glutin::WindowBuilder::new().with_title(title).with_dimensions(1024, 576);
+    let window_builder = glutin::WindowBuilder::new()
+        .with_title(title)
+        .with_dimensions(1024, 576);
     let context = glutin::ContextBuilder::new().with_vsync(false);
     let (window, mut device, mut factory, mut main_color, mut main_depth) =
         gfx_window_glutin::init::<format::Srgba8, format::Depth>(
@@ -69,7 +71,11 @@ fn main() {
             if let Event::WindowEvent { event, .. } = event {
                 match event {
                     WindowEvent::KeyboardInput {
-                        input: KeyboardInput { virtual_keycode: Some(VirtualKeyCode::Escape), .. },
+                        input:
+                            KeyboardInput {
+                                virtual_keycode: Some(VirtualKeyCode::Escape),
+                                ..
+                            },
                         ..
                     }
                     | WindowEvent::Closed => running = false,
@@ -138,7 +144,9 @@ fn main() {
             ..VariedSection::default()
         });
 
-        glyph_brush.draw_queued(&mut encoder, &main_color, &main_depth).expect("draw");
+        glyph_brush
+            .draw_queued(&mut encoder, &main_color, &main_depth)
+            .expect("draw");
 
         encoder.flush(&mut device);
         window.swap_buffers().unwrap();
