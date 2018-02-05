@@ -1,4 +1,4 @@
-//! Performance logging logic, enabled with feature 'performance_stats' and info level logging
+//! Performance logging logic, enabled with feature `performance_stats` and info level logging
 use std::time::{Duration, Instant};
 use std::mem;
 
@@ -95,13 +95,13 @@ impl PerformanceStats {
              gpu-cache {gpu:.1}ms, \
              vertex-gen {vert:.1}ms, \
              draw-call {draw_call:.1}ms)",
-            total = (draw_cost + layout_cost).subsec_nanos() as f64 / 1_000_000_f64,
+            total = f64::from((draw_cost + layout_cost).subsec_nanos()) / 1_000_000_f64,
             nlayout = layout_calls.len(),
-            layout = layout_cost.subsec_nanos() as f64 / 1_000_000_f64,
-            draw = draw_cost.subsec_nanos() as f64 / 1_000_000_f64,
-            gpu = (draw.gpu_cache_done - draw.start).subsec_nanos() as f64 / 1_000_000_f64,
-            vert = (draw.vertex_done - draw.gpu_cache_done).subsec_nanos() as f64 / 1_000_000_f64,
-            draw_call = (draw.all_done - draw.vertex_done).subsec_nanos() as f64 / 1_000_000_f64,
+            layout = f64::from(layout_cost.subsec_nanos()) / 1_000_000_f64,
+            draw = f64::from(draw_cost.subsec_nanos()) / 1_000_000_f64,
+            gpu = f64::from((draw.gpu_cache_done - draw.start).subsec_nanos()) / 1_000_000_f64,
+            vert = f64::from((draw.vertex_done - draw.gpu_cache_done).subsec_nanos()) / 1_000_000_f64,
+            draw_call = f64::from((draw.all_done - draw.vertex_done).subsec_nanos()) / 1_000_000_f64,
         );
     }
 }

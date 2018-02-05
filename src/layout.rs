@@ -114,7 +114,7 @@ impl<'a> From<SectionText<'a>> for GlyphInfo<'a> {
     }
 }
 
-/// char_indices style iterator for skipped normalized chars
+/// `char_indices` style iterator for skipped normalized chars
 pub struct RemainingNormCharIndices<'a> {
     byte_progress: usize,
     inner: Skip<Recompositions<Chars<'a>>>,
