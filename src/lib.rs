@@ -41,6 +41,8 @@
 //! glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth).unwrap();
 //! # }
 //! ```
+#![allow(unknown_lints)]
+#![warn(clippy)]
 #![cfg_attr(feature = "bench", feature(test))]
 #[cfg(test)]
 #[macro_use]

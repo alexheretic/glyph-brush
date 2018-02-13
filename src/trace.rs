@@ -13,12 +13,12 @@ macro_rules! outer_backtrace {
                 if let Some(name) = symbol.name() {
                     let name = format!("{}", name);
                     if !outside_lib && !on_lib {
-                        if name.starts_with("gfx_glyph") {
+                        if name.contains("gfx_glyph") {
                             on_lib = true;
                         }
                     }
                     else if on_lib {
-                        if !name.starts_with("gfx_glyph") {
+                        if !name.contains("gfx_glyph") {
                             outside_lib = true;
                         }
                     }
