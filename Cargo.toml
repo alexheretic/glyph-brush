@@ -11,7 +11,7 @@ readme="README.md"
 
 [dependencies]
 log = "0.4"
-rusttype = "0.3"
+rusttype = "0.4"
 gfx = "0.17"
 gfx_core = "0.8"
 unicode-normalization = "0.1"
