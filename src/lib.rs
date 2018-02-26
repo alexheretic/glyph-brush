@@ -69,7 +69,6 @@ extern crate xi_unicode;
 
 mod section;
 mod layout;
-mod gpu_cache;
 mod linebreak;
 mod pipe;
 mod builder;
@@ -82,7 +81,7 @@ mod performance_stats;
 
 use gfx::traits::FactoryExt;
 use rusttype::{point, vector, FontCollection};
-use gpu_cache::Cache;
+use rusttype::gpu_cache::Cache;
 use gfx::{format, handle, texture};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
