@@ -863,7 +863,7 @@ mod layout_test {
         assert!(leftover.is_none());
         assert_glyph_order!(glyphs, "hello world");
 
-        assert_eq!(glyphs[0].position().x, 0.0);
+        assert_relative_eq!(glyphs[0].position().x, 0.0);
         assert!(
             glyphs[10].position().x > 0.0,
             "unexpected last position {:?}",
@@ -961,7 +961,7 @@ mod layout_test {
             assert!(false, "Unexpected leftover {:?}", leftover);
         }
         assert_glyph_order!(glyphs, "hello");
-        assert_eq!(glyphs[0].position().x, 0.0);
+        assert_relative_eq!(glyphs[0].position().x, 0.0);
         assert!(
             glyphs[4].position().x > 0.0,
             "unexpected last position {:?}",
@@ -989,7 +989,7 @@ mod layout_test {
         }
 
         assert_glyph_order!(glyphs, "hello ");
-        assert_eq!(glyphs[0].position().x, 0.0);
+        assert_relative_eq!(glyphs[0].position().x, 0.0);
         assert!(
             glyphs[5].position().x > 0.0,
             "unexpected last position {:?}",
@@ -1014,7 +1014,7 @@ mod layout_test {
         }
 
         assert_glyph_order!(glyphs, "hello what's ");
-        assert_eq!(glyphs[0].position().x, 0.0);
+        assert_relative_eq!(glyphs[0].position().x, 0.0);
         assert!(
             glyphs[12].position().x > 0.0,
             "unexpected last position {:?}",
@@ -1093,7 +1093,7 @@ mod layout_test {
         }
 
         assert_glyph_order!(glyphs, "hell");
-        assert_eq!(glyphs[0].position().x, 0.0);
+        assert_relative_eq!(glyphs[0].position().x, 0.0);
     }
 
     #[test]
@@ -1227,9 +1227,7 @@ mod layout_test {
         );
         assert_eq!(unicode_str.len(), 23);
         assert_eq!(
-            xi_unicode::LineBreakIterator::new(unicode_str)
-                .filter(|n| n.1)
-                .next(),
+            xi_unicode::LineBreakIterator::new(unicode_str).find(|n| n.1),
             Some((15, true)),
         );
 
@@ -1254,7 +1252,7 @@ mod layout_test {
             );
         }
         assert_glyph_order!(glyphs, "\u{2764}\u{2764}\u{e9}\u{2764}\u{2764}");
-        assert_eq!(glyphs[0].position().x, 0.0);
+        assert_relative_eq!(glyphs[0].position().x, 0.0);
         assert!(
             glyphs[4].position().x > 0.0,
             "unexpected last position {:?}",
