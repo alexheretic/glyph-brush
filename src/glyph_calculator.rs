@@ -142,7 +142,7 @@ impl<'brush, 'font> GlyphCalculatorGuard<'brush, 'font> {
     where
         L: GlyphPositioner,
     {
-        let section_hash = hash(&(section, layout));
+        let section_hash = xxhash(&(section, layout));
 
         if let Entry::Vacant(entry) = self.glyph_cache.entry(section_hash) {
             entry.insert(GlyphedSection {

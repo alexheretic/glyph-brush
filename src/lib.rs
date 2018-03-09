@@ -64,6 +64,7 @@ extern crate linked_hash_map;
 extern crate log;
 extern crate ordered_float;
 extern crate rusttype;
+extern crate twox_hash;
 extern crate unicode_normalization;
 extern crate xi_unicode;
 
@@ -79,20 +80,19 @@ mod owned_section;
 #[cfg(feature = "performance_stats")]
 mod performance_stats;
 
+use gfx_core::memory::Typed;
+use gfx::{format, handle, texture};
 use gfx::traits::FactoryExt;
+use pipe::*;
 use rusttype::{point, vector, FontCollection};
 use rusttype::gpu_cache::Cache;
-use gfx::{format, handle, texture};
-use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-use gfx_core::memory::Typed;
 use std::i32;
 use std::borrow::{Borrow, Cow};
 use std::error::Error;
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry;
 use std::{fmt, iter, slice};
-use pipe::*;
 
 pub use section::*;
 pub use layout::*;
@@ -148,8 +148,8 @@ const IDENTITY_MATRIX4: [[f32; 4]; 4] = [
     [0.0, 0.0, 0.0, 1.0],
 ];
 
-fn hash<H: Hash>(hashable: &H) -> u64 {
-    let mut s = DefaultHasher::new();
+fn xxhash<H: Hash>(hashable: &H) -> u64 {
+    let mut s = twox_hash::XxHash::default();
     hashable.hash(&mut s);
     s.finish()
 }
@@ -361,7 +361,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     where
         L: GlyphPositioner,
     {
-        let section_hash = hash(&(section, layout));
+        let section_hash = xxhash(&(section, layout));
 
         if self.cache_glyph_positioning {
             if let Entry::Vacant(entry) = self.calculate_glyph_cache.entry(section_hash) {
@@ -435,7 +435,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         let (screen_width, screen_height, ..) = target.get_dimensions();
         let (screen_width, screen_height) = (u32::from(screen_width), u32::from(screen_height));
 
-        let current_text_state = hash(&(&self.section_buffer, screen_width, screen_height));
+        let current_text_state = xxhash(&(&self.section_buffer, screen_width, screen_height));
 
         if !self.cache_glyph_drawing || self.draw_cache.is_none()
             || self.draw_cache.as_ref().unwrap().texture_updated
