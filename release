@@ -4,7 +4,7 @@ set -eu
 dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$dir"
 
-tagname=$(grep version Cargo.toml | cut -d '"' -f2)
+tagname=$(grep -m1 version Cargo.toml | cut -d '"' -f2)
 
 if git rev-parse "$tagname" >/dev/null 2>&1
 then
