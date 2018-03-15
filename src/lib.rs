@@ -79,26 +79,25 @@ mod owned_section;
 #[cfg(feature = "performance_stats")]
 mod performance_stats;
 
-use gfx_core::memory::Typed;
+pub use builder::*;
 use gfx::{format, handle, texture};
 use gfx::traits::FactoryExt;
+use gfx_core::memory::Typed;
+pub use glyph_calculator::*;
+pub use layout::*;
+pub use linebreak::*;
+pub use owned_section::*;
 use pipe::*;
 use rusttype::{point, vector};
 use rusttype::gpu_cache::Cache;
-use std::hash::{Hash, Hasher};
-use std::i32;
+pub use section::*;
+use std::{fmt, iter, slice};
 use std::borrow::{Borrow, Cow};
-use std::error::Error;
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry;
-use std::{fmt, iter, slice};
-
-pub use section::*;
-pub use layout::*;
-pub use linebreak::*;
-pub use builder::*;
-pub use glyph_calculator::*;
-pub use owned_section::*;
+use std::error::Error;
+use std::hash::{Hash, Hasher};
+use std::i32;
 
 /// Aliased type to allow lib usage without declaring underlying **rusttype** lib
 pub type Font<'a> = rusttype::Font<'a>;
@@ -577,10 +576,13 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
             else {
                 DrawnGlyphBrush {
                     pipe_data: {
-                        let sampler = self.factory.create_sampler(texture::SamplerInfo::new(
-                            texture::FilterMethod::Scale,
-                            texture::WrapMode::Clamp,
-                        ));
+                        let sampler = self.factory.create_sampler(texture::SamplerInfo {
+                            border: [0.0, 0.0, 0.0, 0.0].into(),
+                            ..texture::SamplerInfo::new(
+                                texture::FilterMethod::Bilinear,
+                                texture::WrapMode::Border,
+                            )
+                        });
                         glyph_pipe::Data {
                             vbuf,
                             font_tex: (self.font_cache_tex.1.clone(), sampler),
