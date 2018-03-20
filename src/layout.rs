@@ -563,13 +563,7 @@ fn single_line<'font, 'a, L: LineBreaker>(
                 continue;
             }
 
-            let base_glyph = if let Some(glyph) = font.glyph(c) {
-                glyph
-            }
-            else {
-                continue;
-            };
-
+            let base_glyph = font.glyph(c);
             if let Some(id) = last_glyph_id.take() {
                 caret.x += font.pair_kerning(scale, id, base_glyph.id());
             }
@@ -808,9 +802,8 @@ mod layout_test {
     use std::collections::*;
 
     lazy_static! {
-        static ref A_FONT: Font<'static> = FontCollection::
+        static ref A_FONT: Font<'static> = Font::
             from_bytes(include_bytes!("../tests/DejaVuSansMono.ttf") as &[u8])
-            .into_font()
             .expect("Could not create rusttype::Font");
     }
 
@@ -822,7 +815,7 @@ mod layout_test {
             assert_eq!($glyphs.len(), expected_len, "Unexpected number of glyphs");
             let mut glyphs = $glyphs.iter();
             for c in $string.chars() {
-                assert_eq!(glyphs.next().unwrap().id(), A_FONT.glyph(c).unwrap().id(),
+                assert_eq!(glyphs.next().unwrap().id(), A_FONT.glyph(c).id(),
                     "Unexpected glyph id, expecting id for char `{}`", c);
             }
         }};
@@ -1046,7 +1039,7 @@ mod layout_test {
                 ..Section::default()
             }
         );
-        assert_eq!(all_glyphs[9].id(), A_FONT.glyph('l').unwrap().id());
+        assert_eq!(all_glyphs[9].id(), A_FONT.glyph('l').id());
         assert_relative_eq!(all_glyphs[9].position().x, glyphs[4].position().x);
         assert_relative_eq!(all_glyphs[9].position().y, glyphs[4].position().y);
     }
@@ -1211,10 +1204,10 @@ mod layout_test {
             "Autumn moonlight, a worm digs silently into the chestnut."
         );
 
-        assert_eq!(glyphs[18].id(), A_FONT.glyph('a').unwrap().id());
+        assert_eq!(glyphs[18].id(), A_FONT.glyph('a').id());
         assert!(glyphs[18].position().y > glyphs[0].position().y);
 
-        assert_eq!(glyphs[39].id(), A_FONT.glyph('i').unwrap().id());
+        assert_eq!(glyphs[39].id(), A_FONT.glyph('i').id());
         assert!(glyphs[39].position().y > glyphs[18].position().y);
     }
 

@@ -265,7 +265,7 @@ impl<'a> GlyphCalculatorBuilder<'a> {
     /// Specifies the default font data used to render glyphs.
     /// Referenced with `FontId(0)`, which is default.
     pub fn using_font_bytes<B: Into<SharedBytes<'a>>>(font_0_data: B) -> Self {
-        Self::using_font(font(font_0_data).unwrap())
+        Self::using_font(Font::from_bytes(font_0_data).unwrap())
     }
 
     pub fn using_fonts_bytes<B, V>(font_data: V) -> Self
@@ -277,7 +277,7 @@ impl<'a> GlyphCalculatorBuilder<'a> {
             font_data
                 .into()
                 .into_iter()
-                .map(|data| font(data).unwrap())
+                .map(|data| Font::from_bytes(data).unwrap())
                 .collect::<Vec<_>>(),
         )
     }
@@ -300,7 +300,7 @@ impl<'a> GlyphCalculatorBuilder<'a> {
     /// [`using_font_bytes`](#method.using_font_bytes).
     /// Returns a [`FontId`](struct.FontId.html) to reference this font.
     pub fn add_font_bytes<B: Into<SharedBytes<'a>>>(&mut self, font_data: B) -> FontId {
-        self.font_data.push(font(font_data.into()).unwrap());
+        self.font_data.push(Font::from_bytes(font_data.into()).unwrap());
         FontId(self.font_data.len() - 1)
     }
 

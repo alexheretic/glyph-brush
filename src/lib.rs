@@ -84,7 +84,7 @@ use gfx_core::memory::Typed;
 use gfx::{format, handle, texture};
 use gfx::traits::FactoryExt;
 use pipe::*;
-use rusttype::{point, vector, FontCollection};
+use rusttype::{point, vector};
 use rusttype::gpu_cache::Cache;
 use std::hash::{Hash, Hasher};
 use std::i32;
@@ -686,14 +686,13 @@ struct GlyphedSection<'font> {
 pub struct GlyphedSectionText<'font>(pub Vec<PositionedGlyph<'font>>, pub Color, pub FontId);
 
 /// Returns a Font from font bytes info or an error reason.
+#[deprecated(since="0.10.0", note="please use `rusttype::Font::from_bytes` instead")]
 pub fn font<'a, B: Into<SharedBytes<'a>>>(font_bytes: B) -> Result<Font<'a>, &'static str> {
     let font_bytes = font_bytes.into();
     if font_bytes.is_empty() {
         return Err("Empty font data");
     }
-    FontCollection::from_bytes(font_bytes)
-        .into_font()
-        .ok_or("Font not supported by rusttype")
+    Font::from_bytes(font_bytes).map_err(|_| "Font not supported by rusttype")
 }
 
 const VERTICES_PER_GLYPH: usize = 6;
