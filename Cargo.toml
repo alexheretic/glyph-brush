@@ -17,7 +17,6 @@ gfx_core = "0.8"
 unicode-normalization = "0.1"
 ordered-float = "0.5"
 xi-unicode = "0.1"
-linked-hash-map = "0.5"
 backtrace = "0.3"
 twox-hash = "1"
 

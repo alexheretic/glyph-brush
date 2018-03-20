@@ -59,7 +59,6 @@ extern crate backtrace;
 #[macro_use]
 extern crate gfx;
 extern crate gfx_core;
-extern crate linked_hash_map;
 #[macro_use]
 extern crate log;
 extern crate ordered_float;
