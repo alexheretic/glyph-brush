@@ -185,13 +185,15 @@ impl<'a> GlyphBrushBuilder<'a> {
                 .enumerate()
                 .map(|(idx, data)| (FontId(idx), data))
                 .collect(),
-            font_cache: Cache::new(
-                cache_width,
-                cache_height,
-                self.gpu_cache_scale_tolerance,
-                self.gpu_cache_position_tolerance,
-            ),
+            font_cache: CacheBuilder {
+                width: cache_width,
+                height: cache_height,
+                scale_tolerance: self.gpu_cache_scale_tolerance,
+                position_tolerance: self.gpu_cache_position_tolerance,
+                ..CacheBuilder::default()
+            }.build(),
             font_cache_tex,
+            font_cache_tex_zeroed: true,
 
             factory,
             draw_cache: None,

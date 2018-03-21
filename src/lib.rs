@@ -80,17 +80,18 @@ mod owned_section;
 mod performance_stats;
 
 pub use builder::*;
-use gfx::{format, handle, texture};
-use gfx::traits::FactoryExt;
-use gfx_core::memory::Typed;
 pub use glyph_calculator::*;
 pub use layout::*;
 pub use linebreak::*;
 pub use owned_section::*;
+pub use section::*;
+
+use gfx::{format, handle, texture};
+use gfx::traits::FactoryExt;
+use gfx_core::memory::Typed;
 use pipe::*;
 use rusttype::{point, vector};
-use rusttype::gpu_cache::Cache;
-pub use section::*;
+use rusttype::gpu_cache::{Cache, CacheBuilder};
 use std::{fmt, iter, slice};
 use std::borrow::{Borrow, Cow};
 use std::collections::{HashMap, HashSet};
@@ -211,6 +212,7 @@ pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>> {
         gfx::handle::Texture<R, TexSurface>,
         gfx_core::handle::ShaderResourceView<R, f32>,
     ),
+    font_cache_tex_zeroed: bool,
     factory: F,
     draw_cache: Option<DrawnGlyphBrush<R>>,
 
@@ -458,6 +460,16 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                     return Ok(());
                 }
 
+                if !self.font_cache_tex_zeroed {
+                    let (width, height) = self.font_cache.dimensions();
+                    zero_texture(
+                        &mut encoder,
+                        &self.font_cache_tex.0,
+                        [width as u16, height as u16],
+                    );
+                    self.font_cache_tex_zeroed = true;
+                }
+
                 let tex = self.font_cache_tex.0.clone();
                 if let Err(err) = self.font_cache.cache_queued(|rect, tex_data| {
                     let offset = [rect.min.x as u16, rect.min.y as u16];
@@ -483,18 +495,20 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                         );
                     }
 
-                    let new_cache = Cache::new(
-                        new_width,
-                        new_height,
-                        self.gpu_cache_scale_tolerance,
-                        self.gpu_cache_position_tolerance,
-                    );
+                    let new_cache = CacheBuilder {
+                        width: new_width,
+                        height: new_height,
+                        scale_tolerance: self.gpu_cache_scale_tolerance,
+                        position_tolerance: self.gpu_cache_position_tolerance,
+                        ..CacheBuilder::default()
+                    }.build();
 
                     match create_texture(&mut self.factory, new_width, new_height) {
                         Ok((new_tex, tex_view)) => {
                             self.font_cache = new_cache;
                             self.font_cache_tex.1 = tex_view;
                             self.font_cache_tex.0 = new_tex;
+                            self.font_cache_tex_zeroed = true;
                             continue;
                         }
                         Err(_) => {
@@ -687,7 +701,7 @@ struct GlyphedSection<'font> {
 pub struct GlyphedSectionText<'font>(pub Vec<PositionedGlyph<'font>>, pub Color, pub FontId);
 
 /// Returns a Font from font bytes info or an error reason.
-#[deprecated(since="0.10.0", note="please use `rusttype::Font::from_bytes` instead")]
+#[deprecated(since = "0.10.0", note = "please use `rusttype::Font::from_bytes` instead")]
 pub fn font<'a, B: Into<SharedBytes<'a>>>(font_bytes: B) -> Result<Font<'a>, &'static str> {
     let font_bytes = font_bytes.into();
     if font_bytes.is_empty() {
@@ -838,6 +852,23 @@ where
         factory.view_texture_as_shader_resource::<TexForm>(&tex, (0, 0), format::Swizzle::new())?;
 
     Ok((tex, view))
+}
+
+fn zero_texture<R, C>(
+    encoder: &mut gfx::Encoder<R, C>,
+    texture: &handle::Texture<R, TexSurface>,
+    size: [u16; 2],
+) where
+    R: gfx::Resources,
+    C: gfx::CommandBuffer<R>,
+{
+    update_texture(
+        encoder,
+        texture,
+        [0, 0],
+        size,
+        &vec![0_u8; size[0] as usize * size[1] as usize],
+    );
 }
 
 // Updates a texture with the given data (used for updating the GlyphCache texture)
