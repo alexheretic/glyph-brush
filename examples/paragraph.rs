@@ -14,7 +14,6 @@ extern crate gfx_glyph;
 extern crate gfx_window_glutin;
 extern crate glutin;
 extern crate spin_sleep;
-extern crate time;
 
 use cgmath::{Matrix4, Rad, Transform};
 use gfx::{format, Device};
@@ -27,13 +26,15 @@ use std::io::Write;
 fn main() {
     env_logger::init();
 
-    // winit wayland is currently still wip
-    if cfg!(target_os = "linux") && env::var("WINIT_UNIX_BACKEND").is_err() {
-        env::set_var("WINIT_UNIX_BACKEND", "x11");
-    }
-    // disables vsync sometimes on x11
-    if env::var("vblank_mode").is_err() {
-        env::set_var("vblank_mode", "0");
+    if cfg!(target_os = "linux") {
+        // winit wayland is currently still wip
+        if env::var("WINIT_UNIX_BACKEND").is_err() {
+            env::set_var("WINIT_UNIX_BACKEND", "x11");
+        }
+        // disables vsync sometimes on x11
+        if env::var("vblank_mode").is_err() {
+            env::set_var("vblank_mode", "0");
+        }
     }
 
     if cfg!(debug_assertions) && env::var("yes_i_really_want_debug_mode").is_err() {
@@ -66,11 +67,11 @@ fn main() {
     let mut encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
 
     let mut running = true;
-    let mut font_size = gfx_glyph::Scale::uniform(86.0);
+    let mut font_size = gfx_glyph::Scale::uniform(18.0 * window.hidpi_factor());
     let mut zoom: f32 = 1.0;
-    let mut angle = 0.28 * PI32;
+    let mut angle = 0.0;
     let mut ctrl = false;
-    let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(200.0);
+    let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(250.0);
 
     while running {
         loop_helper.loop_start();
@@ -158,11 +159,10 @@ fn main() {
                                 size *= 4.0 / 5.0
                             };
                             size = size.max(1.0);
-                            font_size =
-                                gfx_glyph::Scale::uniform((size * window.hidpi_factor()).round());
+                            font_size = gfx_glyph::Scale::uniform(size * window.hidpi_factor());
                             if (font_size.x - old_size).abs() > 1e-2 {
                                 print!("\r                            \r");
-                                print!("font-size -> {}", font_size.x);
+                                print!("font-size -> {:.1}", font_size.x);
                                 io::stdout().flush().ok().unwrap();
                             }
                         }
@@ -171,8 +171,6 @@ fn main() {
                 }
             }
         });
-
-        angle -= 0.0000001 * ::time::precise_time_s() as f32;
 
         encoder.clear(&main_color, [0.02, 0.02, 0.02, 1.0]);
 

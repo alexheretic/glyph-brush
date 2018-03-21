@@ -212,6 +212,7 @@ pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>> {
         gfx::handle::Texture<R, TexSurface>,
         gfx_core::handle::ShaderResourceView<R, f32>,
     ),
+    texture_filter_method: texture::FilterMethod,
     factory: F,
     draw_cache: Option<DrawnGlyphBrush<R>>,
 
@@ -578,13 +579,10 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
             else {
                 DrawnGlyphBrush {
                     pipe_data: {
-                        let sampler = self.factory.create_sampler(texture::SamplerInfo {
-                            border: [0.0, 0.0, 0.0, 0.0].into(),
-                            ..texture::SamplerInfo::new(
-                                texture::FilterMethod::Bilinear,
-                                texture::WrapMode::Border,
-                            )
-                        });
+                        let sampler = self.factory.create_sampler(texture::SamplerInfo::new(
+                            self.texture_filter_method,
+                            texture::WrapMode::Clamp,
+                        ));
                         glyph_pipe::Data {
                             vbuf,
                             font_tex: (self.font_cache_tex.1.clone(), sampler),

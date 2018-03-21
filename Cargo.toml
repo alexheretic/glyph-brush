@@ -11,7 +11,7 @@ readme="README.md"
 
 [dependencies]
 log = "0.4"
-rusttype = { path = "../rusttype", features = ["gpu_cache"] }
+rusttype = { version = "0.5.2", features = ["gpu_cache"] }
 gfx = "0.17"
 gfx_core = "0.8"
 unicode-normalization = "0.1"
