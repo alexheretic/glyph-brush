@@ -79,26 +79,26 @@ mod owned_section;
 #[cfg(feature = "performance_stats")]
 mod performance_stats;
 
-use gfx_core::memory::Typed;
-use gfx::{format, handle, texture};
-use gfx::traits::FactoryExt;
-use pipe::*;
-use rusttype::{point, vector};
-use rusttype::gpu_cache::Cache;
-use std::hash::{Hash, Hasher};
-use std::i32;
-use std::borrow::{Borrow, Cow};
-use std::error::Error;
-use std::collections::{HashMap, HashSet};
-use std::collections::hash_map::Entry;
-use std::{fmt, iter, slice};
-
-pub use section::*;
-pub use layout::*;
-pub use linebreak::*;
 pub use builder::*;
 pub use glyph_calculator::*;
+pub use layout::*;
+pub use linebreak::*;
 pub use owned_section::*;
+pub use section::*;
+
+use gfx::{format, handle, texture};
+use gfx::traits::FactoryExt;
+use gfx_core::memory::Typed;
+use pipe::*;
+use rusttype::{point, vector};
+use rusttype::gpu_cache::{Cache, CacheBuilder};
+use std::{fmt, iter, slice};
+use std::borrow::{Borrow, Cow};
+use std::collections::{HashMap, HashSet};
+use std::collections::hash_map::Entry;
+use std::error::Error;
+use std::hash::{Hash, Hasher};
+use std::i32;
 
 /// Aliased type to allow lib usage without declaring underlying **rusttype** lib
 pub type Font<'a> = rusttype::Font<'a>;
@@ -212,6 +212,7 @@ pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>> {
         gfx::handle::Texture<R, TexSurface>,
         gfx_core::handle::ShaderResourceView<R, f32>,
     ),
+    texture_filter_method: texture::FilterMethod,
     factory: F,
     draw_cache: Option<DrawnGlyphBrush<R>>,
 
@@ -484,12 +485,13 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                         );
                     }
 
-                    let new_cache = Cache::new(
-                        new_width,
-                        new_height,
-                        self.gpu_cache_scale_tolerance,
-                        self.gpu_cache_position_tolerance,
-                    );
+                    let new_cache = CacheBuilder {
+                        width: new_width,
+                        height: new_height,
+                        scale_tolerance: self.gpu_cache_scale_tolerance,
+                        position_tolerance: self.gpu_cache_position_tolerance,
+                        ..CacheBuilder::default()
+                    }.build();
 
                     match create_texture(&mut self.factory, new_width, new_height) {
                         Ok((new_tex, tex_view)) => {
@@ -578,7 +580,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                 DrawnGlyphBrush {
                     pipe_data: {
                         let sampler = self.factory.create_sampler(texture::SamplerInfo::new(
-                            texture::FilterMethod::Scale,
+                            self.texture_filter_method,
                             texture::WrapMode::Clamp,
                         ));
                         glyph_pipe::Data {
@@ -685,7 +687,7 @@ struct GlyphedSection<'font> {
 pub struct GlyphedSectionText<'font>(pub Vec<PositionedGlyph<'font>>, pub Color, pub FontId);
 
 /// Returns a Font from font bytes info or an error reason.
-#[deprecated(since="0.10.0", note="please use `rusttype::Font::from_bytes` instead")]
+#[deprecated(since = "0.10.0", note = "please use `rusttype::Font::from_bytes` instead")]
 pub fn font<'a, B: Into<SharedBytes<'a>>>(font_bytes: B) -> Result<Font<'a>, &'static str> {
     let font_bytes = font_bytes.into();
     if font_bytes.is_empty() {

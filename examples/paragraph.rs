@@ -16,19 +16,25 @@ extern crate glutin;
 extern crate spin_sleep;
 
 use cgmath::{Matrix4, Rad, Transform};
-use glutin::GlContext;
 use gfx::{format, Device};
+use glutin::GlContext;
 use std::env;
+use std::f32::consts::PI as PI32;
 use std::io;
 use std::io::Write;
-use std::f32::consts::PI as PI32;
 
 fn main() {
     env_logger::init();
 
-    // winit wayland is currently still wip
-    if cfg!(target_os = "linux") && env::var("WINIT_UNIX_BACKEND").is_err() {
-        env::set_var("WINIT_UNIX_BACKEND", "x11");
+    if cfg!(target_os = "linux") {
+        // winit wayland is currently still wip
+        if env::var("WINIT_UNIX_BACKEND").is_err() {
+            env::set_var("WINIT_UNIX_BACKEND", "x11");
+        }
+        // disables vsync sometimes on x11
+        if env::var("vblank_mode").is_err() {
+            env::set_var("vblank_mode", "0");
+        }
     }
 
     if cfg!(debug_assertions) && env::var("yes_i_really_want_debug_mode").is_err() {
@@ -65,7 +71,7 @@ fn main() {
     let mut zoom: f32 = 1.0;
     let mut angle = 0.0;
     let mut ctrl = false;
-    let mut loop_helper = spin_sleep::LoopHelper::builder().build_without_target_rate();
+    let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(250.0);
 
     while running {
         loop_helper.loop_start();
@@ -254,6 +260,8 @@ fn main() {
         if let Some(rate) = loop_helper.report_rate() {
             window.set_title(&format!("{} - {:.0} FPS", title, rate));
         }
+
+        loop_helper.loop_sleep();
     }
     println!();
 }

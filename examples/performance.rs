@@ -5,10 +5,10 @@ extern crate gfx_window_glutin;
 extern crate glutin;
 extern crate spin_sleep;
 
-use glutin::GlContext;
 use gfx::{format, Device};
-use std::env;
 use gfx_glyph::*;
+use glutin::GlContext;
+use std::env;
 
 fn main() {
     env_logger::init();

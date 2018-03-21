@@ -32,6 +32,7 @@ pub struct GlyphBrushBuilder<'a> {
     cache_glyph_positioning: bool,
     cache_glyph_drawing: bool,
     depth_test: gfx::state::Depth,
+    texture_filter_method: texture::FilterMethod,
 }
 
 impl<'a> GlyphBrushBuilder<'a> {
@@ -70,6 +71,7 @@ impl<'a> GlyphBrushBuilder<'a> {
             cache_glyph_positioning: true,
             cache_glyph_drawing: true,
             depth_test: gfx::preset::depth::PASS_TEST,
+            texture_filter_method: texture::FilterMethod::Bilinear,
         }
     }
 
@@ -77,7 +79,8 @@ impl<'a> GlyphBrushBuilder<'a> {
     /// [`using_font_bytes`](#method.using_font_bytes).
     /// Returns a [`FontId`](struct.FontId.html) to reference this font.
     pub fn add_font_bytes<B: Into<SharedBytes<'a>>>(&mut self, font_data: B) -> FontId {
-        self.font_data.push(Font::from_bytes(font_data.into()).unwrap());
+        self.font_data
+            .push(Font::from_bytes(font_data.into()).unwrap());
         FontId(self.font_data.len() - 1)
     }
 
@@ -170,6 +173,28 @@ impl<'a> GlyphBrushBuilder<'a> {
         self
     }
 
+    /// Sets the texture filtering method.
+    ///
+    /// Defaults to `Bilinear`
+    ///
+    /// # Example
+    /// ```no_run
+    /// # extern crate gfx;
+    /// # extern crate gfx_glyph;
+    /// # use gfx_glyph::GlyphBrushBuilder;
+    /// # fn main() {
+    /// # let some_font: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
+    /// GlyphBrushBuilder::using_font_bytes(some_font)
+    ///     .texture_filter_method(gfx::texture::FilterMethod::Scale)
+    ///     // ...
+    /// # ;
+    /// # }
+    /// ```
+    pub fn texture_filter_method(mut self, filter_method: texture::FilterMethod) -> Self {
+        self.texture_filter_method = filter_method;
+        self
+    }
+
     /// Builds a `GlyphBrush` using the input gfx factory
     pub fn build<R, F>(self, mut factory: F) -> GlyphBrush<'a, R, F>
     where
@@ -185,13 +210,15 @@ impl<'a> GlyphBrushBuilder<'a> {
                 .enumerate()
                 .map(|(idx, data)| (FontId(idx), data))
                 .collect(),
-            font_cache: Cache::new(
-                cache_width,
-                cache_height,
-                self.gpu_cache_scale_tolerance,
-                self.gpu_cache_position_tolerance,
-            ),
+            font_cache: CacheBuilder {
+                width: cache_width,
+                height: cache_height,
+                scale_tolerance: self.gpu_cache_scale_tolerance,
+                position_tolerance: self.gpu_cache_position_tolerance,
+                ..CacheBuilder::default()
+            }.build(),
             font_cache_tex,
+            texture_filter_method: self.texture_filter_method,
 
             factory,
             draw_cache: None,
