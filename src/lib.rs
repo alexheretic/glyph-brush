@@ -212,7 +212,6 @@ pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>> {
         gfx::handle::Texture<R, TexSurface>,
         gfx_core::handle::ShaderResourceView<R, f32>,
     ),
-    font_cache_tex_zeroed: bool,
     factory: F,
     draw_cache: Option<DrawnGlyphBrush<R>>,
 
@@ -460,16 +459,6 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                     return Ok(());
                 }
 
-                if !self.font_cache_tex_zeroed {
-                    let (width, height) = self.font_cache.dimensions();
-                    zero_texture(
-                        &mut encoder,
-                        &self.font_cache_tex.0,
-                        [width as u16, height as u16],
-                    );
-                    self.font_cache_tex_zeroed = true;
-                }
-
                 let tex = self.font_cache_tex.0.clone();
                 if let Err(err) = self.font_cache.cache_queued(|rect, tex_data| {
                     let offset = [rect.min.x as u16, rect.min.y as u16];
@@ -508,7 +497,6 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                             self.font_cache = new_cache;
                             self.font_cache_tex.1 = tex_view;
                             self.font_cache_tex.0 = new_tex;
-                            self.font_cache_tex_zeroed = true;
                             continue;
                         }
                         Err(_) => {
@@ -852,23 +840,6 @@ where
         factory.view_texture_as_shader_resource::<TexForm>(&tex, (0, 0), format::Swizzle::new())?;
 
     Ok((tex, view))
-}
-
-fn zero_texture<R, C>(
-    encoder: &mut gfx::Encoder<R, C>,
-    texture: &handle::Texture<R, TexSurface>,
-    size: [u16; 2],
-) where
-    R: gfx::Resources,
-    C: gfx::CommandBuffer<R>,
-{
-    update_texture(
-        encoder,
-        texture,
-        [0, 0],
-        size,
-        &vec![0_u8; size[0] as usize * size[1] as usize],
-    );
 }
 
 // Updates a texture with the given data (used for updating the GlyphCache texture)

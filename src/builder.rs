@@ -193,7 +193,6 @@ impl<'a> GlyphBrushBuilder<'a> {
                 ..CacheBuilder::default()
             }.build(),
             font_cache_tex,
-            font_cache_tex_zeroed: true,
 
             factory,
             draw_cache: None,
