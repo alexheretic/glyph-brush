@@ -1,8 +1,8 @@
 /// Returns a `String` backtrace from just after the `gfx_glyph` bits outwards
 macro_rules! outer_backtrace {
     () => {{
-        use std::fmt::Write;
         use backtrace;
+        use std::fmt::Write;
 
         let mut on_lib = false;
         let mut outside_lib = false;
@@ -25,12 +25,10 @@ macro_rules! outer_backtrace {
 
                     if outside_lib {
                         if !trace.is_empty() {
-                            writeln!(trace, "").unwrap();
+                            writeln!(trace).unwrap();
                         }
                         write!(trace, " - {}", name).unwrap();
-                        if let (Some(file), Some(lineno)) =
-                            (symbol.filename(), symbol.lineno())
-                        {
+                        if let (Some(file), Some(lineno)) = (symbol.filename(), symbol.lineno()) {
                             write!(trace, " at {:?}:{}", file, lineno).unwrap();
                         }
                     }
@@ -40,5 +38,5 @@ macro_rules! outer_backtrace {
         });
 
         trace
-    }}
+    }};
 }

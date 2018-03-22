@@ -1,8 +1,8 @@
 use super::*;
 use std::iter::{Enumerate, Skip};
 use std::slice::Iter;
-use std::str::Chars;
 use std::str;
+use std::str::Chars;
 use unicode_normalization::*;
 
 #[derive(Debug, Clone)]
@@ -420,6 +420,7 @@ impl<L: LineBreaker> Layout<L> {
 /// Returns (positioned-glyphs, text that could not be positioned (outside bounds))
 ///
 /// TODO this is the guts of the layout code, it should be split up more as it's fairly unweildy now
+#[allow(cyclomatic_complexity)]
 fn single_line<'font, 'a, L: LineBreaker>(
     font_map: &HashMap<FontId, Font<'font>>,
     line_breaker: L,
@@ -449,7 +450,7 @@ fn single_line<'font, 'a, L: LineBreaker>(
     let mut ascent_adjustment = None;
 
     macro_rules! shift_previous_ascent_by {
-        ($ascent_adjustment:expr) => {
+        ($ascent_adjustment: expr) => {
             if let Some(adjustment) = $ascent_adjustment.take() {
                 // adjust all preview glyphs down to the new max ascent
                 for part in &mut result {
@@ -463,8 +464,10 @@ fn single_line<'font, 'a, L: LineBreaker>(
                 }
                 true
             }
-            else { false }
-        }
+            else {
+                false
+            }
+        };
     };
 
     // Record (index, char, next_break)
@@ -727,11 +730,8 @@ fn paragraph<'a, 'font, L: LineBreaker>(
     let mut paragraph_leftover = None;
 
     loop {
-        let (glyphs, mut leftover) = Layout::SingleLine {
-            line_breaker,
-            h_align,
-            v_align,
-        }.calculate_glyphs_and_leftover(font_map, &section);
+        let (glyphs, mut leftover) =
+            single_line(font_map, line_breaker, h_align, v_align, &section);
 
         out.extend(glyphs);
         if leftover.is_none() {
@@ -796,45 +796,47 @@ fn remaining_norm_char_indices() {
 #[cfg(test)]
 mod layout_test {
     use super::*;
-    use std::f32;
     use BuiltInLineBreaker::*;
     use ordered_float::OrderedFloat;
     use std::collections::*;
+    use std::f32;
 
     lazy_static! {
-        static ref A_FONT: Font<'static> = Font::
-            from_bytes(include_bytes!("../tests/DejaVuSansMono.ttf") as &[u8])
-            .expect("Could not create rusttype::Font");
+        static ref A_FONT: Font<'static> =
+            Font::from_bytes(include_bytes!("../tests/DejaVuSansMono.ttf") as &[u8])
+                .expect("Could not create rusttype::Font");
     }
 
     /// Checks the order of glyphs in the first arg iterable matches the
     /// second arg string characters
     macro_rules! assert_glyph_order {
-        ($glyphs:expr, $string:expr) => {{
+        ($glyphs: expr, $string: expr) => {{
             let expected_len = $string.nfc().count();
             assert_eq!($glyphs.len(), expected_len, "Unexpected number of glyphs");
             let mut glyphs = $glyphs.iter();
             for c in $string.chars() {
-                assert_eq!(glyphs.next().unwrap().id(), A_FONT.glyph(c).id(),
-                    "Unexpected glyph id, expecting id for char `{}`", c);
+                assert_eq!(
+                    glyphs.next().unwrap().id(),
+                    A_FONT.glyph(c).id(),
+                    "Unexpected glyph id, expecting id for char `{}`",
+                    c
+                );
             }
         }};
     }
 
     macro_rules! merged_glyphs_and_leftover {
-        ($layout:expr, $section:expr) => {{
+        ($layout: expr, $section: expr) => {{
             let _ = ::env_logger::try_init();
 
             let mut font_map = HashMap::new();
             font_map.insert(FontId(0), A_FONT.clone());
 
             let (all_glyphs, leftover) = $layout
-                .calculate_glyphs_and_leftover(
-                    &font_map,
-                    &SectionGlyphInfo::from(&$section.into())
-                );
+                .calculate_glyphs_and_leftover(&font_map, &SectionGlyphInfo::from(&$section.into()));
 
-            let glyphs: Vec<_> = all_glyphs.into_iter()
+            let glyphs: Vec<_> = all_glyphs
+                .into_iter()
                 .flat_map(|s| s.0.into_iter())
                 .collect();
 

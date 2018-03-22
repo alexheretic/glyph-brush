@@ -1,7 +1,7 @@
 use super::*;
+use std::fmt;
 use std::iter;
 use std::str::Chars;
-use std::fmt;
 use xi_unicode;
 
 /// Indicator that a character is a line break, soft or hard. Includes the offset position.

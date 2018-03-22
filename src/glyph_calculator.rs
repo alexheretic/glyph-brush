@@ -300,7 +300,8 @@ impl<'a> GlyphCalculatorBuilder<'a> {
     /// [`using_font_bytes`](#method.using_font_bytes).
     /// Returns a [`FontId`](struct.FontId.html) to reference this font.
     pub fn add_font_bytes<B: Into<SharedBytes<'a>>>(&mut self, font_data: B) -> FontId {
-        self.font_data.push(Font::from_bytes(font_data.into()).unwrap());
+        self.font_data
+            .push(Font::from_bytes(font_data.into()).unwrap());
         FontId(self.font_data.len() - 1)
     }
 

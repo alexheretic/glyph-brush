@@ -1,6 +1,6 @@
 use super::*;
-use std::f32;
 use super::owned_section::*;
+use std::f32;
 
 /// An object that contains all the info to render a varied section of text. That is one including
 /// many parts with differing fonts/scales/colors bowing to a single layout.
