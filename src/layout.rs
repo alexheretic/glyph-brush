@@ -415,6 +415,30 @@ impl<L: LineBreaker> Layout<L> {
     }
 }
 
+/// Line breakers can't easily tell the difference between the end of a slice being a hard
+/// break and the last character being a true hard break. This trait allows testing of eol
+/// characters being "true" eol line breakers.
+trait HasEolLineBreak<B: LineBreaker> {
+    fn is_true_eol_hard_break(&self, line_breaker: &B) -> bool;
+}
+
+impl<B: LineBreaker> HasEolLineBreak<B> for char {
+    fn is_true_eol_hard_break(&self, line_breaker: &B) -> bool {
+        // to check if the previous end char (say '$') should hard break construct
+        // a str "$ " an check if the line break logic flags a hard break at index 1
+        let mut last_end_bytes: [u8; 5] = [0; 5];
+        self.encode_utf8(&mut last_end_bytes);
+        let len_utf8 = self.len_utf8();
+        last_end_bytes[len_utf8] = b' ';
+        if let Ok(last_end_padded) = str::from_utf8(&last_end_bytes[0..len_utf8 + 1]) {
+            if let Some(LineBreak::Hard(1)) = line_breaker.line_breaks(last_end_padded).next() {
+                return true;
+            }
+        }
+        false
+    }
+}
+
 /// Positions glyphs in a single line left to right with the screen position marking
 /// the top-left corner.
 /// Returns (positioned-glyphs, text that could not be positioned (outside bounds))
@@ -503,23 +527,13 @@ fn single_line<'font, 'a, L: LineBreaker>(
         // check if previous section should have hard broken, this can happen as "blah\n" is
         // indestinguishable from "blah" to the line break iterator.
         if let Some((index, c, Some(LineBreak::Hard(offset)))) = last_char_break.take() {
-            if offset == index + 1 {
-                // to check if the previous end char (say '$') should hard break construct
-                // a str "$ " an check if the line break logic flags a hard break at index 1
-                let mut last_end_bytes: [u8; 5] = [0; 5];
-                c.encode_utf8(&mut last_end_bytes);
-                last_end_bytes[c.len_utf8()] = b' ';
-                if let Ok(last_end_padded) = str::from_utf8(&last_end_bytes[0..c.len_utf8() + 1]) {
-                    let breaker = line_breaker.line_breaks(last_end_padded).next();
-                    if let Some(LineBreak::Hard(1)) = breaker {
-                        leftover = Some(LayoutLeftover::HardBreak(
-                            caret,
-                            section_glyph_info.with_info(info_index, *glyph_info),
-                            v_metrics,
-                        ));
-                        break 'sections;
-                    }
-                }
+            if offset == index + 1 && c.is_true_eol_hard_break(&line_breaker) {
+                leftover = Some(LayoutLeftover::HardBreak(
+                    caret,
+                    section_glyph_info.with_info(info_index, *glyph_info),
+                    v_metrics,
+                ));
+                break 'sections;
             }
         }
 
