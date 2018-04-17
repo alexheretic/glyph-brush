@@ -39,6 +39,7 @@
 //! glyph_brush.queue(some_other_section);
 //!
 //! glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth).unwrap();
+//! glyph_brush.end_frame();
 //! # }
 //! ```
 #![allow(unknown_lints)]
@@ -190,6 +191,7 @@ fn xxhash<H: Hash>(hashable: &H) -> u64 {
 /// glyph_brush.queue(some_other_section);
 ///
 /// glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth).unwrap();
+/// glyph_brush.end_frame();
 /// # }
 /// ```
 ///
@@ -202,9 +204,9 @@ fn xxhash<H: Hash>(hashable: &H) -> u64 {
 /// cheaper. In the case of [`GlyphBrush::queue`](#method.queue) the calculations will also be
 /// used for actual drawing.
 ///
-/// The cache for a section will be **cleared** after a
-/// [`GlyphBrush::draw_queued`](#method.draw_queued) call when that section has not been used since
-/// the previous draw call.
+/// The cache for a section will be **cleared** at the end of the frame if it has not been used since
+/// the last frame.  You must signal the end of a frame by calling [`end_frame()`](#method.end_frame)
+/// If this is not called at the end of every frame exactly once then performance will be hurt.
 pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>> {
     fonts: HashMap<FontId, rusttype::Font<'font>>,
     font_cache: Cache<'font>,
@@ -223,6 +225,12 @@ pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>> {
     // buffer of section-layout hashs (that must exist in the calculate_glyph_cache)
     // to be rendered on the next `draw_queued` call
     section_buffer: Vec<u64>,
+
+    // The current index into the section_buffer.  When a section is drawn this is incremented.
+    // Once a call to end_frame() is made this will be reset to 0 and the section_buffer will be evaluated
+    // for caching.  This allows users to do things in-between draw calls while not requiring us
+    // to dump the cache after every draw call.
+    section_buffer_index: usize,
 
     // Set of section hashs to keep in the glyph cache this frame even if they haven't been drawn
     keep_in_cache: HashSet<u64>,
@@ -396,8 +404,6 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     /// Draws all queued sections onto a render target, applying a position transform (e.g.
     /// a projection).
     /// See [`queue`](struct.GlyphBrush.html#method.queue).
-    ///
-    /// Trims the cache, see [caching behaviour](#caching-behaviour).
     pub fn draw_queued<C, T, D>(
         &mut self,
         encoder: &mut gfx::Encoder<R, C>,
@@ -415,8 +421,6 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     /// Draws all queued sections onto a render target, applying a position transform (e.g.
     /// a projection).
     /// See [`queue`](struct.GlyphBrush.html#method.queue).
-    ///
-    /// Trims the cache, see [caching behaviour](#caching-behaviour).
     pub fn draw_queued_with_transform<C, T, D>(
         &mut self,
         transform: [[f32; 4]; 4],
@@ -444,7 +448,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
             loop {
                 let mut no_text = true;
 
-                for section_hash in &self.section_buffer {
+                for section_hash in &self.section_buffer[self.section_buffer_index..] {
                     let GlyphedSection { ref glyphs, .. } =
                         self.calculate_glyph_cache[section_hash];
                     for &GlyphedSectionText(ref glyphs, _, font_id) in glyphs {
@@ -456,7 +460,6 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                 }
 
                 if no_text {
-                    self.clear_section_buffer();
                     return Ok(());
                 }
 
@@ -516,7 +519,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
             self.perf.gpu_cache_done();
 
             let verts: Vec<GlyphVertex> = {
-                let sections: Vec<_> = self.section_buffer
+                let sections: Vec<_> = self.section_buffer[self.section_buffer_index..]
                     .iter()
                     .map(|hash| &self.calculate_glyph_cache[hash])
                     .collect();
@@ -615,7 +618,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
             encoder.draw(slice, &pso.1, pipe_data);
         }
 
-        self.clear_section_buffer();
+        self.section_buffer_index = self.section_buffer.len();
 
         #[cfg(feature = "performance_stats")]
         {
@@ -624,6 +627,14 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         }
 
         Ok(())
+    }
+
+    /// Indicates a frame is over.  If you don't call this caching cannot be done correctly.
+    /// 
+    /// Trims the cache, see [caching behaviour](#caching-behaviour).
+    pub fn end_frame(&mut self) {
+        self.clear_section_buffer();
+        self.section_buffer_index = 0;
     }
 
     /// Returns `FontId` -> `Font` map of available fonts.
