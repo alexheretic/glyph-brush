@@ -147,6 +147,7 @@ fn main() {
         glyph_brush
             .draw_queued(&mut encoder, &main_color, &main_depth)
             .expect("draw");
+        glyph_brush.end_frame();
 
         encoder.flush(&mut device);
         window.swap_buffers().unwrap();

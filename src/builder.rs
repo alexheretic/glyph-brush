@@ -223,6 +223,7 @@ impl<'a> GlyphBrushBuilder<'a> {
             factory,
             draw_cache: None,
             section_buffer: Vec::new(),
+            section_buffer_index: 0,
             calculate_glyph_cache: HashMap::new(),
             keep_in_cache: HashSet::new(),
 
