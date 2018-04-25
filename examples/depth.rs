@@ -37,7 +37,7 @@ fn main() {
         .with_title(title)
         .with_dimensions(700, 320);
     let context = glutin::ContextBuilder::new();
-    let (window, mut device, mut factory, mut main_color, mut main_depth) =
+    let (window, mut device, mut factory, mut main_view, mut main_depth) =
         gfx_window_glutin::init::<format::Srgba8, format::Depth>(
             window_builder,
             context,
@@ -75,17 +75,17 @@ fn main() {
                     | WindowEvent::Closed => running = false,
                     WindowEvent::Resized(width, height) => {
                         window.resize(width, height);
-                        gfx_window_glutin::update_views(&window, &mut main_color, &mut main_depth);
+                        gfx_window_glutin::update_views(&window, &mut main_view, &mut main_depth);
                     }
                     _ => {}
                 }
             }
         });
 
-        encoder.clear(&main_color, [0.02, 0.02, 0.02, 1.0]);
+        encoder.clear(&main_view, [0.02, 0.02, 0.02, 1.0]);
         encoder.clear_depth(&main_depth, 1.0);
 
-        let (width, height, ..) = main_color.get_dimensions();
+        let (width, height, ..) = main_view.get_dimensions();
         let (width, height) = (f32::from(width), f32::from(height));
 
         // first section is queued, and therefore drawn, first with lower z
@@ -112,7 +112,7 @@ fn main() {
         });
 
         glyph_brush
-            .draw_queued(&mut encoder, &main_color, &main_depth)
+            .draw_queued(&mut encoder, &main_view, &main_depth)
             .expect("draw");
 
         encoder.flush(&mut device);
