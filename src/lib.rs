@@ -687,7 +687,7 @@ struct GlyphedSection<'font> {
 pub struct GlyphedSectionText<'font>(pub Vec<PositionedGlyph<'font>>, pub Color, pub FontId);
 
 /// Returns a Font from font bytes info or an error reason.
-#[deprecated(since = "0.10.0", note = "please use `rusttype::Font::from_bytes` instead")]
+#[deprecated(since = "0.10.0", note = "please use `Font::from_bytes` instead")]
 pub fn font<'a, B: Into<SharedBytes<'a>>>(font_bytes: B) -> Result<Font<'a>, &'static str> {
     let font_bytes = font_bytes.into();
     if font_bytes.is_empty() {
