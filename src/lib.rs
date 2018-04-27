@@ -666,6 +666,52 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
             )
             .unwrap()
     }
+
+    /// Adds an additional font to the one(s) initially added on build.
+    ///
+    /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # extern crate gfx;
+    /// # extern crate gfx_window_glutin;
+    /// # extern crate glutin;
+    /// extern crate gfx_glyph;
+    /// use gfx_glyph::{Section, GlyphBrushBuilder};
+    /// # fn main() {
+    /// # let events_loop = glutin::EventsLoop::new();
+    /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
+    /// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
+    /// #         glutin::WindowBuilder::new(),
+    /// #         glutin::ContextBuilder::new(),
+    /// #         &events_loop);
+    /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
+    ///
+    /// // dejavu is built as default `FontId(0)`
+    /// let dejavu: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
+    /// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu)
+    ///     .build(gfx_factory.clone());
+    ///
+    /// // some time later, add another font referenced by a new `FontId`
+    /// let open_sans_italic: &[u8] = include_bytes!("../examples/OpenSans-Italic.ttf");
+    /// let open_sans_italic_id = glyph_brush.add_font_bytes(open_sans_italic);
+    /// # glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth).unwrap();
+    /// # let _ = open_sans_italic_id;
+    /// # }
+    /// ```
+    pub fn add_font_bytes<'a: 'font, B: Into<SharedBytes<'a>>>(&mut self, font_data: B) -> FontId {
+        self.add_font(Font::from_bytes(font_data.into()).unwrap())
+    }
+
+    /// Adds an additional font to the one(s) initially added on build.
+    ///
+    /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
+    pub fn add_font<'a: 'font>(&mut self, font_data: Font<'a>) -> FontId {
+        let next_id = FontId(self.fonts.keys().max().unwrap().0 + 1);
+        self.fonts.insert(next_id, font_data);
+        next_id
+    }
 }
 
 struct DrawnGlyphBrush<R: gfx::Resources> {
