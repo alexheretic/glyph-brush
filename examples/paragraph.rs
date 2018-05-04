@@ -81,7 +81,7 @@ fn main() {
 
             if let Event::WindowEvent { event, .. } = event {
                 match event {
-                    WindowEvent::Closed => running = false,
+                    WindowEvent::CloseRequested => running = false,
                     WindowEvent::KeyboardInput {
                         input:
                             KeyboardInput {
