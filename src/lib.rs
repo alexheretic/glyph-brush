@@ -67,11 +67,11 @@ extern crate twox_hash;
 extern crate unicode_normalization;
 extern crate xi_unicode;
 
-mod section;
+mod builder;
 mod layout;
 mod linebreak;
 mod pipe;
-mod builder;
+mod section;
 #[macro_use]
 mod trace;
 mod glyph_calculator;
@@ -86,19 +86,19 @@ pub use linebreak::*;
 pub use owned_section::*;
 pub use section::*;
 
-use gfx::{format, handle, texture};
 use gfx::traits::FactoryExt;
+use gfx::{format, handle, texture};
 use gfx_core::memory::Typed;
 use pipe::*;
-use rusttype::{point, vector};
 use rusttype::gpu_cache::{Cache, CacheBuilder};
-use std::{fmt, iter, slice};
+use rusttype::{point, vector};
 use std::borrow::{Borrow, Cow};
-use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry;
+use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::hash::{Hash, Hasher};
 use std::i32;
+use std::{fmt, iter, slice};
 
 /// Aliased type to allow lib usage without declaring underlying **rusttype** lib
 pub type Font<'a> = rusttype::Font<'a>;
@@ -525,7 +525,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                     sections
                         .iter()
                         .flat_map(|section| section.glyphs.iter().map(|glyphs| glyphs.0.len()))
-                        .sum::<usize>() * VERTICES_PER_GLYPH,
+                        .sum::<usize>(),
                 );
 
                 for &GlyphedSection {
@@ -658,10 +658,19 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         color_format: gfx::format::Format,
         depth_format: gfx::format::Format,
     ) -> gfx::PipelineState<R, glyph_pipe::Meta> {
-        self.factory
-            .create_pipeline_simple(
+        let set = self.factory
+            .create_shader_set_geometry(
                 include_bytes!("shader/vert.glsl"),
+                include_bytes!("shader/geo.glsl"),
                 include_bytes!("shader/frag.glsl"),
+            )
+            .unwrap();
+
+        self.factory
+            .create_pipeline_state(
+                &set,
+                gfx::Primitive::PointList,
+                gfx::state::Rasterizer::new_fill(),
                 glyph_pipe::Init::new(color_format, depth_format, self.depth_test),
             )
             .unwrap()
@@ -742,8 +751,6 @@ pub fn font<'a, B: Into<SharedBytes<'a>>>(font_bytes: B) -> Result<Font<'a>, &'s
     Font::from_bytes(font_bytes).map_err(|_| "Font not supported by rusttype")
 }
 
-const VERTICES_PER_GLYPH: usize = 6;
-
 #[inline]
 fn text_vertices(
     glyphs: &[PositionedGlyph],
@@ -755,7 +762,8 @@ fn text_vertices(
     (screen_width, screen_height): (f32, f32),
 ) -> Vec<GlyphVertex> {
     let origin = point(0.0, 0.0);
-    let mut vertices = Vec::with_capacity(glyphs.len() * VERTICES_PER_GLYPH);
+    // max 1 vertex per glyph
+    let mut vertices = Vec::with_capacity(glyphs.len());
 
     let gl_bounds = Rect {
         min: origin
@@ -819,33 +827,10 @@ fn text_vertices(
             }
 
             vertices.push(GlyphVertex {
-                pos: [gl_rect.min.x, gl_rect.max.y, z],
-                tex_pos: [uv_rect.min.x, uv_rect.max.y],
-                color,
-            });
-            vertices.push(GlyphVertex {
-                pos: [gl_rect.min.x, gl_rect.min.y, z],
-                tex_pos: [uv_rect.min.x, uv_rect.min.y],
-                color,
-            });
-            vertices.push(GlyphVertex {
-                pos: [gl_rect.max.x, gl_rect.min.y, z],
-                tex_pos: [uv_rect.max.x, uv_rect.min.y],
-                color,
-            });
-            vertices.push(GlyphVertex {
-                pos: [gl_rect.max.x, gl_rect.min.y, z],
-                tex_pos: [uv_rect.max.x, uv_rect.min.y],
-                color,
-            });
-            vertices.push(GlyphVertex {
-                pos: [gl_rect.max.x, gl_rect.max.y, z],
-                tex_pos: [uv_rect.max.x, uv_rect.max.y],
-                color,
-            });
-            vertices.push(GlyphVertex {
-                pos: [gl_rect.min.x, gl_rect.max.y, z],
-                tex_pos: [uv_rect.min.x, uv_rect.max.y],
+                left_top: [gl_rect.min.x, gl_rect.max.y, z],
+                right_bottom: [gl_rect.max.x, gl_rect.min.y],
+                tex_left_top: [uv_rect.min.x, uv_rect.max.y],
+                tex_right_bottom: [uv_rect.max.x, uv_rect.min.y],
                 color,
             });
         }

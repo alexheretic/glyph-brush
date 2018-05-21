@@ -36,8 +36,13 @@ impl<R: Resources> DataBind<R> for RawDepthTarget {
 
 gfx_defines!{
     vertex GlyphVertex {
-        pos: [f32; 3] = "pos",
-        tex_pos: [f32; 2] = "tex_pos",
+        /// screen position
+        left_top: [f32; 3] = "left_top",
+        right_bottom: [f32; 2] = "right_bottom",
+        /// texture position
+        tex_left_top: [f32; 2] = "tex_left_top",
+        tex_right_bottom: [f32; 2] = "tex_right_bottom",
+        /// text color
         color: [f32; 4] = "color",
     }
 }
