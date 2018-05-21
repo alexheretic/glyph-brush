@@ -432,16 +432,9 @@ fn bench_variants(
     variants: &[Vec<gfx_glyph::Section>],
     brush: gfx_glyph::GlyphBrushBuilder,
 ) {
-    use std::env;
-
-    let mut variants = variants.iter().cloned().cycle();
-
     let _ = env_logger::try_init();
 
-    // winit wayland is currently still wip
-    if cfg!(target_os = "linux") && env::var("WINIT_UNIX_BACKEND").is_err() {
-        env::set_var("WINIT_UNIX_BACKEND", "x11");
-    }
+    let mut variants = variants.iter().cycle();
 
     let (_context, _device, factory, main_color, main_depth) = headless_gl_init();
     let mut encoder: gfx::Encoder<_, _> = gfx_noop::NoopCommandBuffer.into();
@@ -472,14 +465,7 @@ fn bench(
     sections: &[gfx_glyph::Section],
     brush: gfx_glyph::GlyphBrushBuilder,
 ) {
-    use std::env;
-
     let _ = env_logger::try_init();
-
-    // winit wayland is currently still wip
-    if cfg!(target_os = "linux") && env::var("WINIT_UNIX_BACKEND").is_err() {
-        env::set_var("WINIT_UNIX_BACKEND", "x11");
-    }
 
     let (_context, _device, factory, main_color, main_depth) = headless_gl_init();
     let mut encoder: gfx::Encoder<_, _> = gfx_noop::NoopCommandBuffer.into();
