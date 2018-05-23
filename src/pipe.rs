@@ -48,7 +48,7 @@ gfx_defines!{
 }
 
 gfx_pipeline_base!( glyph_pipe {
-    vbuf: VertexBuffer<GlyphVertex>,
+    vbuf: InstanceBuffer<GlyphVertex>,
     font_tex: gfx::pso::resource::TextureSampler<TexFormView>,
     transform: Global<[[f32; 4]; 4]>,
     out: RawRenderTarget,

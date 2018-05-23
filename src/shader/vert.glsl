@@ -8,27 +8,36 @@ in vec2 tex_left_top;
 in vec2 tex_right_bottom;
 in vec4 color;
 
-out vec2 g_tex_left_top;
-out vec2 g_tex_right_bottom;
-out vec4 g_color;
-out vec4 g_right_top;
-out vec4 g_left_bottom;
-out vec4 g_right_bottom;
+out vec2 f_tex_pos;
+out vec4 f_color;
 
-// forward on color and 4-positions & texture coords -> geometry
+// generate positional data based on vertex ID
 void main() {
-    g_color = color;
-    g_tex_left_top = tex_left_top;
-    g_tex_right_bottom = tex_right_bottom;
-
+    vec2 pos = vec2(0.0);
     float left = left_top.x;
     float right = right_bottom.x;
     float top = left_top.y;
     float bottom = right_bottom.y;
-    vec2 zw = vec2(left_top.z, 1.0);
 
-    g_right_top = transform * vec4(right, top, zw);
-    g_left_bottom = transform * vec4(left, bottom, zw);
-    g_right_bottom = transform * vec4(right, bottom, zw);
-    gl_Position = transform * vec4(left, top, zw);
+    switch (gl_VertexID) {
+        case 0:
+            pos = vec2(left, top);
+            f_tex_pos = tex_left_top;
+            break;
+        case 1:
+            pos = vec2(right, top);
+            f_tex_pos = tex_right_top;
+            break;
+        case 2:
+            pos = vec2(left, bottom);
+            f_tex_pos = tex_left_bottom;
+            break;
+        case 3:
+            pos = vec2(right, bottom);
+            f_tex_pos = tex_right_bottom;
+            break;
+    }
+
+    f_color = color;
+    gl_Position = transform * vec4(pos, left_top.z, 1.0);
 }

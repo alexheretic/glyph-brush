@@ -214,7 +214,9 @@ pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>> {
     ),
     texture_filter_method: texture::FilterMethod,
     factory: F,
+    program: gfx::handle::Program<R>,
     draw_cache: Option<DrawnGlyphBrush<R>>,
+    slice: gfx::Slice<R>,
 
     // cache of section-layout hash -> computed glyphs, this avoid repeated glyph computation
     // for identical layout/sections common to repeated frame rendering
@@ -555,10 +557,9 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
             #[cfg(feature = "performance_stats")]
             self.perf.vertex_generation_done();
 
-            let (vbuf, slice) = self.factory.create_vertex_buffer_with_slice(&verts, ());
+            let vbuf = self.factory.create_vertex_buffer(&verts);
 
-            let draw_cache = if self.draw_cache.is_some() {
-                let mut cache = self.draw_cache.take().unwrap();
+            let draw_cache = if let Some(mut cache) = self.draw_cache.take() {
                 cache.pipe_data.vbuf = vbuf;
                 cache.pipe_data.out = target.raw().clone();
                 cache.pipe_data.out_depth = depth_target.raw().clone();
@@ -568,7 +569,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                         self.pso_using(T::get_format(), D::get_format()),
                     );
                 }
-                cache.slice = slice;
+                cache.slice.instances.as_mut().unwrap().0 = verts.len() as _;
                 cache.last_text_state = current_text_state;
                 if cache.texture_updated {
                     cache.pipe_data.font_tex.0 = self.font_cache_tex.1.clone();
@@ -595,7 +596,10 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                         T::get_format(),
                         self.pso_using(T::get_format(), D::get_format()),
                     ),
-                    slice,
+                    slice: gfx::Slice {
+                        instances: Some((verts.len() as _, 0)),
+                        .. self.slice.clone()
+                    },
                     last_text_state: 0,
                     texture_updated: false,
                 }
@@ -658,18 +662,10 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         color_format: gfx::format::Format,
         depth_format: gfx::format::Format,
     ) -> gfx::PipelineState<R, glyph_pipe::Meta> {
-        let set = self.factory
-            .create_shader_set_geometry(
-                include_bytes!("shader/vert.glsl"),
-                include_bytes!("shader/geo.glsl"),
-                include_bytes!("shader/frag.glsl"),
-            )
-            .unwrap();
-
         self.factory
-            .create_pipeline_state(
-                &set,
-                gfx::Primitive::PointList,
+            .create_pipeline_from_program(
+                &self.program,
+                gfx::Primitive::TriangleStrip,
                 gfx::state::Rasterizer::new_fill(),
                 glyph_pipe::Init::new(color_format, depth_format, self.depth_test),
             )
