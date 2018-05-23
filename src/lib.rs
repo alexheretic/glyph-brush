@@ -598,7 +598,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                     ),
                     slice: gfx::Slice {
                         instances: Some((verts.len() as _, 0)),
-                        .. self.slice.clone()
+                        ..self.slice.clone()
                     },
                     last_text_state: 0,
                     texture_updated: false,

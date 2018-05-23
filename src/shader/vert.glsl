@@ -26,11 +26,11 @@ void main() {
             break;
         case 1:
             pos = vec2(right, top);
-            f_tex_pos = tex_right_top;
+            f_tex_pos = vec2(tex_right_bottom.x, tex_left_top.y);
             break;
         case 2:
             pos = vec2(left, bottom);
-            f_tex_pos = tex_left_bottom;
+            f_tex_pos = vec2(tex_left_top.x, tex_right_bottom.y);
             break;
         case 3:
             pos = vec2(right, bottom);
