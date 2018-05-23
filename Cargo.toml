@@ -11,7 +11,7 @@ readme="README.md"
 
 [dependencies]
 log = "0.4"
-rusttype = { version = "0.5.2", features = ["gpu_cache"] }
+rusttype = { version = "0.6", features = ["gpu_cache"] }
 gfx = "0.17"
 gfx_core = "0.8"
 unicode-normalization = "0.1"
@@ -22,7 +22,7 @@ twox-hash = "1"
 
 [dev-dependencies]
 env_logger = "0.5"
-approx = "0.1"
+approx = "0.2"
 gfx_device_gl = "0.15"
 gfx_window_glutin = "0.23"
 glutin = "0.15"
