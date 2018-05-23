@@ -515,7 +515,7 @@ fn headless_gl_init() -> (
         gfx_device_gl::create(|s| context.get_proc_address(s) as *const std::os::raw::c_void);
 
     let (color_view, ds_view) = gfx_device_gl::create_main_targets_raw(
-        (400, 300, 1, gfx::texture::AaMode::Single),
+        (width as _, height as _, 1, gfx::texture::AaMode::Single),
         format::Srgba8::get_format().0,
         format::Depth::get_format().0,
     );
