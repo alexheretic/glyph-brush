@@ -229,13 +229,6 @@ impl<'a> GlyphBrushBuilder<'a> {
             factory,
             program,
             draw_cache: None,
-            slice: gfx::Slice {
-                start: 0,
-                end: 4,
-                buffer: gfx::IndexBuffer::Auto,
-                base_vertex: 0,
-                instances: None,
-            },
             section_buffer: Vec::new(),
             calculate_glyph_cache: HashMap::new(),
             keep_in_cache: HashSet::new(),

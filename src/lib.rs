@@ -216,7 +216,6 @@ pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>> {
     factory: F,
     program: gfx::handle::Program<R>,
     draw_cache: Option<DrawnGlyphBrush<R>>,
-    slice: gfx::Slice<R>,
 
     // cache of section-layout hash -> computed glyphs, this avoid repeated glyph computation
     // for identical layout/sections common to repeated frame rendering
@@ -598,7 +597,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                     ),
                     slice: gfx::Slice {
                         instances: Some((verts.len() as _, 0)),
-                        ..self.slice.clone()
+                        ..Self::empty_slice()
                     },
                     last_text_state: 0,
                     texture_updated: false,
@@ -670,6 +669,16 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
                 glyph_pipe::Init::new(color_format, depth_format, self.depth_test),
             )
             .unwrap()
+    }
+
+    fn empty_slice() -> gfx::Slice<R> {
+        gfx::Slice {
+            start: 0,
+            end: 4,
+            buffer: gfx::IndexBuffer::Auto,
+            base_vertex: 0,
+            instances: None,
+        }
     }
 
     /// Adds an additional font to the one(s) initially added on build.
