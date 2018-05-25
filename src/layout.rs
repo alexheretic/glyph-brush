@@ -474,7 +474,7 @@ fn single_line<'font, 'a, L: LineBreaker>(
     let mut ascent_adjustment = None;
 
     macro_rules! shift_previous_ascent_by {
-        ($ascent_adjustment: expr) => {
+        ($ascent_adjustment:expr) => {
             if let Some(adjustment) = $ascent_adjustment.take() {
                 // adjust all preview glyphs down to the new max ascent
                 for part in &mut result {
@@ -810,10 +810,10 @@ fn remaining_norm_char_indices() {
 #[cfg(test)]
 mod layout_test {
     use super::*;
-    use BuiltInLineBreaker::*;
     use ordered_float::OrderedFloat;
     use std::collections::*;
     use std::f32;
+    use BuiltInLineBreaker::*;
 
     lazy_static! {
         static ref A_FONT: Font<'static> =
@@ -824,7 +824,7 @@ mod layout_test {
     /// Checks the order of glyphs in the first arg iterable matches the
     /// second arg string characters
     macro_rules! assert_glyph_order {
-        ($glyphs: expr, $string: expr) => {{
+        ($glyphs:expr, $string:expr) => {{
             let expected_len = $string.nfc().count();
             assert_eq!($glyphs.len(), expected_len, "Unexpected number of glyphs");
             let mut glyphs = $glyphs.iter();
@@ -840,7 +840,7 @@ mod layout_test {
     }
 
     macro_rules! merged_glyphs_and_leftover {
-        ($layout: expr, $section: expr) => {{
+        ($layout:expr, $section:expr) => {{
             let _ = ::env_logger::try_init();
 
             let mut font_map = HashMap::new();

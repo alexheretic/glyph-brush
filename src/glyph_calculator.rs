@@ -315,7 +315,8 @@ impl<'a> GlyphCalculatorBuilder<'a> {
 
     /// Builds a `GlyphCalculator`
     pub fn build(self) -> GlyphCalculator<'a> {
-        let fonts = self.font_data
+        let fonts = self
+            .font_data
             .into_iter()
             .enumerate()
             .map(|(idx, data)| (FontId(idx), data))

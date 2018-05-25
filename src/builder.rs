@@ -211,7 +211,8 @@ impl<'a> GlyphBrushBuilder<'a> {
             .unwrap();
 
         GlyphBrush {
-            fonts: self.font_data
+            fonts: self
+                .font_data
                 .into_iter()
                 .enumerate()
                 .map(|(idx, data)| (FontId(idx), data))

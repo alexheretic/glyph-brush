@@ -1,6 +1,6 @@
 use super::*;
-use gfx::*;
 use gfx::pso::*;
+use gfx::*;
 use gfx_core::pso;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

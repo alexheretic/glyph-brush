@@ -91,7 +91,7 @@ use gfx::{format, handle, texture};
 use gfx_core::memory::Typed;
 use pipe::*;
 use rusttype::gpu_cache::{Cache, CacheBuilder};
-use rusttype::{point, vector};
+use rusttype::point;
 use std::borrow::{Borrow, Cow};
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
@@ -438,7 +438,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
 
         let current_text_state = xxhash(&(&self.section_buffer, screen_width, screen_height));
 
-        if !self.cache_glyph_drawing || self.draw_cache.is_none()
+        if !self.cache_glyph_drawing
+            || self.draw_cache.is_none()
             || self.draw_cache.as_ref().unwrap().texture_updated
             || self.draw_cache.as_ref().unwrap().last_text_state != current_text_state
         {
@@ -517,7 +518,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
             self.perf.gpu_cache_done();
 
             let verts: Vec<GlyphVertex> = {
-                let sections: Vec<_> = self.section_buffer
+                let sections: Vec<_> = self
+                    .section_buffer
                     .iter()
                     .map(|hash| &self.calculate_glyph_cache[hash])
                     .collect();
@@ -766,27 +768,25 @@ fn text_vertices(
     z: f32,
     (screen_width, screen_height): (f32, f32),
 ) -> Vec<GlyphVertex> {
-    let origin = point(0.0, 0.0);
     // max 1 vertex per glyph
     let mut vertices = Vec::with_capacity(glyphs.len());
 
     let gl_bounds = Rect {
-        min: origin
-            + (vector(
-                bounds.min.x as f32 / screen_width - 0.5,
-                1.0 - bounds.min.y as f32 / screen_height - 0.5,
-            )) * 2.0,
-        max: origin
-            + (vector(
-                bounds.max.x as f32 / screen_width - 0.5,
-                1.0 - bounds.max.y as f32 / screen_height - 0.5,
-            )) * 2.0,
+        min: point(
+            2.0 * (bounds.min.x / screen_width - 0.5),
+            2.0 * (0.5 - bounds.min.y / screen_height),
+        ),
+        max: point(
+            2.0 * (bounds.max.x / screen_width - 0.5),
+            2.0 * (0.5 - bounds.max.y / screen_height),
+        ),
     };
 
     for g in glyphs {
         let rect = cache.rect_for(font_id.0, g);
         if let Ok(Some((mut uv_rect, screen_rect))) = rect {
-            if screen_rect.min.x as f32 > bounds.max.x || screen_rect.min.y as f32 > bounds.max.y
+            if screen_rect.min.x as f32 > bounds.max.x
+                || screen_rect.min.y as f32 > bounds.max.y
                 || bounds.min.x > screen_rect.max.x as f32
                 || bounds.min.y > screen_rect.max.y as f32
             {
@@ -795,16 +795,14 @@ fn text_vertices(
             }
 
             let mut gl_rect = Rect {
-                min: origin
-                    + (vector(
-                        screen_rect.min.x as f32 / screen_width - 0.5,
-                        1.0 - screen_rect.min.y as f32 / screen_height - 0.5,
-                    )) * 2.0,
-                max: origin
-                    + (vector(
-                        screen_rect.max.x as f32 / screen_width - 0.5,
-                        1.0 - screen_rect.max.y as f32 / screen_height - 0.5,
-                    )) * 2.0,
+                min: point(
+                    2.0 * (screen_rect.min.x as f32 / screen_width - 0.5),
+                    2.0 * (0.5 - screen_rect.min.y as f32 / screen_height),
+                ),
+                max: point(
+                    2.0 * (screen_rect.max.x as f32 / screen_width - 0.5),
+                    2.0 * (0.5 - screen_rect.max.y as f32 / screen_height),
+                ),
             };
 
             // handle overlapping bounds, modify uv_rect to preserve texture aspect

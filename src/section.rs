@@ -1,5 +1,5 @@
-use super::*;
 use super::owned_section::*;
+use super::*;
 use std::f32;
 
 /// An object that contains all the info to render a varied section of text. That is one including
@@ -239,14 +239,12 @@ impl<'a, 'b> From<&'b Section<'a>> for VariedSection<'a> {
         } = *s;
 
         VariedSection {
-            text: vec![
-                SectionText {
-                    text,
-                    scale,
-                    color,
-                    font_id,
-                },
-            ],
+            text: vec![SectionText {
+                text,
+                scale,
+                color,
+                font_id,
+            }],
             screen_position,
             bounds,
             z,
