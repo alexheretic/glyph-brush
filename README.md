@@ -3,7 +3,7 @@ gfx_glyph
 [![Documentation](https://docs.rs/gfx_glyph/badge.svg)](https://docs.rs/gfx_glyph)
 ================
 
-Fast GPU cached text rendering using [gfx-rs](https://github.com/gfx-rs/gfx) & [rusttype](https://github.com/dylanede/rusttype).
+Fast GPU cached text rendering using [gfx-rs](https://github.com/gfx-rs/gfx/tree/pre-ll) & [rusttype](https://github.com/dylanede/rusttype).
 
 Makes use of three kinds of caching to optimise frame performance.
 
