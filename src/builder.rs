@@ -19,8 +19,7 @@ use super::*;
 /// #         &events_loop);
 ///
 /// let dejavu: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
-/// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu)
-///     .build(gfx_factory.clone());
+/// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build(gfx_factory.clone());
 /// # let _ = glyph_brush;
 /// # }
 /// ```

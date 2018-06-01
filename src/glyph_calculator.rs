@@ -72,7 +72,7 @@ pub trait GlyphCruncher<'font> {
 /// # extern crate gfx_window_glutin;
 /// # extern crate glutin;
 /// extern crate gfx_glyph;
-/// use gfx_glyph::{GlyphCruncher, GlyphCalculatorBuilder, Section};
+/// use gfx_glyph::{GlyphCalculatorBuilder, GlyphCruncher, Section};
 /// # fn main() {
 ///
 /// let dejavu: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");

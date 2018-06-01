@@ -44,8 +44,9 @@ fn main() {
             &events_loop,
         );
 
-    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(include_bytes!("DejaVuSans.ttf") as &[u8])
-        .initial_cache_size((2048, 2048))
+    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(
+        include_bytes!("DejaVuSans.ttf") as &[u8]
+    ).initial_cache_size((2048, 2048))
         .gpu_cache_position_tolerance(1.0)
         .build(factory.clone());
 

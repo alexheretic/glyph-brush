@@ -11,7 +11,7 @@ use std::f32;
 /// # Example
 ///
 /// ```
-/// use gfx_glyph::{VariedSection, SectionText};
+/// use gfx_glyph::{SectionText, VariedSection};
 ///
 /// let section = VariedSection {
 ///     text: vec![

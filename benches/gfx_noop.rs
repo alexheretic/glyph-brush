@@ -1,7 +1,7 @@
 extern crate gfx_core;
 
-use gfx_core::{IndexType, Resources, VertexCount};
 use gfx_core::{command, pso, shade, state, target, texture};
+use gfx_core::{IndexType, Resources, VertexCount};
 
 pub struct NoopCommandBuffer;
 impl<R: Resources> command::Buffer<R> for NoopCommandBuffer {

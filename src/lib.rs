@@ -15,7 +15,7 @@
 //! # extern crate gfx_window_glutin;
 //! # extern crate glutin;
 //! extern crate gfx_glyph;
-//! use gfx_glyph::{Section, GlyphBrushBuilder};
+//! use gfx_glyph::{GlyphBrushBuilder, Section};
 //! # fn main() {
 //! # let events_loop = glutin::EventsLoop::new();
 //! # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
@@ -26,8 +26,7 @@
 //! # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
 //!
 //! let dejavu: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
-//! let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu)
-//!     .build(gfx_factory.clone());
+//! let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build(gfx_factory.clone());
 //!
 //! # let some_other_section = Section { text: "another", ..Section::default() };
 //! let section = Section {
@@ -694,7 +693,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     /// # extern crate gfx_window_glutin;
     /// # extern crate glutin;
     /// extern crate gfx_glyph;
-    /// use gfx_glyph::{Section, GlyphBrushBuilder};
+    /// use gfx_glyph::{GlyphBrushBuilder, Section};
     /// # fn main() {
     /// # let events_loop = glutin::EventsLoop::new();
     /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
@@ -706,8 +705,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     ///
     /// // dejavu is built as default `FontId(0)`
     /// let dejavu: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
-    /// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu)
-    ///     .build(gfx_factory.clone());
+    /// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build(gfx_factory.clone());
     ///
     /// // some time later, add another font referenced by a new `FontId`
     /// let open_sans_italic: &[u8] = include_bytes!("../examples/OpenSans-Italic.ttf");
