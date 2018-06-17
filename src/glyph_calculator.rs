@@ -106,11 +106,11 @@ pub trait GlyphCruncher<'font> {
 /// is over, similar to when a `GlyphBrush` is draws. Any cached sections from previous 'frames'
 /// are invalidated.
 pub struct GlyphCalculator<'font> {
-    fonts: HashMap<FontId, rusttype::Font<'font>>,
+    fonts: FxHashMap<FontId, rusttype::Font<'font>>,
 
     // cache of section-layout hash -> computed glyphs, this avoid repeated glyph computation
     // for identical layout/sections common to repeated frame rendering
-    calculate_glyph_cache: Mutex<HashMap<u64, GlyphedSection<'font>>>,
+    calculate_glyph_cache: Mutex<FxHashMap<u64, GlyphedSection<'font>>>,
 }
 
 impl<'font> fmt::Debug for GlyphCalculator<'font> {
@@ -124,15 +124,15 @@ impl<'font> GlyphCalculator<'font> {
         GlyphCalculatorGuard {
             fonts: &self.fonts,
             glyph_cache: self.calculate_glyph_cache.lock().unwrap(),
-            cached: HashSet::new(),
+            cached: HashSet::default(),
         }
     }
 }
 
 /// [`GlyphCalculator`](struct.GlyphCalculator.html) scoped cache lock.
 pub struct GlyphCalculatorGuard<'brush, 'font: 'brush> {
-    fonts: &'brush HashMap<FontId, rusttype::Font<'font>>,
-    glyph_cache: MutexGuard<'brush, HashMap<u64, GlyphedSection<'font>>>,
+    fonts: &'brush FxHashMap<FontId, rusttype::Font<'font>>,
+    glyph_cache: MutexGuard<'brush, FxHashMap<u64, GlyphedSection<'font>>>,
     cached: HashSet<u64>,
 }
 
@@ -324,7 +324,7 @@ impl<'a> GlyphCalculatorBuilder<'a> {
 
         GlyphCalculator {
             fonts,
-            calculate_glyph_cache: Mutex::new(HashMap::new()),
+            calculate_glyph_cache: Mutex::new(HashMap::default()),
         }
     }
 }

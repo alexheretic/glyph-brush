@@ -1,3 +1,4 @@
+use std::hash::BuildHasher;
 use super::*;
 use std::iter::{Enumerate, Skip};
 use std::slice::Iter;
@@ -148,9 +149,9 @@ pub trait GlyphPositioner: Hash {
     /// Calculate a sequence of positioned glyphs to render. Custom implementations should always
     /// return the same result when called with the same arguments. If not consider disabling
     /// [`cache_glyph_positioning`](struct.GlyphBrushBuilder.html#method.cache_glyph_positioning).
-    fn calculate_glyphs<'a, 'font, G>(
+    fn calculate_glyphs<'a, 'font, G, H: BuildHasher>(
         &self,
-        font: &HashMap<FontId, Font<'font>>,
+        &HashMap<FontId, Font<'font>, H>,
         section: G,
     ) -> Vec<GlyphedSectionText<'font>>
     where
@@ -272,9 +273,9 @@ impl<L: LineBreaker> Layout<L> {
 }
 
 impl<L: LineBreaker> GlyphPositioner for Layout<L> {
-    fn calculate_glyphs<'font, 'a, G: Into<SectionGlyphInfo<'a>>>(
+    fn calculate_glyphs<'font, 'a, G: Into<SectionGlyphInfo<'a>>, H: BuildHasher>(
         &self,
-        font_map: &HashMap<FontId, Font<'font>>,
+        font_map: &HashMap<FontId, Font<'font>, H>,
         section: G,
     ) -> Vec<GlyphedSectionText<'font>> {
         self.calculate_glyphs_and_leftover(font_map, &section.into())
@@ -395,9 +396,9 @@ pub enum LayoutLeftover<'a> {
 }
 
 impl<L: LineBreaker> Layout<L> {
-    pub fn calculate_glyphs_and_leftover<'a, 'font>(
+    pub fn calculate_glyphs_and_leftover<'a, 'font, H: BuildHasher>(
         &self,
-        font_map: &HashMap<FontId, Font<'font>>,
+        font_map: &HashMap<FontId, Font<'font>, H>,
         section: &SectionGlyphInfo<'a>,
     ) -> (Vec<GlyphedSectionText<'font>>, Option<LayoutLeftover<'a>>) {
         match *self {
@@ -445,8 +446,8 @@ impl<B: LineBreaker> HasEolLineBreak<B> for char {
 ///
 /// TODO this is the guts of the layout code, it should be split up more as it's fairly unweildy now
 #[allow(cyclomatic_complexity)]
-fn single_line<'font, 'a, L: LineBreaker>(
-    font_map: &HashMap<FontId, Font<'font>>,
+fn single_line<'font, 'a, L: LineBreaker, H: BuildHasher>(
+    font_map: &HashMap<FontId, Font<'font>, H>,
     line_breaker: L,
     h_align: HorizontalAlign,
     v_align: VerticalAlign,
@@ -733,8 +734,8 @@ fn adjust_for_alignment(
     }
 }
 
-fn paragraph<'a, 'font, L: LineBreaker>(
-    font_map: &HashMap<FontId, Font<'font>>,
+fn paragraph<'a, 'font, L: LineBreaker, H: BuildHasher>(
+    font_map: &HashMap<FontId, Font<'font>, H>,
     line_breaker: L,
     h_align: HorizontalAlign,
     v_align: VerticalAlign,

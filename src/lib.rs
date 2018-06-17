@@ -65,6 +65,7 @@ extern crate rusttype;
 extern crate twox_hash;
 extern crate unicode_normalization;
 extern crate xi_unicode;
+extern crate rustc_hash;
 
 mod builder;
 mod layout;
@@ -98,6 +99,7 @@ use std::error::Error;
 use std::hash::{Hash, Hasher};
 use std::i32;
 use std::{fmt, iter, slice};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 /// Aliased type to allow lib usage without declaring underlying **rusttype** lib
 pub type Font<'a> = rusttype::Font<'a>;
@@ -205,7 +207,7 @@ fn xxhash<H: Hash>(hashable: &H) -> u64 {
 /// [`GlyphBrush::draw_queued`](#method.draw_queued) call when that section has not been used since
 /// the previous draw call.
 pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>> {
-    fonts: HashMap<FontId, rusttype::Font<'font>>,
+    fonts: FxHashMap<FontId, rusttype::Font<'font>>,
     font_cache: Cache<'font>,
     font_cache_tex: (
         gfx::handle::Texture<R, TexSurface>,
@@ -218,14 +220,14 @@ pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>> {
 
     // cache of section-layout hash -> computed glyphs, this avoid repeated glyph computation
     // for identical layout/sections common to repeated frame rendering
-    calculate_glyph_cache: HashMap<u64, GlyphedSection<'font>>,
+    calculate_glyph_cache: FxHashMap<u64, GlyphedSection<'font>>,
 
     // buffer of section-layout hashs (that must exist in the calculate_glyph_cache)
     // to be rendered on the next `draw_queued` call
     section_buffer: Vec<u64>,
 
     // Set of section hashs to keep in the glyph cache this frame even if they haven't been drawn
-    keep_in_cache: HashSet<u64>,
+    keep_in_cache: FxHashSet<u64>,
 
     // config
     gpu_cache_scale_tolerance: f32,
@@ -631,7 +633,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
     }
 
     /// Returns `FontId` -> `Font` map of available fonts.
-    pub fn fonts(&self) -> &HashMap<FontId, Font<'font>> {
+    pub fn fonts(&self) -> &FxHashMap<FontId, Font<'font>> {
         &self.fonts
     }
 

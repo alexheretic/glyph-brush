@@ -230,8 +230,8 @@ impl<'a> GlyphBrushBuilder<'a> {
             program,
             draw_cache: None,
             section_buffer: Vec::new(),
-            calculate_glyph_cache: HashMap::new(),
-            keep_in_cache: HashSet::new(),
+            calculate_glyph_cache: HashMap::default(),
+            keep_in_cache: HashSet::default(),
 
             gpu_cache_scale_tolerance: self.gpu_cache_scale_tolerance,
             gpu_cache_position_tolerance: self.gpu_cache_position_tolerance,
