@@ -101,10 +101,10 @@ pub trait GlyphCruncher<'font> {
 /// cheaper.
 ///
 /// Unlike a [`GlyphBrush`](struct.GlyphBrush.html) there is no concept of actually drawing
-/// the section to imply a section is no longer used. Instead a `GlyphCalculatorGuard`
+/// the section to imply when a section is used / no longer used. Instead a `GlyphCalculatorGuard`
 /// is created, that provides the calculation functionality. Dropping indicates the 'cache frame'
-/// is over, similar to when a `GlyphBrush` is draws. Any cached sections from previous 'frames'
-/// are invalidated.
+/// is over, similar to when a `GlyphBrush` draws. Section calculations are cached for the next
+/// 'cache frame', if not used then they will be dropped.
 pub struct GlyphCalculator<'font> {
     fonts: FxHashMap<FontId, rusttype::Font<'font>>,
 
