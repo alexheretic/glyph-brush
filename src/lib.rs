@@ -86,6 +86,10 @@ pub use glyph_calculator::*;
 pub use layout::*;
 pub use linebreak::*;
 pub use owned_section::*;
+pub use rusttype::{
+    Font, Glyph, GlyphId, HMetrics, Point, PositionedGlyph, Rect, Scale, ScaledGlyph, SharedBytes,
+    VMetrics,
+};
 pub use section::*;
 use std::hash::BuildHasher;
 use std::hash::BuildHasherDefault;
@@ -105,29 +109,6 @@ use std::hash::{Hash, Hasher};
 use std::i32;
 use std::{fmt, iter, slice};
 
-/// Aliased type to allow lib usage without declaring underlying **rusttype** lib
-pub type Font<'a> = rusttype::Font<'a>;
-/// Aliased type to allow lib usage without declaring underlying **rusttype** lib
-pub type Scale = rusttype::Scale;
-/// Aliased type to allow lib usage without declaring underlying **rusttype** lib
-pub type Rect<T> = rusttype::Rect<T>;
-/// Aliased type to allow lib usage without declaring underlying **rusttype** lib
-pub type Point<T> = rusttype::Point<T>;
-/// Aliased type to allow lib usage without declaring underlying **rusttype** lib
-pub type PositionedGlyph<'font> = rusttype::PositionedGlyph<'font>;
-/// Aliased type to allow lib usage without declaring underlying **rusttype** lib
-pub type ScaledGlyph<'font> = rusttype::ScaledGlyph<'font>;
-/// Aliased type to allow lib usage without declaring underlying **rusttype** lib
-pub type Glyph<'font> = rusttype::Glyph<'font>;
-/// Aliased type to allow lib usage without declaring underlying **rusttype** lib
-pub type SharedBytes<'a> = rusttype::SharedBytes<'a>;
-/// Aliased type to allow lib usage without declaring underlying **rusttype** lib
-pub type HMetrics = rusttype::HMetrics;
-/// Aliased type to allow lib usage without declaring underlying **rusttype** lib
-pub type VMetrics = rusttype::VMetrics;
-/// Aliased type to allow lib usage without declaring underlying **rusttype** lib
-pub type GlyphId = rusttype::GlyphId;
-
 /// An iterator over `PositionedGlyph`s from the `GlyphBrush`
 pub type PositionedGlyphIter<'a, 'font> = iter::FlatMap<
     slice::Iter<'a, GlyphedSectionText<'font>>,
@@ -138,7 +119,7 @@ pub type PositionedGlyphIter<'a, 'font> = iter::FlatMap<
 pub(crate) type Color = [f32; 4];
 
 /// A hash of `Section` data
-pub(crate) type SectionHash = u64;
+type SectionHash = u64;
 
 // Type for the generated glyph cache texture
 type TexForm = format::U8Norm;
@@ -761,16 +742,6 @@ struct GlyphedSection<'font> {
 
 #[derive(Clone)]
 pub struct GlyphedSectionText<'font>(pub Vec<PositionedGlyph<'font>>, pub Color, pub FontId);
-
-/// Returns a Font from font bytes info or an error reason.
-#[deprecated(since = "0.10.0", note = "please use `Font::from_bytes` instead")]
-pub fn font<'a, B: Into<SharedBytes<'a>>>(font_bytes: B) -> Result<Font<'a>, &'static str> {
-    let font_bytes = font_bytes.into();
-    if font_bytes.is_empty() {
-        return Err("Empty font data");
-    }
-    Font::from_bytes(font_bytes).map_err(|_| "Font not supported by rusttype")
-}
 
 #[inline]
 fn text_vertices(
