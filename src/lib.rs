@@ -37,7 +37,9 @@
 //! glyph_brush.queue(section);
 //! glyph_brush.queue(some_other_section);
 //!
-//! glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth).unwrap();
+//! glyph_brush
+//!     .draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth)
+//!     .unwrap();
 //! # }
 //! ```
 #![allow(unknown_lints)]
@@ -61,11 +63,11 @@ extern crate gfx_core;
 #[macro_use]
 extern crate log;
 extern crate ordered_float;
+extern crate rustc_hash;
 extern crate rusttype;
-extern crate twox_hash;
+extern crate seahash;
 extern crate unicode_normalization;
 extern crate xi_unicode;
-extern crate rustc_hash;
 
 mod builder;
 mod layout;
@@ -85,11 +87,14 @@ pub use layout::*;
 pub use linebreak::*;
 pub use owned_section::*;
 pub use section::*;
+use std::hash::BuildHasher;
+use std::hash::BuildHasherDefault;
 
 use gfx::traits::FactoryExt;
 use gfx::{format, handle, texture};
 use gfx_core::memory::Typed;
 use pipe::*;
+use rustc_hash::{FxHashMap, FxHashSet};
 use rusttype::gpu_cache::{Cache, CacheBuilder};
 use rusttype::point;
 use std::borrow::{Borrow, Cow};
@@ -99,7 +104,6 @@ use std::error::Error;
 use std::hash::{Hash, Hasher};
 use std::i32;
 use std::{fmt, iter, slice};
-use rustc_hash::{FxHashMap, FxHashSet};
 
 /// Aliased type to allow lib usage without declaring underlying **rusttype** lib
 pub type Font<'a> = rusttype::Font<'a>;
@@ -133,6 +137,9 @@ pub type PositionedGlyphIter<'a, 'font> = iter::FlatMap<
 
 pub(crate) type Color = [f32; 4];
 
+/// A hash of `Section` data
+pub(crate) type SectionHash = u64;
+
 // Type for the generated glyph cache texture
 type TexForm = format::U8Norm;
 type TexSurface = <TexForm as format::Formatted>::Surface;
@@ -148,11 +155,8 @@ const IDENTITY_MATRIX4: [[f32; 4]; 4] = [
     [0.0, 0.0, 0.0, 1.0],
 ];
 
-fn xxhash<H: Hash>(hashable: &H) -> u64 {
-    let mut s = twox_hash::XxHash::default();
-    hashable.hash(&mut s);
-    s.finish()
-}
+/// A "practically collision free" `Section` hasher
+type DefaultSectionHasher = BuildHasherDefault<seahash::SeaHasher>;
 
 /// Object allowing glyph drawing, containing cache state. Manages glyph positioning cacheing,
 /// glyph draw caching & efficient GPU texture cache updating and re-sizing on demand.
@@ -190,7 +194,9 @@ fn xxhash<H: Hash>(hashable: &H) -> u64 {
 /// glyph_brush.queue(section);
 /// glyph_brush.queue(some_other_section);
 ///
-/// glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth).unwrap();
+/// glyph_brush
+///     .draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth)
+///     .unwrap();
 /// # }
 /// ```
 ///
@@ -206,7 +212,7 @@ fn xxhash<H: Hash>(hashable: &H) -> u64 {
 /// The cache for a section will be **cleared** after a
 /// [`GlyphBrush::draw_queued`](#method.draw_queued) call when that section has not been used since
 /// the previous draw call.
-pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>> {
+pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>, H = DefaultSectionHasher> {
     fonts: FxHashMap<FontId, rusttype::Font<'font>>,
     font_cache: Cache<'font>,
     font_cache_tex: (
@@ -220,14 +226,15 @@ pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>> {
 
     // cache of section-layout hash -> computed glyphs, this avoid repeated glyph computation
     // for identical layout/sections common to repeated frame rendering
-    calculate_glyph_cache: FxHashMap<u64, GlyphedSection<'font>>,
+    calculate_glyph_cache: FxHashMap<SectionHash, GlyphedSection<'font>>,
+    // calculate_glyph_cache2: FxHashMap<(), GlyphedSection<'font>>,
 
     // buffer of section-layout hashs (that must exist in the calculate_glyph_cache)
     // to be rendered on the next `draw_queued` call
-    section_buffer: Vec<u64>,
+    section_buffer: Vec<SectionHash>,
 
     // Set of section hashs to keep in the glyph cache this frame even if they haven't been drawn
-    keep_in_cache: FxHashSet<u64>,
+    keep_in_cache: FxHashSet<SectionHash>,
 
     // config
     gpu_cache_scale_tolerance: f32,
@@ -236,19 +243,20 @@ pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>> {
     cache_glyph_drawing: bool,
 
     depth_test: gfx::state::Depth,
+    section_hasher: H,
 
     #[cfg(feature = "performance_stats")]
     perf: performance_stats::PerformanceStats,
 }
 
-impl<'font, R: gfx::Resources, F: gfx::Factory<R>> fmt::Debug for GlyphBrush<'font, R, F> {
+impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H> fmt::Debug for GlyphBrush<'font, R, F, H> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "GlyphBrush")
     }
 }
 
-impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphCruncher<'font>
-    for GlyphBrush<'font, R, F>
+impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphCruncher<'font>
+    for GlyphBrush<'font, R, F, H>
 {
     fn pixel_bounds_custom_layout<'a, S, L>(
         &mut self,
@@ -320,7 +328,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphCruncher<'font>
     }
 }
 
-impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
+impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'font, R, F, H> {
     /// Queues a section/layout to be drawn by the next call of
     /// [`draw_queued`](struct.GlyphBrush.html#method.draw_queued). Can be called multiple times
     /// to queue multiple sections for drawing.
@@ -358,12 +366,18 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         self.queue_custom_layout(section, &layout)
     }
 
+    fn hash<T: Hash>(&self, hashable: &T) -> SectionHash {
+        let mut s = self.section_hasher.build_hasher();
+        hashable.hash(&mut s);
+        s.finish()
+    }
+
     /// Returns the calculate_glyph_cache key for this sections glyphs
-    fn cache_glyphs<L>(&mut self, section: &VariedSection, layout: &L) -> u64
+    fn cache_glyphs<L>(&mut self, section: &VariedSection, layout: &L) -> SectionHash
     where
         L: GlyphPositioner,
     {
-        let section_hash = xxhash(&(section, layout));
+        let section_hash = self.hash(&(section, layout));
 
         if self.cache_glyph_positioning {
             if let Entry::Vacant(entry) = self.calculate_glyph_cache.entry(section_hash) {
@@ -437,7 +451,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>> GlyphBrush<'font, R, F> {
         let (screen_width, screen_height, ..) = target.get_dimensions();
         let (screen_width, screen_height) = (u32::from(screen_width), u32::from(screen_height));
 
-        let current_text_state = xxhash(&(&self.section_buffer, screen_width, screen_height));
+        let current_text_state = self.hash(&(&self.section_buffer, screen_width, screen_height));
 
         if !self.cache_glyph_drawing
             || self.draw_cache.is_none()

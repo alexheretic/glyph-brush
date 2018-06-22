@@ -23,7 +23,7 @@ use super::*;
 /// # let _ = glyph_brush;
 /// # }
 /// ```
-pub struct GlyphBrushBuilder<'a> {
+pub struct GlyphBrushBuilder<'a, H = DefaultSectionHasher> {
     font_data: Vec<Font<'a>>,
     initial_cache_size: (u32, u32),
     gpu_cache_scale_tolerance: f32,
@@ -32,6 +32,7 @@ pub struct GlyphBrushBuilder<'a> {
     cache_glyph_drawing: bool,
     depth_test: gfx::state::Depth,
     texture_filter_method: texture::FilterMethod,
+    section_hasher: H,
 }
 
 impl<'a> GlyphBrushBuilder<'a> {
@@ -71,9 +72,12 @@ impl<'a> GlyphBrushBuilder<'a> {
             cache_glyph_drawing: true,
             depth_test: gfx::preset::depth::PASS_TEST,
             texture_filter_method: texture::FilterMethod::Bilinear,
+            section_hasher: DefaultSectionHasher::default(),
         }
     }
+}
 
+impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     /// Adds additional fonts to the one added in [`using_font`](#method.using_font) /
     /// [`using_font_bytes`](#method.using_font_bytes).
     /// Returns a [`FontId`](struct.FontId.html) to reference this font.
@@ -194,8 +198,44 @@ impl<'a> GlyphBrushBuilder<'a> {
         self
     }
 
+    /// Sets the section hasher. `GlyphBrush` cannot handle absolute section hash collisions
+    /// so use a good hash algorithm.
+    ///
+    /// This hasher is used to distinguish sections, rather than for hashmap internal use.
+    ///
+    /// Defaults to [seahash](https://docs.rs/seahash).
+    ///
+    /// # Example
+    /// ```no_run
+    /// # extern crate gfx;
+    /// # extern crate gfx_glyph;
+    /// # extern crate seahash;
+    /// # use gfx_glyph::GlyphBrushBuilder;
+    /// # fn main() {
+    /// # let some_font: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
+    /// # type SomeOtherBuildHasher = ::std::hash::BuildHasherDefault<seahash::SeaHasher>;
+    /// GlyphBrushBuilder::using_font_bytes(some_font)
+    ///     .section_hasher(SomeOtherBuildHasher::default())
+    ///     // ...
+    /// # ;
+    /// # }
+    /// ```
+    pub fn section_hasher<T: BuildHasher>(self, section_hasher: T) -> GlyphBrushBuilder<'a, T> {
+        GlyphBrushBuilder {
+            section_hasher,
+            font_data: self.font_data,
+            initial_cache_size: self.initial_cache_size,
+            gpu_cache_scale_tolerance: self.gpu_cache_scale_tolerance,
+            gpu_cache_position_tolerance: self.gpu_cache_position_tolerance,
+            cache_glyph_positioning: self.cache_glyph_positioning,
+            cache_glyph_drawing: self.cache_glyph_drawing,
+            depth_test: self.depth_test,
+            texture_filter_method: self.texture_filter_method,
+        }
+    }
+
     /// Builds a `GlyphBrush` using the input gfx factory
-    pub fn build<R, F>(self, mut factory: F) -> GlyphBrush<'a, R, F>
+    pub fn build<R, F>(self, mut factory: F) -> GlyphBrush<'a, R, F, H>
     where
         R: gfx::Resources,
         F: gfx::Factory<R>,
@@ -239,6 +279,8 @@ impl<'a> GlyphBrushBuilder<'a> {
             cache_glyph_drawing: self.cache_glyph_drawing && self.cache_glyph_positioning,
 
             depth_test: self.depth_test,
+
+            section_hasher: self.section_hasher,
 
             #[cfg(feature = "performance_stats")]
             perf: performance_stats::PerformanceStats::default(),

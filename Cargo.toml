@@ -18,7 +18,7 @@ unicode-normalization = "0.1"
 ordered-float = "0.5"
 xi-unicode = "0.1"
 backtrace = "0.3"
-twox-hash = "1"
+seahash = "3"
 rustc-hash = "1"
 
 [dev-dependencies]

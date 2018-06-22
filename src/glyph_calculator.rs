@@ -67,7 +67,7 @@ pub trait GlyphCruncher<'font> {
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```
 /// # extern crate gfx;
 /// # extern crate gfx_window_glutin;
 /// # extern crate glutin;
@@ -105,44 +105,53 @@ pub trait GlyphCruncher<'font> {
 /// is created, that provides the calculation functionality. Dropping indicates the 'cache frame'
 /// is over, similar to when a `GlyphBrush` draws. Section calculations are cached for the next
 /// 'cache frame', if not used then they will be dropped.
-pub struct GlyphCalculator<'font> {
+pub struct GlyphCalculator<'font, H = DefaultSectionHasher> {
     fonts: FxHashMap<FontId, rusttype::Font<'font>>,
 
     // cache of section-layout hash -> computed glyphs, this avoid repeated glyph computation
     // for identical layout/sections common to repeated frame rendering
     calculate_glyph_cache: Mutex<FxHashMap<u64, GlyphedSection<'font>>>,
+
+    section_hasher: H,
 }
 
-impl<'font> fmt::Debug for GlyphCalculator<'font> {
+impl<'font, H> fmt::Debug for GlyphCalculator<'font, H> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "GlyphCalculator")
     }
 }
 
-impl<'font> GlyphCalculator<'font> {
-    pub fn cache_scope<'a>(&'a self) -> GlyphCalculatorGuard<'a, 'font> {
+impl<'font, H: BuildHasher + Clone> GlyphCalculator<'font, H> {
+    pub fn cache_scope<'a>(&'a self) -> GlyphCalculatorGuard<'a, 'font, H> {
         GlyphCalculatorGuard {
             fonts: &self.fonts,
             glyph_cache: self.calculate_glyph_cache.lock().unwrap(),
             cached: HashSet::default(),
+            section_hasher: self.section_hasher.clone(),
         }
     }
 }
 
 /// [`GlyphCalculator`](struct.GlyphCalculator.html) scoped cache lock.
-pub struct GlyphCalculatorGuard<'brush, 'font: 'brush> {
+pub struct GlyphCalculatorGuard<'brush, 'font: 'brush, H = DefaultSectionHasher> {
     fonts: &'brush FxHashMap<FontId, rusttype::Font<'font>>,
     glyph_cache: MutexGuard<'brush, FxHashMap<u64, GlyphedSection<'font>>>,
-    cached: HashSet<u64>,
+    cached: FxHashSet<u64>,
+    section_hasher: H,
 }
 
-impl<'brush, 'font> GlyphCalculatorGuard<'brush, 'font> {
+impl<'brush, 'font, H: BuildHasher> GlyphCalculatorGuard<'brush, 'font, H> {
     /// Returns the calculate_glyph_cache key for this sections glyphs
     fn cache_glyphs<L>(&mut self, section: &VariedSection, layout: &L) -> u64
     where
         L: GlyphPositioner,
     {
-        let section_hash = xxhash(&(section, layout));
+        let section_hash = {
+            let mut hasher = self.section_hasher.build_hasher();
+            section.hash(&mut hasher);
+            layout.hash(&mut hasher);
+            hasher.finish()
+        };
 
         if let Entry::Vacant(entry) = self.glyph_cache.entry(section_hash) {
             entry.insert(GlyphedSection {
@@ -162,7 +171,7 @@ impl<'brush, 'font> fmt::Debug for GlyphCalculatorGuard<'brush, 'font> {
     }
 }
 
-impl<'brush, 'font> GlyphCruncher<'font> for GlyphCalculatorGuard<'brush, 'font> {
+impl<'brush, 'font, H: BuildHasher> GlyphCruncher<'font> for GlyphCalculatorGuard<'brush, 'font, H> {
     fn pixel_bounds_custom_layout<'a, S, L>(
         &mut self,
         section: S,
@@ -232,10 +241,9 @@ impl<'brush, 'font> GlyphCruncher<'font> for GlyphCalculatorGuard<'brush, 'font>
     }
 }
 
-impl<'a, 'b> Drop for GlyphCalculatorGuard<'a, 'b> {
+impl<'a, 'b, H> Drop for GlyphCalculatorGuard<'a, 'b, H> {
     fn drop(&mut self) {
-        let mut cached = HashSet::new();
-        mem::swap(&mut cached, &mut self.cached);
+        let cached = mem::replace(&mut self.cached, HashSet::default());
         self.glyph_cache.retain(|key, _| cached.contains(key));
     }
 }
@@ -257,8 +265,9 @@ impl<'a, 'b> Drop for GlyphCalculatorGuard<'a, 'b> {
 /// # let _ = glyphs;
 /// # }
 /// ```
-pub struct GlyphCalculatorBuilder<'a> {
+pub struct GlyphCalculatorBuilder<'a, H = DefaultSectionHasher> {
     font_data: Vec<Font<'a>>,
+    section_hasher: H,
 }
 
 impl<'a> GlyphCalculatorBuilder<'a> {
@@ -285,19 +294,21 @@ impl<'a> GlyphCalculatorBuilder<'a> {
     /// Specifies the default font used to render glyphs.
     /// Referenced with `FontId(0)`, which is default.
     pub fn using_font(font_0_data: Font<'a>) -> Self {
-        Self {
-            font_data: vec![font_0_data],
-        }
+        Self::using_fonts(vec![font_0_data])
     }
 
     pub fn using_fonts<V: Into<Vec<Font<'a>>>>(fonts: V) -> Self {
         Self {
             font_data: fonts.into(),
+            section_hasher: DefaultSectionHasher::default(),
         }
     }
+}
 
+impl<'a, H: BuildHasher> GlyphCalculatorBuilder<'a, H> {
     /// Adds additional fonts to the one added in [`using_font`](#method.using_font) /
     /// [`using_font_bytes`](#method.using_font_bytes).
+    ///
     /// Returns a [`FontId`](struct.FontId.html) to reference this font.
     pub fn add_font_bytes<B: Into<SharedBytes<'a>>>(&mut self, font_data: B) -> FontId {
         self.font_data
@@ -307,14 +318,31 @@ impl<'a> GlyphCalculatorBuilder<'a> {
 
     /// Adds additional fonts to the one added in [`using_font`](#method.using_font) /
     /// [`using_font_bytes`](#method.using_font_bytes).
+    ///
     /// Returns a [`FontId`](struct.FontId.html) to reference this font.
     pub fn add_font(&mut self, font_data: Font<'a>) -> FontId {
         self.font_data.push(font_data);
         FontId(self.font_data.len() - 1)
     }
 
+    /// Sets the section hasher. `GlyphCalculator` cannot handle absolute section hash collisions
+    /// so use a good hash algorithm.
+    ///
+    /// This hasher is used to distinguish sections, rather than for hashmap internal use.
+    ///
+    /// Defaults to [seahash](https://docs.rs/seahash).
+    pub fn section_hasher<T: BuildHasher>(
+        self,
+        section_hasher: T,
+    ) -> GlyphCalculatorBuilder<'a, T> {
+        GlyphCalculatorBuilder {
+            font_data: self.font_data,
+            section_hasher,
+        }
+    }
+
     /// Builds a `GlyphCalculator`
-    pub fn build(self) -> GlyphCalculator<'a> {
+    pub fn build(self) -> GlyphCalculator<'a, H> {
         let fonts = self
             .font_data
             .into_iter()
@@ -325,6 +353,7 @@ impl<'a> GlyphCalculatorBuilder<'a> {
         GlyphCalculator {
             fonts,
             calculate_glyph_cache: Mutex::new(HashMap::default()),
+            section_hasher: self.section_hasher,
         }
     }
 }
