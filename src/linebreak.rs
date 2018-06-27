@@ -42,6 +42,7 @@ pub enum BuiltInLineBreaker {
 }
 
 impl Default for BuiltInLineBreaker {
+    #[inline]
     fn default() -> Self {
         BuiltInLineBreaker::UnicodeLineBreaker
     }
@@ -57,6 +58,7 @@ struct AnyCharLineBreakerIter<'a> {
 impl<'a> Iterator for AnyCharLineBreakerIter<'a> {
     type Item = LineBreak;
 
+    #[inline]
     fn next(&mut self) -> Option<LineBreak> {
         let (b_index, _) = self.chars.next()?;
         while self.current_break.is_some() {
@@ -79,6 +81,7 @@ impl<'a> Iterator for AnyCharLineBreakerIter<'a> {
 impl<'a> FusedIterator for AnyCharLineBreakerIter<'a> {}
 
 impl LineBreaker for BuiltInLineBreaker {
+    #[inline]
     fn line_breaks<'a>(&self, text: &'a str) -> Box<Iterator<Item = LineBreak> + 'a> {
         match *self {
             BuiltInLineBreaker::UnicodeLineBreaker => Box::new(
@@ -111,6 +114,7 @@ impl LineBreaker for BuiltInLineBreaker {
 pub(crate) trait EolLineBreak<B: LineBreaker> {
     fn eol_line_break(&self, line_breaker: &B) -> Option<LineBreak>;
 
+    #[inline]
     fn is_eol_hard_break(&self, line_breaker: &B) -> bool {
         if let Some(LineBreak::Hard(..)) = self.eol_line_break(line_breaker) {
             return true;
@@ -118,6 +122,7 @@ pub(crate) trait EolLineBreak<B: LineBreaker> {
         false
     }
 
+    #[inline]
     fn is_eol_soft_break(&self, line_breaker: &B) -> bool {
         if let Some(LineBreak::Soft(..)) = self.eol_line_break(line_breaker) {
             return true;
@@ -127,6 +132,7 @@ pub(crate) trait EolLineBreak<B: LineBreaker> {
 }
 
 impl<B: LineBreaker> EolLineBreak<B> for char {
+    #[inline]
     fn eol_line_break(&self, line_breaker: &B) -> Option<LineBreak> {
         // to check if the previous end char (say '$') should hard break construct
         // a str "$ " an check if the line break logic flags a hard break at index 1

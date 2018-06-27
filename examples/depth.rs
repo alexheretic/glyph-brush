@@ -110,25 +110,6 @@ fn main() {
             z: 1.0,
             ..Section::default()
         });
-        glyph_brush.queue(VariedSection {
-            text: vec![
-                SectionText {
-                    text: "The ",
-                    ..SectionText::default()
-                },
-                SectionText {
-                    text: "moon",
-                    ..SectionText::default()
-                },
-                SectionText {
-                    text: "light",
-                    ..SectionText::default()
-                },
-            ],
-            bounds: (50.0, ::std::f32::INFINITY),
-            z: 0.1,
-            ..VariedSection::default()
-        });
 
         glyph_brush
             .draw_queued(&mut encoder, &main_color, &main_depth)
