@@ -171,7 +171,9 @@ impl<'brush, 'font> fmt::Debug for GlyphCalculatorGuard<'brush, 'font> {
     }
 }
 
-impl<'brush, 'font, H: BuildHasher> GlyphCruncher<'font> for GlyphCalculatorGuard<'brush, 'font, H> {
+impl<'brush, 'font, H: BuildHasher> GlyphCruncher<'font>
+    for GlyphCalculatorGuard<'brush, 'font, H>
+{
     fn pixel_bounds_custom_layout<'a, S, L>(
         &mut self,
         section: S,
@@ -188,11 +190,7 @@ impl<'brush, 'font, H: BuildHasher> GlyphCruncher<'font> for GlyphCalculatorGuar
 
         let section_hash = self.cache_glyphs(section.borrow(), custom_layout);
         self.cached.insert(section_hash);
-        for g in self.glyph_cache[&section_hash]
-            .glyphs
-            .iter()
-            .flat_map(|&GlyphedSectionText(ref g, ..)| g.iter())
-        {
+        for (g, ..) in &self.glyph_cache[&section_hash].glyphs {
             if let Some(Rect { min, max }) = g.pixel_bounding_box() {
                 if no_match || min.x < x.0 {
                     x.0 = min.x;
@@ -237,7 +235,7 @@ impl<'brush, 'font, H: BuildHasher> GlyphCruncher<'font> for GlyphCalculatorGuar
         self.glyph_cache[&section_hash]
             .glyphs
             .iter()
-            .flat_map(|&GlyphedSectionText(ref g, ..)| g.iter())
+            .map(|(g, ..)| g)
     }
 }
 

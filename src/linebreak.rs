@@ -17,6 +17,7 @@ pub enum LineBreak {
 
 impl LineBreak {
     /// Returns the offset of the line break, the index after the breaking character.
+    #[inline]
     pub fn offset(&self) -> usize {
         match *self {
             LineBreak::Soft(offset) | LineBreak::Hard(offset) => offset,
@@ -139,6 +140,37 @@ impl<B: LineBreaker> EolLineBreak<B> for char {
                 _ => {}
             }
         }
+
+        // check for soft breaks using str "$a"
+        last_end_bytes[len_utf8] = b'a';
+        if let Ok(last_end_padded) = str::from_utf8(&last_end_bytes[0..len_utf8 + 1]) {
+            match line_breaker.line_breaks(last_end_padded).next() {
+                l @ Some(LineBreak::Soft(1)) | l @ Some(LineBreak::Hard(1)) => return l,
+                _ => {}
+            }
+        }
+
         None
+    }
+}
+
+#[cfg(test)]
+mod eol_line_break {
+    use super::*;
+
+    #[test]
+    fn hard_break_char() {
+        assert_eq!(
+            '\n'.eol_line_break(&BuiltInLineBreaker::default()),
+            Some(LineBreak::Hard(1))
+        );
+    }
+
+    #[test]
+    fn soft_break_char() {
+        assert_eq!(
+            ' '.eol_line_break(&BuiltInLineBreaker::default()),
+            Some(LineBreak::Soft(1))
+        );
     }
 }
