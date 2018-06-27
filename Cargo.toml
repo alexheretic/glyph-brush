@@ -19,6 +19,7 @@ xi-unicode = "0.1"
 backtrace = "0.3"
 seahash = "3"
 rustc-hash = "1"
+vec_map = "0.8"
 
 [dev-dependencies]
 env_logger = "0.5"

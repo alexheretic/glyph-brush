@@ -66,6 +66,7 @@ extern crate ordered_float;
 extern crate rustc_hash;
 extern crate rusttype;
 extern crate seahash;
+extern crate vec_map;
 extern crate xi_unicode;
 
 mod builder;
@@ -108,7 +109,7 @@ use std::hash::{Hash, Hasher};
 use std::i32;
 use std::{fmt, slice};
 
-/// An iterator over `PositionedGlyph`s from the `GlyphBrush`
+/// [`PositionedGlyph`](struct.PositionedGlyph.html) iterator.
 pub type PositionedGlyphIter<'a, 'font> = std::iter::Map<
     slice::Iter<'a, (rusttype::PositionedGlyph<'font>, [f32; 4], section::FontId)>,
     fn(&'a (rusttype::PositionedGlyph<'font>, [f32; 4], section::FontId))
@@ -193,7 +194,7 @@ type DefaultSectionHasher = BuildHasherDefault<seahash::SeaHasher>;
 /// [`GlyphBrush::draw_queued`](#method.draw_queued) call when that section has not been used since
 /// the previous draw call.
 pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>, H = DefaultSectionHasher> {
-    fonts: FxHashMap<FontId, rusttype::Font<'font>>,
+    fonts: FontMap<'font>,
     font_cache: Cache<'font>,
     font_cache_tex: (
         gfx::handle::Texture<R, TexSurface>,
@@ -323,7 +324,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
         let section = section.into();
         if cfg!(debug_assertions) {
             for text in &section.text {
-                assert!(self.fonts.contains_key(&text.font_id));
+                assert!(self.fonts.contains_key(text.font_id.0));
             }
         }
         let section_hash = self.cache_glyphs(&section, custom_layout);
@@ -620,7 +621,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     }
 
     /// Returns `FontId` -> `Font` map of available fonts.
-    pub fn fonts(&self) -> &FxHashMap<FontId, Font<'font>> {
+    pub fn fonts(&self) -> &FontMap<'font> {
         &self.fonts
     }
 
@@ -711,8 +712,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     ///
     /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
     pub fn add_font<'a: 'font>(&mut self, font_data: Font<'a>) -> FontId {
-        let next_id = FontId(self.fonts.keys().max().unwrap().0 + 1);
-        self.fonts.insert(next_id, font_data);
+        let next_id = FontId(self.fonts.keys().max().unwrap() + 1);
+        self.fonts.insert(next_id.0, font_data);
         next_id
     }
 }

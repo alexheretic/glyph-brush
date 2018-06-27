@@ -47,12 +47,12 @@ impl<'font> RelativePositionedGlyph<'font> {
 }
 
 /// `Word` iterator.
-pub(crate) struct Words<'a, 'b, 'font: 'a + 'b, L: LineBreaker, H: 'b + BuildHasher> {
-    pub(crate) characters: Characters<'a, 'b, 'font, L, H>,
+pub(crate) struct Words<'a, 'b, 'font: 'a + 'b, L: LineBreaker> {
+    pub(crate) characters: Characters<'a, 'b, 'font, L>,
 }
 
-impl<'a, 'b, 'font, L: LineBreaker, H: BuildHasher> Words<'a, 'b, 'font, L, H> {
-    pub(crate) fn lines(self, width_bound: f32) -> Lines<'a, 'b, 'font, L, H> {
+impl<'a, 'b, 'font, L: LineBreaker> Words<'a, 'b, 'font, L> {
+    pub(crate) fn lines(self, width_bound: f32) -> Lines<'a, 'b, 'font, L> {
         Lines {
             words: self.peekable(),
             width_bound,
@@ -60,7 +60,7 @@ impl<'a, 'b, 'font, L: LineBreaker, H: BuildHasher> Words<'a, 'b, 'font, L, H> {
     }
 }
 
-impl<'a, 'b, 'font, L: LineBreaker, H: BuildHasher> Iterator for Words<'a, 'b, 'font, L, H> {
+impl<'a, 'b, 'font, L: LineBreaker> Iterator for Words<'a, 'b, 'font, L> {
     type Item = Word<'font>;
 
     #[inline]
@@ -143,4 +143,4 @@ impl<'a, 'b, 'font, L: LineBreaker, H: BuildHasher> Iterator for Words<'a, 'b, '
     }
 }
 
-impl<'a, 'b, 'font, L: LineBreaker, H: BuildHasher> FusedIterator for Words<'a, 'b, 'font, L, H> {}
+impl<'a, 'b, 'font, L: LineBreaker> FusedIterator for Words<'a, 'b, 'font, L> {}

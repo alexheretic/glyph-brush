@@ -106,7 +106,7 @@ pub trait GlyphCruncher<'font> {
 /// is over, similar to when a `GlyphBrush` draws. Section calculations are cached for the next
 /// 'cache frame', if not used then they will be dropped.
 pub struct GlyphCalculator<'font, H = DefaultSectionHasher> {
-    fonts: FxHashMap<FontId, rusttype::Font<'font>>,
+    fonts: FontMap<'font>,
 
     // cache of section-layout hash -> computed glyphs, this avoid repeated glyph computation
     // for identical layout/sections common to repeated frame rendering
@@ -134,7 +134,7 @@ impl<'font, H: BuildHasher + Clone> GlyphCalculator<'font, H> {
 
 /// [`GlyphCalculator`](struct.GlyphCalculator.html) scoped cache lock.
 pub struct GlyphCalculatorGuard<'brush, 'font: 'brush, H = DefaultSectionHasher> {
-    fonts: &'brush FxHashMap<FontId, rusttype::Font<'font>>,
+    fonts: &'brush FontMap<'font>,
     glyph_cache: MutexGuard<'brush, FxHashMap<u64, GlyphedSection<'font>>>,
     cached: FxHashSet<u64>,
     section_hasher: H,
@@ -341,12 +341,13 @@ impl<'a, H: BuildHasher> GlyphCalculatorBuilder<'a, H> {
 
     /// Builds a `GlyphCalculator`
     pub fn build(self) -> GlyphCalculator<'a, H> {
-        let fonts = self
-            .font_data
-            .into_iter()
-            .enumerate()
-            .map(|(idx, data)| (FontId(idx), data))
-            .collect();
+        let fonts = {
+            let mut fonts = FontMap::with_capacity(self.font_data.len());
+            for (idx, data) in self.font_data.into_iter().enumerate() {
+                fonts.insert(idx, data);
+            }
+            fonts
+        };
 
         GlyphCalculator {
             fonts,

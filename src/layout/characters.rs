@@ -16,8 +16,8 @@ pub(crate) struct Character<'font> {
 }
 
 /// `Character` iterator
-pub(crate) struct Characters<'a, 'b, 'font: 'a + 'b, L: LineBreaker, H: 'b + BuildHasher> {
-    font_map: &'b HashMap<FontId, Font<'font>, H>,
+pub(crate) struct Characters<'a, 'b, 'font: 'a + 'b, L: LineBreaker> {
+    font_map: &'b FontMap<'font>,
     section_text: Iter<'a, SectionText<'a>>,
     line_breaker: L,
     part_info: Option<PartInfo<'a>>,
@@ -30,10 +30,10 @@ struct PartInfo<'a> {
     next_break: Option<LineBreak>,
 }
 
-impl<'a, 'b, 'font, L: LineBreaker, H: BuildHasher> Characters<'a, 'b, 'font, L, H> {
+impl<'a, 'b, 'font, L: LineBreaker> Characters<'a, 'b, 'font, L> {
     /// Returns a new `Characters` iterator.
     pub(crate) fn new(
-        font_map: &'b HashMap<FontId, Font<'font>, H>,
+        font_map: &'b FontMap<'font>,
         section_text: Iter<'a, SectionText<'a>>,
         line_breaker: L,
     ) -> Self {
@@ -47,12 +47,12 @@ impl<'a, 'b, 'font, L: LineBreaker, H: BuildHasher> Characters<'a, 'b, 'font, L,
     }
 
     /// Wraps into a `Words` iterator.
-    pub(crate) fn words(self) -> Words<'a, 'b, 'font, L, H> {
+    pub(crate) fn words(self) -> Words<'a, 'b, 'font, L> {
         Words { characters: self }
     }
 }
 
-impl<'a, 'b, 'font, L: LineBreaker, H: BuildHasher> Iterator for Characters<'a, 'b, 'font, L, H> {
+impl<'a, 'b, 'font, L: LineBreaker> Iterator for Characters<'a, 'b, 'font, L> {
     type Item = Character<'font>;
 
     #[inline]
@@ -116,6 +116,4 @@ impl<'a, 'b, 'font, L: LineBreaker, H: BuildHasher> Iterator for Characters<'a, 
     }
 }
 
-impl<'a, 'b, 'font, L: LineBreaker, H: BuildHasher> FusedIterator
-    for Characters<'a, 'b, 'font, L, H>
-{}
+impl<'a, 'b, 'font, L: LineBreaker> FusedIterator for Characters<'a, 'b, 'font, L> {}

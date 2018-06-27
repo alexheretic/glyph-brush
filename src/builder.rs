@@ -249,13 +249,16 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
             )
             .unwrap();
 
+        let fonts = {
+            let mut fonts = FontMap::with_capacity(self.font_data.len());
+            for (idx, data) in self.font_data.into_iter().enumerate() {
+                fonts.insert(idx, data);
+            }
+            fonts
+        };
+
         GlyphBrush {
-            fonts: self
-                .font_data
-                .into_iter()
-                .enumerate()
-                .map(|(idx, data)| (FontId(idx), data))
-                .collect(),
+            fonts,
             font_cache: CacheBuilder {
                 width: cache_width,
                 height: cache_height,

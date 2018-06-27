@@ -63,12 +63,12 @@ impl<'font> Line<'font> {
 }
 
 /// `Line` iterator.
-pub(crate) struct Lines<'a, 'b, 'font: 'a + 'b, L: LineBreaker, H: 'b + BuildHasher> {
-    pub(crate) words: Peekable<Words<'a, 'b, 'font, L, H>>,
+pub(crate) struct Lines<'a, 'b, 'font: 'a + 'b, L: LineBreaker> {
+    pub(crate) words: Peekable<Words<'a, 'b, 'font, L>>,
     pub(crate) width_bound: f32,
 }
 
-impl<'a, 'b, 'font, L: LineBreaker, H: BuildHasher> Iterator for Lines<'a, 'b, 'font, L, H> {
+impl<'a, 'b, 'font, L: LineBreaker> Iterator for Lines<'a, 'b, 'font, L> {
     type Item = Line<'font>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -126,4 +126,4 @@ impl<'a, 'b, 'font, L: LineBreaker, H: BuildHasher> Iterator for Lines<'a, 'b, '
     }
 }
 
-impl<'a, 'b, 'font, L: LineBreaker, H: BuildHasher> FusedIterator for Lines<'a, 'b, 'font, L, H> {}
+impl<'a, 'b, 'font, L: LineBreaker> FusedIterator for Lines<'a, 'b, 'font, L> {}

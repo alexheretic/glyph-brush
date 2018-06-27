@@ -1,6 +1,5 @@
 use super::*;
 use characters::Characters;
-use std::hash::BuildHasher;
 
 /// Built-in [`GlyphPositioner`](trait.GlyphPositioner.html) implementations.
 ///
@@ -112,9 +111,9 @@ impl<L: LineBreaker> Layout<L> {
 }
 
 impl<L: LineBreaker> GlyphPositioner for Layout<L> {
-    fn calculate_glyphs<'font, H: BuildHasher>(
+    fn calculate_glyphs<'font>(
         &self,
-        font_map: &HashMap<FontId, Font<'font>, H>,
+        font_map: &FontMap<'font>,
         section: &VariedSection,
     ) -> Vec<(PositionedGlyph<'font>, Color, FontId)> {
         use Layout::{SingleLine, Wrap};
@@ -248,8 +247,11 @@ mod layout_test {
         static ref A_FONT: Font<'static> =
             Font::from_bytes(include_bytes!("../../tests/DejaVuSansMono.ttf") as &[u8])
                 .expect("Could not create rusttype::Font");
-        static ref FONT_MAP: HashMap<FontId, Font<'static>> =
-            vec![(FontId(0), A_FONT.clone())].into_iter().collect();
+        static ref FONT_MAP: FontMap<'static> = {
+            let mut map = FontMap::new();
+            map.insert(0, A_FONT.clone());
+            map
+        };
     }
 
     /// Checks the order of glyphs in the first arg iterable matches the
