@@ -66,7 +66,6 @@ extern crate ordered_float;
 extern crate rustc_hash;
 extern crate rusttype;
 extern crate seahash;
-extern crate unicode_normalization;
 extern crate xi_unicode;
 
 mod builder;
@@ -107,15 +106,9 @@ use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::hash::{Hash, Hasher};
 use std::i32;
-use std::{fmt, iter, slice};
+use std::{fmt, slice};
 
 /// An iterator over `PositionedGlyph`s from the `GlyphBrush`
-// pub type PositionedGlyphIter<'a, 'font> = iter::FlatMap<
-//     slice::Iter<'a, GlyphedSectionText<'font>>,
-//     slice::Iter<'a, rusttype::PositionedGlyph<'font>>,
-//     fn(&'a GlyphedSectionText<'font>) -> slice::Iter<'a, PositionedGlyph<'font>>,
-// >;
-
 pub type PositionedGlyphIter<'a, 'font> = std::iter::Map<
     slice::Iter<'a, (rusttype::PositionedGlyph<'font>, [f32; 4], section::FontId)>,
     fn(&'a (rusttype::PositionedGlyph<'font>, [f32; 4], section::FontId))
@@ -741,92 +734,6 @@ struct GlyphedSection<'font> {
 
 #[derive(Clone)]
 pub struct GlyphedSectionText<'font>(pub Vec<PositionedGlyph<'font>>, pub Color, pub FontId);
-
-#[inline]
-fn text_vertices(
-    glyphs: &[PositionedGlyph],
-    color: Color,
-    font_id: FontId,
-    cache: &Cache,
-    bounds: Rect<f32>,
-    z: f32,
-    (screen_width, screen_height): (f32, f32),
-) -> Vec<GlyphVertex> {
-    // max 1 vertex per glyph
-    let mut vertices = Vec::with_capacity(glyphs.len());
-
-    let gl_bounds = Rect {
-        min: point(
-            2.0 * (bounds.min.x / screen_width - 0.5),
-            2.0 * (0.5 - bounds.min.y / screen_height),
-        ),
-        max: point(
-            2.0 * (bounds.max.x / screen_width - 0.5),
-            2.0 * (0.5 - bounds.max.y / screen_height),
-        ),
-    };
-
-    for g in glyphs {
-        let rect = cache.rect_for(font_id.0, g);
-        if let Ok(Some((mut uv_rect, screen_rect))) = rect {
-            if screen_rect.min.x as f32 > bounds.max.x
-                || screen_rect.min.y as f32 > bounds.max.y
-                || bounds.min.x > screen_rect.max.x as f32
-                || bounds.min.y > screen_rect.max.y as f32
-            {
-                // glyph is totally outside the bounds
-                continue;
-            }
-
-            let mut gl_rect = Rect {
-                min: point(
-                    2.0 * (screen_rect.min.x as f32 / screen_width - 0.5),
-                    2.0 * (0.5 - screen_rect.min.y as f32 / screen_height),
-                ),
-                max: point(
-                    2.0 * (screen_rect.max.x as f32 / screen_width - 0.5),
-                    2.0 * (0.5 - screen_rect.max.y as f32 / screen_height),
-                ),
-            };
-
-            // handle overlapping bounds, modify uv_rect to preserve texture aspect
-            if gl_rect.max.x > gl_bounds.max.x {
-                let old_width = gl_rect.width();
-                gl_rect.max.x = gl_bounds.max.x;
-                uv_rect.max.x = uv_rect.min.x + uv_rect.width() * gl_rect.width() / old_width;
-            }
-            if gl_rect.min.x < gl_bounds.min.x {
-                let old_width = gl_rect.width();
-                gl_rect.min.x = gl_bounds.min.x;
-                uv_rect.min.x = uv_rect.max.x - uv_rect.width() * gl_rect.width() / old_width;
-            }
-            // note: y access is flipped gl compared with screen,
-            // texture is not flipped (ie is a headache)
-            if gl_rect.max.y < gl_bounds.max.y {
-                let old_height = gl_rect.height();
-                gl_rect.max.y = gl_bounds.max.y;
-                uv_rect.max.y = uv_rect.min.y + uv_rect.height() * gl_rect.height() / old_height;
-            }
-            if gl_rect.min.y > gl_bounds.min.y {
-                let old_height = gl_rect.height();
-                gl_rect.min.y = gl_bounds.min.y;
-                uv_rect.min.y = uv_rect.max.y - uv_rect.height() * gl_rect.height() / old_height;
-            }
-
-            vertices.push(GlyphVertex {
-                left_top: [gl_rect.min.x, gl_rect.max.y, z],
-                right_bottom: [gl_rect.max.x, gl_rect.min.y],
-                tex_left_top: [uv_rect.min.x, uv_rect.max.y],
-                tex_right_bottom: [uv_rect.max.x, uv_rect.min.y],
-                color,
-            });
-        }
-        else if rect.is_err() {
-            warn!("Cache miss?: {:?}", rect);
-        }
-    }
-    vertices
-}
 
 #[inline]
 fn vertex(

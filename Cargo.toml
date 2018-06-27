@@ -14,7 +14,6 @@ log = "0.4"
 rusttype = { version = "0.6", features = ["gpu_cache"] }
 gfx = "0.17"
 gfx_core = "0.8"
-unicode-normalization = "0.1"
 ordered-float = "0.5"
 xi-unicode = "0.1"
 backtrace = "0.3"
