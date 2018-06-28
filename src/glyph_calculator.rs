@@ -106,7 +106,7 @@ pub trait GlyphCruncher<'font> {
 /// is over, similar to when a `GlyphBrush` draws. Section calculations are cached for the next
 /// 'cache frame', if not used then they will be dropped.
 pub struct GlyphCalculator<'font, H = DefaultSectionHasher> {
-    fonts: FxHashMap<FontId, rusttype::Font<'font>>,
+    fonts: FontMap<'font>,
 
     // cache of section-layout hash -> computed glyphs, this avoid repeated glyph computation
     // for identical layout/sections common to repeated frame rendering
@@ -134,7 +134,7 @@ impl<'font, H: BuildHasher + Clone> GlyphCalculator<'font, H> {
 
 /// [`GlyphCalculator`](struct.GlyphCalculator.html) scoped cache lock.
 pub struct GlyphCalculatorGuard<'brush, 'font: 'brush, H = DefaultSectionHasher> {
-    fonts: &'brush FxHashMap<FontId, rusttype::Font<'font>>,
+    fonts: &'brush FontMap<'font>,
     glyph_cache: MutexGuard<'brush, FxHashMap<u64, GlyphedSection<'font>>>,
     cached: FxHashSet<u64>,
     section_hasher: H,
@@ -171,7 +171,9 @@ impl<'brush, 'font> fmt::Debug for GlyphCalculatorGuard<'brush, 'font> {
     }
 }
 
-impl<'brush, 'font, H: BuildHasher> GlyphCruncher<'font> for GlyphCalculatorGuard<'brush, 'font, H> {
+impl<'brush, 'font, H: BuildHasher> GlyphCruncher<'font>
+    for GlyphCalculatorGuard<'brush, 'font, H>
+{
     fn pixel_bounds_custom_layout<'a, S, L>(
         &mut self,
         section: S,
@@ -188,11 +190,7 @@ impl<'brush, 'font, H: BuildHasher> GlyphCruncher<'font> for GlyphCalculatorGuar
 
         let section_hash = self.cache_glyphs(section.borrow(), custom_layout);
         self.cached.insert(section_hash);
-        for g in self.glyph_cache[&section_hash]
-            .glyphs
-            .iter()
-            .flat_map(|&GlyphedSectionText(ref g, ..)| g.iter())
-        {
+        for (g, ..) in &self.glyph_cache[&section_hash].glyphs {
             if let Some(Rect { min, max }) = g.pixel_bounding_box() {
                 if no_match || min.x < x.0 {
                     x.0 = min.x;
@@ -237,7 +235,7 @@ impl<'brush, 'font, H: BuildHasher> GlyphCruncher<'font> for GlyphCalculatorGuar
         self.glyph_cache[&section_hash]
             .glyphs
             .iter()
-            .flat_map(|&GlyphedSectionText(ref g, ..)| g.iter())
+            .map(|(g, ..)| g)
     }
 }
 
@@ -343,12 +341,13 @@ impl<'a, H: BuildHasher> GlyphCalculatorBuilder<'a, H> {
 
     /// Builds a `GlyphCalculator`
     pub fn build(self) -> GlyphCalculator<'a, H> {
-        let fonts = self
-            .font_data
-            .into_iter()
-            .enumerate()
-            .map(|(idx, data)| (FontId(idx), data))
-            .collect();
+        let fonts = {
+            let mut fonts = FontMap::with_capacity(self.font_data.len());
+            for (idx, data) in self.font_data.into_iter().enumerate() {
+                fonts.insert(idx, data);
+            }
+            fonts
+        };
 
         GlyphCalculator {
             fonts,

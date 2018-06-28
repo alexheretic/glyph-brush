@@ -98,19 +98,19 @@ fn main() {
             text: vec![
                 SectionText {
                     text: "Lorem ipsum dolor sit amet, ferri simul omittantur eam eu, ",
-                    scale: gfx_glyph::Scale::uniform(45.0),
+                    scale: Scale::uniform(45.0),
                     color: [0.9, 0.3, 0.3, 1.0],
                     font_id: sans_font,
                 },
                 SectionText {
                     text: "dolorem",
-                    scale: gfx_glyph::Scale::uniform(150.0),
+                    scale: Scale::uniform(150.0),
                     color: [0.3, 0.9, 0.3, 1.0],
                     font_id: serif_font,
                 },
                 SectionText {
-                    text: "Iriure vocibus est te, natum delicata dignissim pri ea.",
-                    scale: gfx_glyph::Scale::uniform(25.0),
+                    text: " Iriure vocibus est te, natum delicata dignissim pri ea.",
+                    scale: Scale::uniform(25.0),
                     color: [0.3, 0.3, 0.9, 1.0],
                     font_id: sans_font,
                 },
@@ -124,21 +124,33 @@ fn main() {
             text: vec![
                 SectionText {
                     text: "foo += bar;",
-                    scale: gfx_glyph::Scale::uniform(45.0),
+                    scale: Scale::uniform(45.0),
                     color: [0.3, 0.3, 0.9, 1.0],
                     font_id: mono_font,
                 },
                 SectionText {
-                    text: "eruditi habemus qualisque eam an. ",
-                    scale: gfx_glyph::Scale::uniform(30.0),
+                    text: " eruditi habemus qualisque eam an. No atqui apeirian phaedrum pri ex, hinc omnes sapientem. ",
+                    scale: Scale::uniform(30.0),
                     color: [0.9, 0.3, 0.3, 1.0],
                     font_id: italic_font,
                 },
                 SectionText {
                     text: "Eu facilisi maluisset eos.",
-                    scale: gfx_glyph::Scale::uniform(55.0),
+                    scale: Scale::uniform(55.0),
                     color: [0.3, 0.9, 0.3, 1.0],
                     font_id: sans_font,
+                },
+                SectionText {
+                    text: " ius nullam impetus. ",
+                    scale: Scale { x: 25.0, y: 45.0 },
+                    color: [0.9, 0.9, 0.3, 1.0],
+                    font_id: serif_font,
+                },
+                SectionText {
+                    text: "Ut quo elitr viderer constituam, pro omnesque forensibus at. Timeam scaevola mediocrem ut pri, te pro congue delicatissimi. Mei wisi nostro imperdiet ea, ridens salutatus per no, ut viris partem disputationi sit. Exerci eripuit referrentur vix at, sale mediocrem repudiare per te, modus admodum an eam. No vocent indoctum vis, ne quodsi patrioque vix. Vocent labores omittam et usu.",
+                    scale: Scale::uniform(22.0),
+                    color: [0.8, 0.3, 0.5, 1.0],
+                    font_id: italic_font,
                 },
             ],
             ..VariedSection::default()

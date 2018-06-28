@@ -66,7 +66,7 @@ extern crate ordered_float;
 extern crate rustc_hash;
 extern crate rusttype;
 extern crate seahash;
-extern crate unicode_normalization;
+extern crate vec_map;
 extern crate xi_unicode;
 
 mod builder;
@@ -107,13 +107,13 @@ use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::hash::{Hash, Hasher};
 use std::i32;
-use std::{fmt, iter, slice};
+use std::{fmt, slice};
 
-/// An iterator over `PositionedGlyph`s from the `GlyphBrush`
-pub type PositionedGlyphIter<'a, 'font> = iter::FlatMap<
-    slice::Iter<'a, GlyphedSectionText<'font>>,
-    slice::Iter<'a, rusttype::PositionedGlyph<'font>>,
-    fn(&'a GlyphedSectionText<'font>) -> slice::Iter<'a, PositionedGlyph<'font>>,
+/// [`PositionedGlyph`](struct.PositionedGlyph.html) iterator.
+pub type PositionedGlyphIter<'a, 'font> = std::iter::Map<
+    slice::Iter<'a, (rusttype::PositionedGlyph<'font>, [f32; 4], section::FontId)>,
+    fn(&'a (rusttype::PositionedGlyph<'font>, [f32; 4], section::FontId))
+        -> &'a rusttype::PositionedGlyph<'font>,
 >;
 
 pub(crate) type Color = [f32; 4];
@@ -194,7 +194,7 @@ type DefaultSectionHasher = BuildHasherDefault<seahash::SeaHasher>;
 /// [`GlyphBrush::draw_queued`](#method.draw_queued) call when that section has not been used since
 /// the previous draw call.
 pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>, H = DefaultSectionHasher> {
-    fonts: FxHashMap<FontId, rusttype::Font<'font>>,
+    fonts: FontMap<'font>,
     font_cache: Cache<'font>,
     font_cache_tex: (
         gfx::handle::Texture<R, TexSurface>,
@@ -256,27 +256,25 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphCruncher
         let section_hash = self.cache_glyphs(section.borrow(), custom_layout);
         self.keep_in_cache.insert(section_hash);
 
-        for g in self.calculate_glyph_cache[&section_hash]
+        for Rect { min, max } in self.calculate_glyph_cache[&section_hash]
             .glyphs
             .iter()
-            .flat_map(|&GlyphedSectionText(ref g, ..)| g.iter())
+            .filter_map(|&(ref g, ..)| g.pixel_bounding_box())
         {
-            if let Some(Rect { min, max }) = g.pixel_bounding_box() {
-                if no_match || min.x < x.0 {
-                    x.0 = min.x;
-                }
-                if no_match || min.y < y.0 {
-                    y.0 = min.y;
-                }
-                if no_match || max.x > x.1 {
-                    x.1 = max.x;
-                }
-                if no_match || max.y > y.1 {
-                    y.1 = max.y;
-                }
-
-                no_match = false;
+            if no_match || min.x < x.0 {
+                x.0 = min.x;
             }
+            if no_match || min.y < y.0 {
+                y.0 = min.y;
+            }
+            if no_match || max.x > x.1 {
+                x.1 = max.x;
+            }
+            if no_match || max.y > y.1 {
+                y.1 = max.y;
+            }
+
+            no_match = false;
         }
 
         if no_match {
@@ -305,7 +303,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphCruncher
         self.calculate_glyph_cache[&section_hash]
             .glyphs
             .iter()
-            .flat_map(|&GlyphedSectionText(ref g, ..)| g.iter())
+            .map(|(g, ..)| g)
     }
 }
 
@@ -326,7 +324,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
         let section = section.into();
         if cfg!(debug_assertions) {
             for text in &section.text {
-                assert!(self.fonts.contains_key(&text.font_id));
+                assert!(self.fonts.contains_key(text.font_id.0));
             }
         }
         let section_hash = self.cache_glyphs(&section, custom_layout);
@@ -445,11 +443,9 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
                 for section_hash in &self.section_buffer {
                     let GlyphedSection { ref glyphs, .. } =
                         self.calculate_glyph_cache[section_hash];
-                    for &GlyphedSectionText(ref glyphs, _, font_id) in glyphs {
-                        for glyph in glyphs {
-                            self.font_cache.queue_glyph(font_id.0, glyph.clone());
-                            no_text = false;
-                        }
+                    for &(ref glyph, _, font_id) in glyphs {
+                        self.font_cache.queue_glyph(font_id.0, glyph.clone());
+                        no_text = false;
                     }
                 }
 
@@ -523,7 +519,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
                 let mut verts = Vec::with_capacity(
                     sections
                         .iter()
-                        .flat_map(|section| section.glyphs.iter().map(|glyphs| glyphs.0.len()))
+                        .map(|section| section.glyphs.len())
                         .sum::<usize>(),
                 );
 
@@ -533,22 +529,19 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
                     z,
                 } in sections
                 {
-                    for v in glyphs.iter().flat_map(
-                        |&GlyphedSectionText(ref glyphs, color, font_id)| {
-                            text_vertices(
-                                glyphs,
-                                color,
-                                font_id,
-                                &self.font_cache,
-                                bounds,
-                                z,
-                                (screen_width as f32, screen_height as f32),
-                            )
-                        },
-                    ) {
-                        verts.push(v)
-                    }
+                    verts.extend(glyphs.into_iter().filter_map(|(glyph, color, font_id)| {
+                        vertex(
+                            glyph,
+                            *color,
+                            *font_id,
+                            &self.font_cache,
+                            bounds,
+                            z,
+                            (screen_width as f32, screen_height as f32),
+                        )
+                    }));
                 }
+
                 verts
             };
             #[cfg(feature = "performance_stats")]
@@ -628,7 +621,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     }
 
     /// Returns `FontId` -> `Font` map of available fonts.
-    pub fn fonts(&self) -> &FxHashMap<FontId, Font<'font>> {
+    pub fn fonts(&self) -> &FontMap<'font> {
         &self.fonts
     }
 
@@ -719,8 +712,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     ///
     /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
     pub fn add_font<'a: 'font>(&mut self, font_data: Font<'a>) -> FontId {
-        let next_id = FontId(self.fonts.keys().max().unwrap().0 + 1);
-        self.fonts.insert(next_id, font_data);
+        let next_id = FontId(self.fonts.keys().max().unwrap() + 1);
+        self.fonts.insert(next_id.0, font_data);
         next_id
     }
 }
@@ -736,7 +729,7 @@ struct DrawnGlyphBrush<R: gfx::Resources> {
 #[derive(Clone)]
 struct GlyphedSection<'font> {
     bounds: Rect<f32>,
-    glyphs: Vec<GlyphedSectionText<'font>>,
+    glyphs: Vec<(PositionedGlyph<'font>, Color, FontId)>,
     z: f32,
 }
 
@@ -744,18 +737,15 @@ struct GlyphedSection<'font> {
 pub struct GlyphedSectionText<'font>(pub Vec<PositionedGlyph<'font>>, pub Color, pub FontId);
 
 #[inline]
-fn text_vertices(
-    glyphs: &[PositionedGlyph],
+fn vertex(
+    glyph: &PositionedGlyph,
     color: Color,
     font_id: FontId,
     cache: &Cache,
     bounds: Rect<f32>,
     z: f32,
     (screen_width, screen_height): (f32, f32),
-) -> Vec<GlyphVertex> {
-    // max 1 vertex per glyph
-    let mut vertices = Vec::with_capacity(glyphs.len());
-
+) -> Option<GlyphVertex> {
     let gl_bounds = Rect {
         min: point(
             2.0 * (bounds.min.x / screen_width - 0.5),
@@ -767,66 +757,66 @@ fn text_vertices(
         ),
     };
 
-    for g in glyphs {
-        let rect = cache.rect_for(font_id.0, g);
-        if let Ok(Some((mut uv_rect, screen_rect))) = rect {
-            if screen_rect.min.x as f32 > bounds.max.x
-                || screen_rect.min.y as f32 > bounds.max.y
-                || bounds.min.x > screen_rect.max.x as f32
-                || bounds.min.y > screen_rect.max.y as f32
-            {
-                // glyph is totally outside the bounds
-                continue;
-            }
-
-            let mut gl_rect = Rect {
-                min: point(
-                    2.0 * (screen_rect.min.x as f32 / screen_width - 0.5),
-                    2.0 * (0.5 - screen_rect.min.y as f32 / screen_height),
-                ),
-                max: point(
-                    2.0 * (screen_rect.max.x as f32 / screen_width - 0.5),
-                    2.0 * (0.5 - screen_rect.max.y as f32 / screen_height),
-                ),
-            };
-
-            // handle overlapping bounds, modify uv_rect to preserve texture aspect
-            if gl_rect.max.x > gl_bounds.max.x {
-                let old_width = gl_rect.width();
-                gl_rect.max.x = gl_bounds.max.x;
-                uv_rect.max.x = uv_rect.min.x + uv_rect.width() * gl_rect.width() / old_width;
-            }
-            if gl_rect.min.x < gl_bounds.min.x {
-                let old_width = gl_rect.width();
-                gl_rect.min.x = gl_bounds.min.x;
-                uv_rect.min.x = uv_rect.max.x - uv_rect.width() * gl_rect.width() / old_width;
-            }
-            // note: y access is flipped gl compared with screen,
-            // texture is not flipped (ie is a headache)
-            if gl_rect.max.y < gl_bounds.max.y {
-                let old_height = gl_rect.height();
-                gl_rect.max.y = gl_bounds.max.y;
-                uv_rect.max.y = uv_rect.min.y + uv_rect.height() * gl_rect.height() / old_height;
-            }
-            if gl_rect.min.y > gl_bounds.min.y {
-                let old_height = gl_rect.height();
-                gl_rect.min.y = gl_bounds.min.y;
-                uv_rect.min.y = uv_rect.max.y - uv_rect.height() * gl_rect.height() / old_height;
-            }
-
-            vertices.push(GlyphVertex {
-                left_top: [gl_rect.min.x, gl_rect.max.y, z],
-                right_bottom: [gl_rect.max.x, gl_rect.min.y],
-                tex_left_top: [uv_rect.min.x, uv_rect.max.y],
-                tex_right_bottom: [uv_rect.max.x, uv_rect.min.y],
-                color,
-            });
+    let rect = cache.rect_for(font_id.0, glyph);
+    if let Ok(Some((mut uv_rect, screen_rect))) = rect {
+        if screen_rect.min.x as f32 > bounds.max.x
+            || screen_rect.min.y as f32 > bounds.max.y
+            || bounds.min.x > screen_rect.max.x as f32
+            || bounds.min.y > screen_rect.max.y as f32
+        {
+            // glyph is totally outside the bounds
+            return None;
         }
-        else if rect.is_err() {
+
+        let mut gl_rect = Rect {
+            min: point(
+                2.0 * (screen_rect.min.x as f32 / screen_width - 0.5),
+                2.0 * (0.5 - screen_rect.min.y as f32 / screen_height),
+            ),
+            max: point(
+                2.0 * (screen_rect.max.x as f32 / screen_width - 0.5),
+                2.0 * (0.5 - screen_rect.max.y as f32 / screen_height),
+            ),
+        };
+
+        // handle overlapping bounds, modify uv_rect to preserve texture aspect
+        if gl_rect.max.x > gl_bounds.max.x {
+            let old_width = gl_rect.width();
+            gl_rect.max.x = gl_bounds.max.x;
+            uv_rect.max.x = uv_rect.min.x + uv_rect.width() * gl_rect.width() / old_width;
+        }
+        if gl_rect.min.x < gl_bounds.min.x {
+            let old_width = gl_rect.width();
+            gl_rect.min.x = gl_bounds.min.x;
+            uv_rect.min.x = uv_rect.max.x - uv_rect.width() * gl_rect.width() / old_width;
+        }
+        // note: y access is flipped gl compared with screen,
+        // texture is not flipped (ie is a headache)
+        if gl_rect.max.y < gl_bounds.max.y {
+            let old_height = gl_rect.height();
+            gl_rect.max.y = gl_bounds.max.y;
+            uv_rect.max.y = uv_rect.min.y + uv_rect.height() * gl_rect.height() / old_height;
+        }
+        if gl_rect.min.y > gl_bounds.min.y {
+            let old_height = gl_rect.height();
+            gl_rect.min.y = gl_bounds.min.y;
+            uv_rect.min.y = uv_rect.max.y - uv_rect.height() * gl_rect.height() / old_height;
+        }
+
+        Some(GlyphVertex {
+            left_top: [gl_rect.min.x, gl_rect.max.y, z],
+            right_bottom: [gl_rect.max.x, gl_rect.min.y],
+            tex_left_top: [uv_rect.min.x, uv_rect.max.y],
+            tex_right_bottom: [uv_rect.max.x, uv_rect.min.y],
+            color,
+        })
+    }
+    else {
+        if rect.is_err() {
             warn!("Cache miss?: {:?}", rect);
         }
+        None
     }
-    vertices
 }
 
 // Creates a gfx texture with the given data
