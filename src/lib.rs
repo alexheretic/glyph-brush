@@ -208,7 +208,6 @@ pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>, H = DefaultS
     // cache of section-layout hash -> computed glyphs, this avoid repeated glyph computation
     // for identical layout/sections common to repeated frame rendering
     calculate_glyph_cache: FxHashMap<SectionHash, GlyphedSection<'font>>,
-    // calculate_glyph_cache2: FxHashMap<(), GlyphedSection<'font>>,
 
     // buffer of section-layout hashs (that must exist in the calculate_glyph_cache)
     // to be rendered on the next `draw_queued` call
@@ -444,8 +443,10 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     /// #     .build(gfx_factory.clone());
     /// # let raw_render_view = gfx_color.raw();
     /// # let raw_depth_view = gfx_depth.raw();
+    /// # let transform = [[0.0; 4]; 4];
     /// glyph_brush
-    ///     .draw_queued(
+    ///     .draw_queued_with_transform(
+    ///         transform,
     ///         &mut gfx_encoder,
     ///         &(raw_render_view, format::Srgba8::get_format()),
     ///         &(raw_depth_view, format::Depth::get_format()),
@@ -773,9 +774,6 @@ struct GlyphedSection<'font> {
     glyphs: Vec<(PositionedGlyph<'font>, Color, FontId)>,
     z: f32,
 }
-
-#[derive(Clone)]
-pub struct GlyphedSectionText<'font>(pub Vec<PositionedGlyph<'font>>, pub Color, pub FontId);
 
 #[inline]
 fn vertex(
