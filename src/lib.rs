@@ -248,8 +248,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphCruncher
         S: Into<Cow<'a, VariedSection<'a>>>,
     {
         let section = section.into();
-        let mut x = (0, 0);
-        let mut y = (0, 0);
+        let mut x = (i32::MIN, i32::MIN);
+        let mut y = (i32::MIN, i32::MIN);
         let mut no_match = true;
 
         let section_hash = self.cache_glyphs(section.borrow(), custom_layout);
