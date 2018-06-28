@@ -1,4 +1,7 @@
 use super::*;
+use gfx::format::{Format, Formatted};
+use gfx::handle::{DepthStencilView, RawDepthStencilView, RawRenderTargetView, RenderTargetView};
+use gfx::memory::Typed;
 use gfx::pso::*;
 use gfx::*;
 use gfx_core::pso;
@@ -73,5 +76,45 @@ impl<'a> glyph_pipe::Init<'a> {
             ),
             out_depth: (depth_format, depth_test),
         }
+    }
+}
+
+/// A view that can produce an inner "raw" view & a `Format`.
+pub trait RawAndFormat {
+    type Raw;
+    fn as_raw(&self) -> &Self::Raw;
+    fn format(&self) -> Format;
+}
+
+impl<R: Resources, T: Formatted> RawAndFormat for RenderTargetView<R, T> {
+    type Raw = RawRenderTargetView<R>;
+    fn as_raw(&self) -> &Self::Raw {
+        self.raw()
+    }
+
+    fn format(&self) -> Format {
+        T::get_format()
+    }
+}
+
+impl<R: Resources, T: Formatted> RawAndFormat for DepthStencilView<R, T> {
+    type Raw = RawDepthStencilView<R>;
+    fn as_raw(&self) -> &Self::Raw {
+        self.raw()
+    }
+
+    fn format(&self) -> Format {
+        T::get_format()
+    }
+}
+
+impl<'a, R> RawAndFormat for (&'a R, Format) {
+    type Raw = R;
+    fn as_raw(&self) -> &Self::Raw {
+        self.0
+    }
+
+    fn format(&self) -> Format {
+        self.1
     }
 }

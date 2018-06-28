@@ -91,12 +91,10 @@ pub use rusttype::{
     VMetrics,
 };
 pub use section::*;
-use std::hash::BuildHasher;
-use std::hash::BuildHasherDefault;
 
+use gfx::handle::{RawDepthStencilView, RawRenderTargetView};
 use gfx::traits::FactoryExt;
 use gfx::{format, handle, texture};
-use gfx_core::memory::Typed;
 use pipe::*;
 use rustc_hash::{FxHashMap, FxHashSet};
 use rusttype::gpu_cache::{Cache, CacheBuilder};
@@ -105,6 +103,8 @@ use std::borrow::{Borrow, Cow};
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
+use std::hash::BuildHasher;
+use std::hash::BuildHasherDefault;
 use std::hash::{Hash, Hasher};
 use std::i32;
 use std::{fmt, slice};
@@ -393,16 +393,20 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     /// See [`queue`](struct.GlyphBrush.html#method.queue).
     ///
     /// Trims the cache, see [caching behaviour](#caching-behaviour).
-    pub fn draw_queued<C, T, D>(
+    ///
+    /// # Raw usage
+    /// Can also be used with gfx raw render & depth views if necessary. The `Format` must also
+    /// be provided. [See example.](struct.GlyphBrush.html#raw-usage-1)
+    pub fn draw_queued<C, CV, DV>(
         &mut self,
         encoder: &mut gfx::Encoder<R, C>,
-        target: &gfx::handle::RenderTargetView<R, T>,
-        depth_target: &gfx::handle::DepthStencilView<R, D>,
+        target: &CV,
+        depth_target: &DV,
     ) -> Result<(), String>
     where
         C: gfx::CommandBuffer<R>,
-        T: format::RenderFormat,
-        D: format::DepthFormat,
+        CV: RawAndFormat<Raw = RawRenderTargetView<R>>,
+        DV: RawAndFormat<Raw = RawDepthStencilView<R>>,
     {
         self.draw_queued_with_transform(IDENTITY_MATRIX4, encoder, target, depth_target)
     }
@@ -412,22 +416,59 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     /// See [`queue`](struct.GlyphBrush.html#method.queue).
     ///
     /// Trims the cache, see [caching behaviour](#caching-behaviour).
-    pub fn draw_queued_with_transform<C, T, D>(
+    ///
+    /// # Raw usage
+    /// Can also be used with gfx raw render & depth views if necessary. The `Format` must also
+    /// be provided.
+    ///
+    /// ```no_run
+    /// # extern crate gfx;
+    /// # extern crate gfx_window_glutin;
+    /// # extern crate glutin;
+    /// # extern crate gfx_glyph;
+    /// # use gfx_glyph::{GlyphBrushBuilder};
+    /// # use gfx_glyph::Section;
+    /// # use gfx::format;
+    /// # use gfx::format::Formatted;
+    /// # use gfx::memory::Typed;
+    /// # fn main() {
+    /// # let events_loop = glutin::EventsLoop::new();
+    /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
+    /// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
+    /// #         glutin::WindowBuilder::new(),
+    /// #         glutin::ContextBuilder::new(),
+    /// #         &events_loop);
+    /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
+    /// # let dejavu: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
+    /// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu)
+    /// #     .build(gfx_factory.clone());
+    /// # let raw_render_view = gfx_color.raw();
+    /// # let raw_depth_view = gfx_depth.raw();
+    /// glyph_brush
+    ///     .draw_queued(
+    ///         &mut gfx_encoder,
+    ///         &(raw_render_view, format::Srgba8::get_format()),
+    ///         &(raw_depth_view, format::Depth::get_format()),
+    ///     )
+    /// #    .unwrap();
+    /// # }
+    /// ```
+    pub fn draw_queued_with_transform<C, CV, DV>(
         &mut self,
         transform: [[f32; 4]; 4],
         mut encoder: &mut gfx::Encoder<R, C>,
-        target: &gfx::handle::RenderTargetView<R, T>,
-        depth_target: &gfx::handle::DepthStencilView<R, D>,
+        target: &CV,
+        depth_target: &DV,
     ) -> Result<(), String>
     where
         C: gfx::CommandBuffer<R>,
-        T: format::RenderFormat,
-        D: format::DepthFormat,
+        CV: RawAndFormat<Raw = RawRenderTargetView<R>>,
+        DV: RawAndFormat<Raw = RawDepthStencilView<R>>,
     {
         #[cfg(feature = "performance_stats")]
         self.perf.draw_start();
 
-        let (screen_width, screen_height, ..) = target.get_dimensions();
+        let (screen_width, screen_height, ..) = target.as_raw().get_dimensions();
         let (screen_width, screen_height) = (u32::from(screen_width), u32::from(screen_height));
 
         let current_text_state = self.hash(&(&self.section_buffer, screen_width, screen_height));
@@ -551,12 +592,12 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
 
             let draw_cache = if let Some(mut cache) = self.draw_cache.take() {
                 cache.pipe_data.vbuf = vbuf;
-                cache.pipe_data.out = target.raw().clone();
-                cache.pipe_data.out_depth = depth_target.raw().clone();
-                if cache.pso.0 != T::get_format() {
+                cache.pipe_data.out = target.as_raw().clone();
+                cache.pipe_data.out_depth = depth_target.as_raw().clone();
+                if cache.pso.0 != target.format() {
                     cache.pso = (
-                        T::get_format(),
-                        self.pso_using(T::get_format(), D::get_format()),
+                        target.format(),
+                        self.pso_using(target.format(), depth_target.format()),
                     );
                 }
                 cache.slice.instances.as_mut().unwrap().0 = verts.len() as _;
@@ -578,13 +619,13 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
                             vbuf,
                             font_tex: (self.font_cache_tex.1.clone(), sampler),
                             transform,
-                            out: target.raw().clone(),
-                            out_depth: depth_target.raw().clone(),
+                            out: target.as_raw().clone(),
+                            out_depth: depth_target.as_raw().clone(),
                         }
                     },
                     pso: (
-                        T::get_format(),
-                        self.pso_using(T::get_format(), D::get_format()),
+                        target.format(),
+                        self.pso_using(target.format(), depth_target.format()),
                     ),
                     slice: gfx::Slice {
                         instances: Some((verts.len() as _, 0)),
@@ -620,7 +661,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
         Ok(())
     }
 
-    /// Returns `FontId` -> `Font` map of available fonts.
+    /// Returns [`FontMap`](type.FontMap.html) of available fonts.
     pub fn fonts(&self) -> &FontMap<'font> {
         &self.fonts
     }
