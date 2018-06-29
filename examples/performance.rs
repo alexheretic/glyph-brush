@@ -35,7 +35,7 @@ fn main() {
     let title = "gfx_glyph rendering 100,000 glyphs - scroll to size, type to modify";
     let window_builder = glutin::WindowBuilder::new()
         .with_title(title)
-        .with_dimensions(1024, 576);
+        .with_dimensions((1024, 576).into());
     let context = glutin::ContextBuilder::new().with_vsync(false);
     let (window, mut device, mut factory, mut main_color, mut main_depth) =
         gfx_window_glutin::init::<format::Srgba8, format::Depth>(
@@ -54,7 +54,7 @@ fn main() {
     let mut encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
 
     let mut running = true;
-    let mut font_size = Scale::uniform(25.0 * window.hidpi_factor());
+    let mut font_size: f32 = 25.0;
     let mut loop_helper = spin_sleep::LoopHelper::builder().build_without_target_rate();
 
     while running {
@@ -84,8 +84,8 @@ fn main() {
                     WindowEvent::ReceivedCharacter(c) => if c != '\u{7f}' && c != '\u{8}' {
                         text.push(c);
                     },
-                    WindowEvent::Resized(width, height) => {
-                        window.resize(width, height);
+                    WindowEvent::Resized(size) => {
+                        window.resize(size.to_physical(window.get_hidpi_factor()));
                         gfx_window_glutin::update_views(&window, &mut main_color, &mut main_depth);
                     }
                     WindowEvent::MouseWheel {
@@ -93,15 +93,13 @@ fn main() {
                         ..
                     } => {
                         // increase/decrease font size with mouse wheel
-                        let mut size = font_size.x / window.hidpi_factor();
                         if y > 0.0 {
-                            size += (size / 4.0).max(2.0)
+                            font_size += (font_size / 4.0).max(2.0)
                         }
                         else {
-                            size *= 4.0 / 5.0
+                            font_size *= 4.0 / 5.0
                         };
-                        size = size.max(1.0);
-                        font_size = Scale::uniform(size * window.hidpi_factor());
+                        font_size = font_size.max(1.0);
                     }
                     _ => {}
                 }
@@ -112,12 +110,13 @@ fn main() {
 
         let (width, height, ..) = main_color.get_dimensions();
         let (width, height) = (f32::from(width), f32::from(height));
+        let scale = Scale::uniform(font_size * window.get_hidpi_factor() as f32);
 
         // The section is all the info needed for the glyph brush to render a 'section' of text
         // can use `..Section::default()` to skip the bits you don't care about
         let section = Section {
             text: &text,
-            scale: font_size,
+            scale,
             bounds: (width, height),
             color: [0.8, 0.8, 0.8, 1.0],
             layout: Layout::default().line_breaker(BuiltInLineBreaker::AnyCharLineBreaker),

@@ -35,7 +35,7 @@ fn main() {
     let title = "gfx_glyph example - resize to see multi-text layout";
     let window_builder = glutin::WindowBuilder::new()
         .with_title(title)
-        .with_dimensions(700, 320);
+        .with_dimensions((700, 320).into());
     let context = glutin::ContextBuilder::new();
     let (window, mut device, mut factory, mut main_color, mut main_depth) =
         gfx_window_glutin::init::<format::Srgba8, format::Depth>(
@@ -73,8 +73,8 @@ fn main() {
                         ..
                     }
                     | WindowEvent::CloseRequested => running = false,
-                    WindowEvent::Resized(width, height) => {
-                        window.resize(width, height);
+                    WindowEvent::Resized(size) => {
+                        window.resize(size.to_physical(window.get_hidpi_factor()));
                         gfx_window_glutin::update_views(&window, &mut main_color, &mut main_depth);
                     }
                     _ => {}
