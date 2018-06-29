@@ -202,20 +202,20 @@ fn main() {
         glyph_brush.queue(Section {
             text: &text,
             scale,
-            screen_position: (width / 2.0, 0.0),
+            screen_position: (width / 2.0, height / 2.0),
             bounds: (width / 3.15, height),
             color: [0.3, 0.9, 0.3, 1.0],
-            layout: Layout::default().h_align(HorizontalAlign::Center),
+            layout: Layout::default().h_align(HorizontalAlign::Center).v_align(VerticalAlign::Center),
             ..Section::default()
         });
 
         glyph_brush.queue(Section {
             text: &text,
             scale,
-            screen_position: (width, 0.0),
+            screen_position: (width, height),
             bounds: (width / 3.15, height),
             color: [0.3, 0.3, 0.9, 1.0],
-            layout: Layout::default().h_align(HorizontalAlign::Right),
+            layout: Layout::default().h_align(HorizontalAlign::Right).v_align(VerticalAlign::Bottom),
             ..Section::default()
         });
 

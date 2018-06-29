@@ -10,6 +10,8 @@ pub(crate) const ZERO_V_METRICS: VMetrics = VMetrics {
 };
 
 /// Single 'word' ie a sequence of `Character`s where the last is a line-break.
+///
+/// Glyphs are relatively positioned from (0, 0) in a left-top alignment style.
 pub(crate) struct Word<'font> {
     pub glyphs: Vec<(RelativePositionedGlyph<'font>, Color, FontId)>,
     pub bounds: Option<Rect<f32>>,
@@ -117,9 +119,9 @@ impl<'a, 'b, 'font, L: LineBreaker> Iterator for Words<'a, 'b, 'font, L> {
 
                     glyphs.push((positioned, color, font_id));
                 }
-            }
 
-            caret.x += advance_width;
+                caret.x += advance_width;
+            }
 
             if line_break.is_some() {
                 if let Some(LineBreak::Hard(..)) = line_break {

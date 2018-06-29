@@ -13,6 +13,11 @@ pub(crate) struct Line<'font> {
 }
 
 impl<'font> Line<'font> {
+    #[inline]
+    pub(crate) fn line_height(&self) -> f32 {
+        self.max_v_metrics.ascent - self.max_v_metrics.descent + self.max_v_metrics.line_gap
+    }
+
     /// Returns line glyphs positioned on the screen and aligned.
     pub fn aligned_on_screen(
         self,
@@ -25,39 +30,45 @@ impl<'font> Line<'font> {
         }
 
         // implement v-aligns when they're are supported
-        match v_align {
-            VerticalAlign::Top => {}
-        };
-
         let screen_left = match h_align {
             HorizontalAlign::Left => point(screen_position.0, screen_position.1),
             // - Right alignment attained from left by shifting the line
             //   leftwards by the rightmost x distance from render position
             // - Central alignment is attained from left by shifting the line
             //   leftwards by half the rightmost x distance from render position
-            _ => {
-                let shift_left = {
+            HorizontalAlign::Center | HorizontalAlign::Right => {
+                let mut shift_left = {
                     let last_glyph = &self.glyphs.last().unwrap().0;
-                    let rightmost_x = last_glyph
+                    last_glyph
                         .bounds()
                         .map(|bounds| bounds.max.x.ceil())
                         .unwrap_or(last_glyph.relative.x)
-                        + last_glyph.glyph.h_metrics().left_side_bearing;
-
-                    if h_align == HorizontalAlign::Center {
-                        rightmost_x / 2.0
-                    }
-                    else {
-                        rightmost_x
-                    }
+                        + last_glyph.glyph.h_metrics().left_side_bearing
                 };
+                if h_align == HorizontalAlign::Center {
+                    shift_left /= 2.0;
+                }
                 point(screen_position.0 - shift_left, screen_position.1)
+            }
+        };
+
+        let screen_pos = match v_align {
+            VerticalAlign::Top => screen_left,
+            VerticalAlign::Center => {
+                let mut screen_pos = screen_left;
+                screen_pos.x -= self.line_height() / 2.0;
+                screen_pos
+            }
+            VerticalAlign::Bottom => {
+                let mut screen_pos = screen_left;
+                screen_pos.x -= self.line_height();
+                screen_pos
             }
         };
 
         self.glyphs
             .into_iter()
-            .map(|(glyph, color, font_id)| (glyph.screen_positioned(screen_left), color, font_id))
+            .map(|(glyph, color, font_id)| (glyph.screen_positioned(screen_pos), color, font_id))
             .collect()
     }
 }
@@ -80,7 +91,7 @@ impl<'a, 'b, 'font, L: LineBreaker> Iterator for Lines<'a, 'b, 'font, L> {
 
         let mut progressed = false;
 
-        #[allow(while_let_loop)] // peek/next borrow clash
+        #[allow(while_let_loop)] // TODO use while-peek-next when nll lands
         loop {
             if let Some(word) = self.words.peek() {
                 let word_max_x = word.bounds.map(|b| b.max.x).unwrap_or(word.layout_width);
@@ -115,11 +126,11 @@ impl<'a, 'b, 'font, L: LineBreaker> Iterator for Lines<'a, 'b, 'font, L> {
                     }));
             }
 
+            caret.x += word.layout_width;
+
             if word.hard_break {
                 break;
             }
-
-            caret.x += word.layout_width;
         }
 
         Some(line).filter(|_| progressed)

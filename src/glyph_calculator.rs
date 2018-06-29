@@ -183,41 +183,9 @@ impl<'brush, 'font, H: BuildHasher> GlyphCruncher<'font>
         L: GlyphPositioner + Hash,
         S: Into<Cow<'a, VariedSection<'a>>>,
     {
-        let section = section.into();
-        let mut x = (0, 0);
-        let mut y = (0, 0);
-        let mut no_match = true;
-
-        let section_hash = self.cache_glyphs(section.borrow(), custom_layout);
+        let section_hash = self.cache_glyphs(&section.into(), custom_layout);
         self.cached.insert(section_hash);
-        for (g, ..) in &self.glyph_cache[&section_hash].glyphs {
-            if let Some(Rect { min, max }) = g.pixel_bounding_box() {
-                if no_match || min.x < x.0 {
-                    x.0 = min.x;
-                }
-                if no_match || min.y < y.0 {
-                    y.0 = min.y;
-                }
-                if no_match || max.x > x.1 {
-                    x.1 = max.x;
-                }
-                if no_match || max.y > y.1 {
-                    y.1 = max.y;
-                }
-
-                no_match = false;
-            }
-        }
-
-        if no_match {
-            None
-        }
-        else {
-            Some(Rect {
-                min: Point { x: x.0, y: y.0 },
-                max: Point { x: x.1, y: y.1 },
-            })
-        }
+        self.glyph_cache[&section_hash].pixel_bounds()
     }
 
     fn glyphs_custom_layout<'a, 'b, S, L>(
@@ -229,13 +197,9 @@ impl<'brush, 'font, H: BuildHasher> GlyphCruncher<'font>
         L: GlyphPositioner + Hash,
         S: Into<Cow<'a, VariedSection<'a>>>,
     {
-        let section = section.into();
-        let section_hash = self.cache_glyphs(section.borrow(), custom_layout);
+        let section_hash = self.cache_glyphs(&section.into(), custom_layout);
         self.cached.insert(section_hash);
-        self.glyph_cache[&section_hash]
-            .glyphs
-            .iter()
-            .map(|(g, ..)| g)
+        self.glyph_cache[&section_hash].glyphs()
     }
 }
 
@@ -354,5 +318,52 @@ impl<'a, H: BuildHasher> GlyphCalculatorBuilder<'a, H> {
             calculate_glyph_cache: Mutex::new(HashMap::default()),
             section_hasher: self.section_hasher,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::f32;
+
+    lazy_static! {
+        static ref A_FONT: Font<'static> =
+            Font::from_bytes(include_bytes!("../tests/DejaVuSansMono.ttf") as &[u8])
+                .expect("Could not create rusttype::Font");
+    }
+
+    #[test]
+    fn pixel_bounds_respect_layout_bounds() {
+        let glyphs = GlyphCalculatorBuilder::using_font(A_FONT.clone()).build();
+        let mut glyphs = glyphs.cache_scope();
+
+        let section = Section {
+            text: "Hello\n\
+                   World",
+            screen_position: (0.0, 20.0),
+            bounds: (f32::INFINITY, 20.0),
+            scale: Scale::uniform(16.0),
+            layout: Layout::default().v_align(VerticalAlign::Bottom),
+            ..Section::default()
+        };
+
+        let pixel_bounds = glyphs.pixel_bounds(&section).expect("None bounds");
+        let layout_bounds = Layout::default()
+            .v_align(VerticalAlign::Bottom)
+            .bounds_rect(&section.into());
+
+        assert!(
+            layout_bounds.min.y <= pixel_bounds.min.y as f32,
+            "expected {} <= {}",
+            layout_bounds.min.y,
+            pixel_bounds.min.y
+        );
+
+        assert!(
+            layout_bounds.max.y >= pixel_bounds.max.y as f32,
+            "expected {} >= {}",
+            layout_bounds.max.y,
+            pixel_bounds.max.y
+        );
     }
 }

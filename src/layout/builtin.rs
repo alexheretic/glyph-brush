@@ -1,5 +1,6 @@
 use super::*;
 use characters::Characters;
+use std::mem;
 
 /// Built-in [`GlyphPositioner`](trait.GlyphPositioner.html) implementations.
 ///
@@ -83,8 +84,26 @@ impl<L: LineBreaker> Layout<L> {
 
     /// Returns an identical `Layout` but with the input `v_align`
     pub fn v_align(self, v_align: VerticalAlign) -> Self {
-        match v_align {
-            VerticalAlign::Top => self,
+        use Layout::*;
+        match self {
+            SingleLine {
+                line_breaker,
+                h_align,
+                ..
+            } => SingleLine {
+                line_breaker,
+                v_align,
+                h_align,
+            },
+            Wrap {
+                line_breaker,
+                h_align,
+                ..
+            } => Wrap {
+                line_breaker,
+                v_align,
+                h_align,
+            },
         }
     }
 
@@ -143,21 +162,46 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
             } => {
                 let mut out = vec![];
                 let mut caret = screen_position;
+                let v_align_top = v_align == VerticalAlign::Top;
 
                 let mut lines = Characters::new(font_map, section.text.iter(), line_breaker)
                     .words()
                     .lines(bound_w);
 
                 for line in lines {
-                    if caret.1 >= screen_position.1 + bound_h {
+                    if v_align_top && caret.1 >= screen_position.1 + bound_h {
                         break;
                     }
 
-                    let line_h = line.max_v_metrics.ascent - line.max_v_metrics.descent
-                        + line.max_v_metrics.line_gap;
+                    let line_height = line.line_height();
+                    out.extend(line.aligned_on_screen(caret, h_align, VerticalAlign::Top));
+                    caret.1 += line_height;
+                }
 
-                    out.extend(line.aligned_on_screen(caret, h_align, v_align));
-                    caret.1 += line_h;
+                if !out.is_empty() {
+                    match v_align {
+                        // already aligned
+                        VerticalAlign::Top => {}
+                        // convert from top
+                        VerticalAlign::Center | VerticalAlign::Bottom => {
+                            let shift_up = if v_align == VerticalAlign::Center {
+                                (caret.1 - screen_position.1) / 2.0
+                            }
+                            else {
+                                caret.1 - screen_position.1
+                            };
+
+                            // caret is the current bottom
+                            let mut current = out.first().unwrap().0.clone();
+                            for (g, ..) in &mut out {
+                                mem::swap(&mut current, g);
+                                let mut pos = current.position();
+                                pos.y -= shift_up;
+                                current = current.into_unpositioned().positioned(pos);
+                                mem::swap(&mut current, g);
+                            }
+                        }
+                    }
                 }
 
                 out
@@ -174,11 +218,16 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
             ..
         } = *section;
 
-        let h_align = match *self {
-            Wrap { h_align, .. } | SingleLine { h_align, .. } => h_align,
+        let (h_align, v_align) = match *self {
+            Wrap {
+                h_align, v_align, ..
+            }
+            | SingleLine {
+                h_align, v_align, ..
+            } => (h_align, v_align),
         };
 
-        match h_align {
+        let mut bounds = match h_align {
             HorizontalAlign::Left => Rect {
                 min: Point {
                     x: screen_x,
@@ -209,7 +258,21 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                     y: screen_y + bound_h,
                 },
             },
+        };
+
+        match v_align {
+            VerticalAlign::Top => {}
+            VerticalAlign::Center => {
+                bounds.min.y -= bound_h / 2.0;
+                bounds.max.y -= bound_h / 2.0;
+            }
+            VerticalAlign::Bottom => {
+                bounds.min.y -= bound_h;
+                bounds.max.y -= bound_h;
+            }
         }
+
+        bounds
     }
 }
 
@@ -231,8 +294,12 @@ pub enum HorizontalAlign {
 /// for future functionality.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum VerticalAlign {
-    /// Characters/bounds start underneath the render position and progress downwards
+    /// Characters/bounds start underneath the render position and progress downwards.
     Top,
+    /// Characters/bounds center at the render position and progress outward equally.
+    Center,
+    /// Characters/bounds start above the render position and progress upward.
+    Bottom,
 }
 
 #[cfg(test)]

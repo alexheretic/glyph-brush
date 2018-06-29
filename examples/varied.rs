@@ -94,6 +94,7 @@ fn main() {
         let (width, height) = (f32::from(width), f32::from(height));
 
         glyph_brush.queue(VariedSection {
+            screen_position: (0.0, height / 2.0),
             bounds: (width * 0.49, height),
             text: vec![
                 SectionText {
@@ -115,12 +116,13 @@ fn main() {
                     font_id: sans_font,
                 },
             ],
+            layout: Layout::default().v_align(VerticalAlign::Center),
             ..VariedSection::default()
         });
 
         glyph_brush.queue(VariedSection {
+            screen_position: (width, height / 2.0),
             bounds: (width * 0.49, height),
-            screen_position: (width * 0.51, 0.0),
             text: vec![
                 SectionText {
                     text: "foo += bar;",
@@ -153,6 +155,7 @@ fn main() {
                     font_id: italic_font,
                 },
             ],
+            layout: Layout::default().h_align(HorizontalAlign::Right).v_align(VerticalAlign::Center),
             ..VariedSection::default()
         });
 
