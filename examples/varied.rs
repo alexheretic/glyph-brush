@@ -159,8 +159,6 @@ fn main() {
             ..VariedSection::default()
         });
 
-        use gfx::memory::Typed;
-        use gfx::format::Formatted;
         glyph_brush
             .draw_queued(&mut encoder, &main_color, &main_depth)
             .expect("draw");

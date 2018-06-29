@@ -10,8 +10,6 @@ use std::iter::{FusedIterator, Iterator};
 pub(crate) struct Line<'font> {
     pub glyphs: Vec<(RelativePositionedGlyph<'font>, Color, FontId)>,
     pub max_v_metrics: VMetrics,
-    /// Width of line includes non-glyph spacing at eol.
-    pub width: f32,
 }
 
 impl<'font> Line<'font> {
@@ -39,7 +37,14 @@ impl<'font> Line<'font> {
             // - Central alignment is attained from left by shifting the line
             //   leftwards by half the rightmost x distance from render position
             HorizontalAlign::Center | HorizontalAlign::Right => {
-                let mut shift_left = self.width;
+                let mut shift_left = {
+                    let last_glyph = &self.glyphs.last().unwrap().0;
+                    last_glyph
+                        .bounds()
+                        .map(|bounds| bounds.max.x.ceil())
+                        .unwrap_or(last_glyph.relative.x)
+                        + last_glyph.glyph.h_metrics().left_side_bearing
+                };
                 if h_align == HorizontalAlign::Center {
                     shift_left /= 2.0;
                 }
@@ -82,7 +87,6 @@ impl<'a, 'b, 'font, L: LineBreaker> Iterator for Lines<'a, 'b, 'font, L> {
         let mut line = Line {
             glyphs: Vec::new(),
             max_v_metrics: ZERO_V_METRICS,
-            width: 0.0,
         };
 
         let mut progressed = false;
@@ -128,8 +132,6 @@ impl<'a, 'b, 'font, L: LineBreaker> Iterator for Lines<'a, 'b, 'font, L> {
                 break;
             }
         }
-
-        line.width = caret.x;
 
         Some(line).filter(|_| progressed)
     }
