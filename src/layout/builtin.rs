@@ -677,13 +677,19 @@ mod layout_test {
             },
         );
 
-        assert_glyph_order!(glyphs, "The");
+        assert_glyph_order!(glyphs, "Themoonlight");
 
         let y_ords: HashSet<OrderedFloat<f32>> = glyphs
             .iter()
             .map(|g| OrderedFloat(g.0.position().y))
             .collect();
 
-        assert_eq!(y_ords.len(), 1, "Y ords: {:?}", y_ords);
+        assert_eq!(y_ords.len(), 2, "Y ords: {:?}", y_ords);
+
+        let first_line_y = y_ords.iter().min().unwrap();
+        let second_line_y = y_ords.iter().max().unwrap();
+
+        assert_relative_eq!(glyphs[0].0.position().y, first_line_y);
+        assert_relative_eq!(glyphs[3].0.position().y, second_line_y);
     }
 }
