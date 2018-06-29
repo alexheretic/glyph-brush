@@ -74,6 +74,11 @@ impl<'font> Line<'font> {
 }
 
 /// `Line` iterator.
+///
+/// Will iterator through `Word` until the next word would break the `width_bound`.
+///
+/// Note: Will always have at least one word, if possible, even if the word itself
+/// breaks the `width_bound`.
 pub(crate) struct Lines<'a, 'b, 'font: 'a + 'b, L: LineBreaker> {
     pub(crate) words: Peekable<Words<'a, 'b, 'font, L>>,
     pub(crate) width_bound: f32,
@@ -95,7 +100,8 @@ impl<'a, 'b, 'font, L: LineBreaker> Iterator for Lines<'a, 'b, 'font, L> {
         loop {
             if let Some(word) = self.words.peek() {
                 let word_max_x = word.bounds.map(|b| b.max.x).unwrap_or(word.layout_width);
-                if (caret.x + word_max_x).ceil() > self.width_bound {
+                // only if `progressed` means the first word is allowed to overlap the bounds
+                if progressed && (caret.x + word_max_x).ceil() > self.width_bound {
                     break;
                 }
             }
