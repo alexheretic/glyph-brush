@@ -1,5 +1,6 @@
 mod builtin;
 pub(crate) mod characters;
+pub(crate) mod linebreak;
 pub(crate) mod lines;
 pub(crate) mod words;
 

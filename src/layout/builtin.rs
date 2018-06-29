@@ -33,12 +33,14 @@ pub enum Layout<L: LineBreaker> {
 }
 
 impl Default for Layout<BuiltInLineBreaker> {
+    #[inline]
     fn default() -> Self {
         Layout::default_wrap()
     }
 }
 
 impl Layout<BuiltInLineBreaker> {
+    #[inline]
     pub fn default_single_line() -> Self {
         Layout::SingleLine {
             line_breaker: BuiltInLineBreaker::default(),
@@ -47,6 +49,7 @@ impl Layout<BuiltInLineBreaker> {
         }
     }
 
+    #[inline]
     pub fn default_wrap() -> Self {
         Layout::Wrap {
             line_breaker: BuiltInLineBreaker::default(),

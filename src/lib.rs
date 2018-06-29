@@ -70,7 +70,6 @@ extern crate xi_unicode;
 
 mod builder;
 mod layout;
-mod linebreak;
 mod pipe;
 mod section;
 #[macro_use]
@@ -724,87 +723,6 @@ struct DrawnGlyphBrush<R: gfx::Resources> {
     slice: gfx::Slice<R>,
     last_text_state: u64,
     texture_updated: bool,
-}
-
-#[derive(Clone)]
-struct GlyphedSection<'font> {
-    bounds: Rect<f32>,
-    glyphs: Vec<(PositionedGlyph<'font>, Color, FontId)>,
-    z: f32,
-}
-
-impl<'font> GlyphedSection<'font> {
-    pub(crate) fn pixel_bounds(&self) -> Option<Rect<i32>> {
-        let Self {
-            ref glyphs, bounds, ..
-        } = *self;
-
-        let max_to_i32 = |max: f32| {
-            let ceil = max.ceil();
-            if ceil > i32::MAX as f32 {
-                return i32::MAX;
-            }
-            ceil as i32
-        };
-
-        let layout_bounds = Rect {
-            min: point(bounds.min.x.floor() as i32, bounds.min.y.floor() as i32),
-            max: point(max_to_i32(bounds.max.x), max_to_i32(bounds.max.y)),
-        };
-
-        let inside_layout = |rect: Rect<i32>| {
-            if rect.max.x < layout_bounds.min.x
-                || rect.max.y < layout_bounds.min.y
-                || rect.min.x > layout_bounds.max.x
-                || rect.min.y > layout_bounds.max.y
-            {
-                return None;
-            }
-            Some(Rect {
-                min: Point {
-                    x: rect.min.x.max(layout_bounds.min.x),
-                    y: rect.min.y.max(layout_bounds.min.y),
-                },
-                max: Point {
-                    x: rect.max.x.min(layout_bounds.max.x),
-                    y: rect.max.y.min(layout_bounds.max.y),
-                },
-            })
-        };
-
-        let mut no_match = true;
-
-        let mut pixel_bounds = Rect {
-            min: point(0, 0),
-            max: point(0, 0),
-        };
-
-        for Rect { min, max } in glyphs
-            .iter()
-            .filter_map(|&(ref g, ..)| g.pixel_bounding_box())
-            .filter_map(inside_layout)
-        {
-            if no_match || min.x < pixel_bounds.min.x {
-                pixel_bounds.min.x = min.x;
-            }
-            if no_match || min.y < pixel_bounds.min.y {
-                pixel_bounds.min.y = min.y;
-            }
-            if no_match || max.x > pixel_bounds.max.x {
-                pixel_bounds.max.x = max.x;
-            }
-            if no_match || max.y > pixel_bounds.max.y {
-                pixel_bounds.max.y = max.y;
-            }
-            no_match = false;
-        }
-
-        Some(pixel_bounds).filter(|_| !no_match)
-    }
-
-    pub(crate) fn glyphs(&self) -> PositionedGlyphIter<'_, 'font> {
-        self.glyphs.iter().map(|(g, ..)| g)
-    }
 }
 
 #[inline]
