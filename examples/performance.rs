@@ -9,8 +9,9 @@ use gfx::{format, Device};
 use gfx_glyph::*;
 use glutin::GlContext;
 use std::env;
+use std::error::Error;
 
-fn main() {
+fn main() -> Result<(), Box<Error>> {
     env_logger::init();
 
     if cfg!(target_os = "linux") {
@@ -28,7 +29,7 @@ fn main() {
             don't you think?\n    \
             e.g. use `cargo run --example performance --release`\n\n\
             If you really want to see debug performance set env var `yes_i_really_want_debug_mode`");
-        return;
+        return Ok(());
     }
 
     let mut events_loop = glutin::EventsLoop::new();
@@ -135,12 +136,10 @@ fn main() {
         // Note: Drawing in the case the text is unchanged from the previous frame (a common case)
         // is essentially free as the vertices are reused &  gpu cache updating interaction
         // can be skipped.
-        glyph_brush
-            .draw_queued(&mut encoder, &main_color, &main_depth)
-            .expect("draw");
+        glyph_brush.draw_queued(&mut encoder, &main_color, &main_depth)?;
 
         encoder.flush(&mut device);
-        window.swap_buffers().unwrap();
+        window.swap_buffers()?;
         device.cleanup();
 
         if let Some(rate) = loop_helper.report_rate() {
@@ -148,4 +147,5 @@ fn main() {
         }
     }
     println!();
+    Ok(())
 }

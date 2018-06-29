@@ -9,8 +9,9 @@ use gfx::{format, Device};
 use gfx_glyph::*;
 use glutin::GlContext;
 use std::env;
+use std::error::Error;
 
-fn main() {
+fn main() -> Result<(), Box<Error>> {
     env_logger::init();
 
     if cfg!(target_os = "linux") {
@@ -111,12 +112,10 @@ fn main() {
             ..Section::default()
         });
 
-        glyph_brush
-            .draw_queued(&mut encoder, &main_color, &main_depth)
-            .expect("draw");
+        glyph_brush.draw_queued(&mut encoder, &main_color, &main_depth)?;
 
         encoder.flush(&mut device);
-        window.swap_buffers().unwrap();
+        window.swap_buffers()?;
         device.cleanup();
 
         if let Some(rate) = loop_helper.report_rate() {
@@ -125,4 +124,5 @@ fn main() {
 
         loop_helper.loop_sleep();
     }
+    Ok(())
 }

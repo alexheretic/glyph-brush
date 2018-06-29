@@ -19,11 +19,12 @@ use cgmath::{Matrix4, Rad, Transform};
 use gfx::{format, Device};
 use glutin::GlContext;
 use std::env;
+use std::error::Error;
 use std::f32::consts::PI as PI32;
 use std::io;
 use std::io::Write;
 
-fn main() {
+fn main() -> Result<(), Box<Error>> {
     env_logger::init();
 
     if cfg!(target_os = "linux") {
@@ -131,7 +132,7 @@ fn main() {
                             }
                             print!("\r                            \r");
                             print!("transform-angle -> {:.2} * π", angle / PI32);
-                            io::stdout().flush().ok().unwrap();
+                            let _ = io::stdout().flush();
                         }
                         else if ctrl && !shift {
                             let old_zoom = zoom;
@@ -146,7 +147,7 @@ fn main() {
                             if (zoom - old_zoom).abs() > 1e-2 {
                                 print!("\r                            \r");
                                 print!("transform-zoom -> {:.1}", zoom);
-                                io::stdout().flush().ok().unwrap();
+                                let _ = io::stdout().flush();
                             }
                         }
                         else {
@@ -163,7 +164,7 @@ fn main() {
                             if (font_size - old_size).abs() > 1e-2 {
                                 print!("\r                            \r");
                                 print!("font-size -> {:.1}", font_size);
-                                io::stdout().flush().ok().unwrap();
+                                let _ = io::stdout().flush();
                             }
                         }
                     }
@@ -224,7 +225,7 @@ fn main() {
         });
 
         // Note: Can be drawn simply with the below, when transforms are not needed:
-        // `glyph_brush.draw_queued(&mut encoder, &main_color, &main_depth).expect("draw");`
+        // `glyph_brush.draw_queued(&mut encoder, &main_color, &main_depth)?;`
 
         // Here an example transform is used as a cheap zoom out (controlled with ctrl-scroll)
         let transform_zoom = Matrix4::from_scale(zoom);
@@ -253,12 +254,15 @@ fn main() {
         // Note: Drawing in the case the text is unchanged from the previous frame (a common case)
         // is essentially free as the vertices are reused & gpu cache updating interaction
         // can be skipped.
-        glyph_brush
-            .draw_queued_with_transform(transform.into(), &mut encoder, &main_color, &main_depth)
-            .expect("draw");
+        glyph_brush.draw_queued_with_transform(
+            transform.into(),
+            &mut encoder,
+            &main_color,
+            &main_depth,
+        )?;
 
         encoder.flush(&mut device);
-        window.swap_buffers().unwrap();
+        window.swap_buffers()?;
         device.cleanup();
 
         if let Some(rate) = loop_helper.report_rate() {
@@ -268,4 +272,5 @@ fn main() {
         loop_helper.loop_sleep();
     }
     println!();
+    Ok(())
 }
