@@ -16,7 +16,7 @@
 //! # extern crate glutin;
 //! extern crate gfx_glyph;
 //! use gfx_glyph::{GlyphBrushBuilder, Section};
-//! # fn main() {
+//! # fn main() -> Result<(), String> {
 //! # let events_loop = glutin::EventsLoop::new();
 //! # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
 //! #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
@@ -37,9 +37,8 @@
 //! glyph_brush.queue(section);
 //! glyph_brush.queue(some_other_section);
 //!
-//! glyph_brush
-//!     .draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth)
-//!     .unwrap();
+//! glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth)?;
+//! # Ok(())
 //! # }
 //! ```
 #![allow(unknown_lints)]
@@ -99,7 +98,7 @@ use pipe::*;
 use rustc_hash::{FxHashMap, FxHashSet};
 use rusttype::gpu_cache::{Cache, CacheBuilder};
 use rusttype::point;
-use std::borrow::{Borrow, Cow};
+use std::borrow::Cow;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
@@ -153,7 +152,7 @@ type DefaultSectionHasher = BuildHasherDefault<seahash::SeaHasher>;
 /// extern crate gfx_glyph;
 /// # use gfx_glyph::{GlyphBrushBuilder};
 /// use gfx_glyph::Section;
-/// # fn main() {
+/// # fn main() -> Result<(), String> {
 /// # let events_loop = glutin::EventsLoop::new();
 /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
 /// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
@@ -161,12 +160,11 @@ type DefaultSectionHasher = BuildHasherDefault<seahash::SeaHasher>;
 /// #         glutin::ContextBuilder::new(),
 /// #         &events_loop);
 /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
-///
 /// # let dejavu: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
 /// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu)
 /// #     .build(gfx_factory.clone());
-///
 /// # let some_other_section = Section { text: "another", ..Section::default() };
+///
 /// let section = Section {
 ///     text: "Hello gfx_glyph",
 ///     ..Section::default()
@@ -175,9 +173,8 @@ type DefaultSectionHasher = BuildHasherDefault<seahash::SeaHasher>;
 /// glyph_brush.queue(section);
 /// glyph_brush.queue(some_other_section);
 ///
-/// glyph_brush
-///     .draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth)
-///     .unwrap();
+/// glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth)?;
+/// # Ok(())
 /// # }
 /// ```
 ///
@@ -247,44 +244,9 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphCruncher
         L: GlyphPositioner + Hash,
         S: Into<Cow<'a, VariedSection<'a>>>,
     {
-        let section = section.into();
-        let mut x = (i32::MIN, i32::MIN);
-        let mut y = (i32::MIN, i32::MIN);
-        let mut no_match = true;
-
-        let section_hash = self.cache_glyphs(section.borrow(), custom_layout);
+        let section_hash = self.cache_glyphs(&section.into(), custom_layout);
         self.keep_in_cache.insert(section_hash);
-
-        for Rect { min, max } in self.calculate_glyph_cache[&section_hash]
-            .glyphs
-            .iter()
-            .filter_map(|&(ref g, ..)| g.pixel_bounding_box())
-        {
-            if no_match || min.x < x.0 {
-                x.0 = min.x;
-            }
-            if no_match || min.y < y.0 {
-                y.0 = min.y;
-            }
-            if no_match || max.x > x.1 {
-                x.1 = max.x;
-            }
-            if no_match || max.y > y.1 {
-                y.1 = max.y;
-            }
-
-            no_match = false;
-        }
-
-        if no_match {
-            None
-        }
-        else {
-            Some(Rect {
-                min: Point { x: x.0, y: y.0 },
-                max: Point { x: x.1, y: y.1 },
-            })
-        }
+        self.calculate_glyph_cache[&section_hash].pixel_bounds()
     }
 
     fn glyphs_custom_layout<'a, 'b, S, L>(
@@ -296,13 +258,9 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphCruncher
         L: GlyphPositioner + Hash,
         S: Into<Cow<'a, VariedSection<'a>>>,
     {
-        let section = section.into();
-        let section_hash = self.cache_glyphs(section.borrow(), custom_layout);
+        let section_hash = self.cache_glyphs(&section.into(), custom_layout);
         self.keep_in_cache.insert(section_hash);
-        self.calculate_glyph_cache[&section_hash]
-            .glyphs
-            .iter()
-            .map(|(g, ..)| g)
+        self.calculate_glyph_cache[&section_hash].glyphs()
     }
 }
 
@@ -430,7 +388,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     /// # use gfx::format;
     /// # use gfx::format::Formatted;
     /// # use gfx::memory::Typed;
-    /// # fn main() {
+    /// # fn main() -> Result<(), String> {
     /// # let events_loop = glutin::EventsLoop::new();
     /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
     /// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
@@ -444,14 +402,14 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     /// # let raw_render_view = gfx_color.raw();
     /// # let raw_depth_view = gfx_depth.raw();
     /// # let transform = [[0.0; 4]; 4];
-    /// glyph_brush
-    ///     .draw_queued_with_transform(
-    ///         transform,
-    ///         &mut gfx_encoder,
-    ///         &(raw_render_view, format::Srgba8::get_format()),
-    ///         &(raw_depth_view, format::Depth::get_format()),
-    ///     )
-    /// #    .unwrap();
+    /// glyph_brush.draw_queued_with_transform(
+    ///     transform,
+    ///     &mut gfx_encoder,
+    ///     &(raw_render_view, format::Srgba8::get_format()),
+    ///     &(raw_depth_view, format::Depth::get_format()),
+    /// )?
+    /// # ;
+    /// # Ok(())
     /// # }
     /// ```
     pub fn draw_queued_with_transform<C, CV, DV>(
@@ -773,6 +731,80 @@ struct GlyphedSection<'font> {
     bounds: Rect<f32>,
     glyphs: Vec<(PositionedGlyph<'font>, Color, FontId)>,
     z: f32,
+}
+
+impl<'font> GlyphedSection<'font> {
+    pub(crate) fn pixel_bounds(&self) -> Option<Rect<i32>> {
+        let Self {
+            ref glyphs, bounds, ..
+        } = *self;
+
+        let max_to_i32 = |max: f32| {
+            let ceil = max.ceil();
+            if ceil > i32::MAX as f32 {
+                return i32::MAX;
+            }
+            ceil as i32
+        };
+
+        let layout_bounds = Rect {
+            min: point(bounds.min.x.floor() as i32, bounds.min.y.floor() as i32),
+            max: point(max_to_i32(bounds.max.x), max_to_i32(bounds.max.y)),
+        };
+
+        let inside_layout = |rect: Rect<i32>| {
+            if rect.max.x < layout_bounds.min.x
+                || rect.max.y < layout_bounds.min.y
+                || rect.min.x > layout_bounds.max.x
+                || rect.min.y > layout_bounds.max.y
+            {
+                return None;
+            }
+            Some(Rect {
+                min: Point {
+                    x: rect.min.x.max(layout_bounds.min.x),
+                    y: rect.min.y.max(layout_bounds.min.y),
+                },
+                max: Point {
+                    x: rect.max.x.min(layout_bounds.max.x),
+                    y: rect.max.y.min(layout_bounds.max.y),
+                },
+            })
+        };
+
+        let mut no_match = true;
+
+        let mut pixel_bounds = Rect {
+            min: point(0, 0),
+            max: point(0, 0),
+        };
+
+        for Rect { min, max } in glyphs
+            .iter()
+            .filter_map(|&(ref g, ..)| g.pixel_bounding_box())
+            .filter_map(inside_layout)
+        {
+            if no_match || min.x < pixel_bounds.min.x {
+                pixel_bounds.min.x = min.x;
+            }
+            if no_match || min.y < pixel_bounds.min.y {
+                pixel_bounds.min.y = min.y;
+            }
+            if no_match || max.x > pixel_bounds.max.x {
+                pixel_bounds.max.x = max.x;
+            }
+            if no_match || max.y > pixel_bounds.max.y {
+                pixel_bounds.max.y = max.y;
+            }
+            no_match = false;
+        }
+
+        Some(pixel_bounds).filter(|_| !no_match)
+    }
+
+    pub(crate) fn glyphs(&self) -> PositionedGlyphIter<'_, 'font> {
+        self.glyphs.iter().map(|(g, ..)| g)
+    }
 }
 
 #[inline]

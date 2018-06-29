@@ -7,9 +7,9 @@ pub use self::builtin::*;
 
 use super::*;
 use characters::Characters;
+use std::ops;
 use std::slice::Iter;
 use vec_map::VecMap;
-use std::ops;
 
 /// Logic to calculate glyph positioning based on [`Font`](struct.Font.html) and
 /// [`VariedSection`](struct.VariedSection.html)
@@ -23,8 +23,8 @@ pub trait GlyphPositioner: Hash {
         section: &VariedSection,
     ) -> Vec<(PositionedGlyph<'font>, Color, FontId)>;
 
-    /// Return a rectangle according to the requested render position and bounds appropriate
-    /// for the glyph layout.
+    /// Return a screen rectangle according to the requested render position and bounds
+    /// appropriate for the glyph layout.
     fn bounds_rect(&self, section: &VariedSection) -> Rect<f32>;
 }
 
