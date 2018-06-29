@@ -80,7 +80,7 @@ impl<'a, 'b, 'font, L: LineBreaker> Iterator for Lines<'a, 'b, 'font, L> {
 
         let mut progressed = false;
 
-        #[allow(while_let_loop)] // peek/next borrow clash
+        #[allow(while_let_loop)] // TODO use while-peek-next when nll lands
         loop {
             if let Some(word) = self.words.peek() {
                 let word_max_x = word.bounds.map(|b| b.max.x).unwrap_or(word.layout_width);
