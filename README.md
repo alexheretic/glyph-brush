@@ -29,7 +29,7 @@ let section = Section {
 glyph_brush.queue(section);
 glyph_brush.queue(some_other_section);
 
-glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth).unwrap();
+glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth)?;
 ```
 
 ## Examples
