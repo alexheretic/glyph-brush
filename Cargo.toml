@@ -23,7 +23,7 @@ vec_map = "0.8"
 
 [dev-dependencies]
 env_logger = "0.5"
-approx = "0.2"
+approx = "0.3"
 gfx_device_gl = "0.15.3"
 gfx_window_glutin = "0.25"
 glutin = "0.17"
