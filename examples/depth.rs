@@ -12,6 +12,10 @@ use std::env;
 use std::error::Error;
 
 fn main() -> Result<(), Box<Error>> {
+    if env::var("RUST_LOG").is_err() {
+        env::set_var("RUST_LOG", "gfx_glyph=warn");
+    }
+    
     env_logger::init();
 
     if cfg!(target_os = "linux") {
@@ -45,8 +49,9 @@ fn main() -> Result<(), Box<Error>> {
             &events_loop,
         );
 
-    let mut builder = GlyphBrushBuilder::using_font_bytes(
-        include_bytes!("DejaVuSans.ttf") as &[u8])
+    let mut builder =
+        GlyphBrushBuilder::using_font_bytes(include_bytes!("DejaVuSans.ttf") as &[u8])
+        .initial_cache_size((512, 512))
         // Enable depth testing with less-equal drawing and update the depth buffer
         .depth_test(gfx::preset::depth::LESS_EQUAL_WRITE);
 

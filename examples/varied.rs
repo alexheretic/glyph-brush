@@ -17,6 +17,10 @@ use std::env;
 use std::error::Error;
 
 fn main() -> Result<(), Box<Error>> {
+    if env::var("RUST_LOG").is_err() {
+        env::set_var("RUST_LOG", "gfx_glyph=warn");
+    }
+
     env_logger::init();
 
     if cfg!(target_os = "linux") {
@@ -51,7 +55,8 @@ fn main() -> Result<(), Box<Error>> {
         );
 
     let mut builder =
-        GlyphBrushBuilder::using_font_bytes(include_bytes!("DejaVuSans.ttf") as &[u8]);
+        GlyphBrushBuilder::using_font_bytes(include_bytes!("DejaVuSans.ttf") as &[u8])
+            .initial_cache_size((512, 512));
     let sans_font = FontId::default();
     let italic_font = builder.add_font_bytes(include_bytes!("OpenSans-Italic.ttf") as &[u8]);
     let serif_font = builder.add_font_bytes(include_bytes!("GaramondNo8-Reg.ttf") as &[u8]);

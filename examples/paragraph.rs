@@ -24,7 +24,13 @@ use std::f32::consts::PI as PI32;
 use std::io;
 use std::io::Write;
 
+const MAX_FONT_SIZE: f32 = 2000.0;
+
 fn main() -> Result<(), Box<Error>> {
+    if env::var("RUST_LOG").is_err() {
+        env::set_var("RUST_LOG", "gfx_glyph=warn");
+    }
+
     env_logger::init();
 
     if cfg!(target_os = "linux") {
@@ -123,8 +129,7 @@ fn main() -> Result<(), Box<Error>> {
                         if ctrl && shift {
                             if y > 0.0 {
                                 angle += 0.02 * PI32;
-                            }
-                            else {
+                            } else {
                                 angle -= 0.02 * PI32;
                             }
                             if (angle % (PI32 * 2.0)).abs() < 0.01 {
@@ -133,14 +138,12 @@ fn main() -> Result<(), Box<Error>> {
                             print!("\r                            \r");
                             print!("transform-angle -> {:.2} * π", angle / PI32);
                             let _ = io::stdout().flush();
-                        }
-                        else if ctrl && !shift {
+                        } else if ctrl && !shift {
                             let old_zoom = zoom;
                             // increase/decrease zoom
                             if y > 0.0 {
                                 zoom += 0.1;
-                            }
-                            else {
+                            } else {
                                 zoom -= 0.1;
                             }
                             zoom = zoom.min(1.0).max(0.1);
@@ -149,18 +152,16 @@ fn main() -> Result<(), Box<Error>> {
                                 print!("transform-zoom -> {:.1}", zoom);
                                 let _ = io::stdout().flush();
                             }
-                        }
-                        else {
+                        } else {
                             // increase/decrease font size
                             let old_size = font_size;
                             let mut size = font_size;
                             if y > 0.0 {
                                 size += (size / 4.0).max(2.0)
-                            }
-                            else {
+                            } else {
                                 size *= 4.0 / 5.0
                             };
-                            font_size = size.max(1.0);
+                            font_size = size.max(1.0).min(MAX_FONT_SIZE);
                             if (font_size - old_size).abs() > 1e-2 {
                                 print!("\r                            \r");
                                 print!("font-size -> {:.1}", font_size);

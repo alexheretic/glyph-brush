@@ -11,7 +11,13 @@ use glutin::GlContext;
 use std::env;
 use std::error::Error;
 
+const MAX_FONT_SIZE: f32 = 4000.0;
+
 fn main() -> Result<(), Box<Error>> {
+    if env::var("RUST_LOG").is_err() {
+        env::set_var("RUST_LOG", "gfx_glyph=warn");
+    }
+
     env_logger::init();
 
     if cfg!(target_os = "linux") {
@@ -100,7 +106,7 @@ fn main() -> Result<(), Box<Error>> {
                         else {
                             font_size *= 4.0 / 5.0
                         };
-                        font_size = font_size.max(1.0);
+                        font_size = font_size.max(1.0).min(MAX_FONT_SIZE);
                     }
                     _ => {}
                 }
