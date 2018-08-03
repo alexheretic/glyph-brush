@@ -207,10 +207,10 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                                     Some((shifted_g, color, font)).filter(|(g, ..)| {
                                         g.pixel_bounding_box()
                                             .map(|bb| {
-                                                bb.max.y >= min_y
-                                                    && bb.min.y <= max_y
-                                                    && bb.max.x >= min_x
-                                                    && bb.min.x <= max_x
+                                                bb.max.y as f32 >= min_y
+                                                    && bb.min.y as f32 <= max_y
+                                                    && bb.max.x as f32 >= min_x
+                                                    && bb.min.x as f32 <= max_x
                                             }).unwrap_or(false)
                                     })
                                 }).collect();
@@ -306,14 +306,14 @@ pub enum HorizontalAlign {
 }
 
 impl HorizontalAlign {
-    pub(crate) fn x_bounds(self, screen_x: f32, bound_w: f32) -> (i32, i32) {
+    pub(crate) fn x_bounds(self, screen_x: f32, bound_w: f32) -> (f32, f32) {
         let (min, max) = match self {
             HorizontalAlign::Left => (screen_x, screen_x + bound_w),
             HorizontalAlign::Center => (screen_x - bound_w / 2.0, screen_x + bound_w / 2.0),
             HorizontalAlign::Right => (screen_x - bound_w, screen_x),
         };
 
-        (min.floor() as i32, max.ceil() as i32)
+        (min.floor(), max.ceil())
     }
 }
 
@@ -330,14 +330,14 @@ pub enum VerticalAlign {
 }
 
 impl VerticalAlign {
-    pub(crate) fn y_bounds(self, screen_y: f32, bound_h: f32) -> (i32, i32) {
+    pub(crate) fn y_bounds(self, screen_y: f32, bound_h: f32) -> (f32, f32) {
         let (min, max) = match self {
             VerticalAlign::Top => (screen_y, screen_y + bound_h),
             VerticalAlign::Center => (screen_y - bound_h / 2.0, screen_y + bound_h / 2.0),
             VerticalAlign::Bottom => (screen_y - bound_h, screen_y),
         };
 
-        (min.floor() as i32, max.ceil() as i32)
+        (min.floor(), max.ceil())
     }
 }
 
