@@ -138,6 +138,89 @@ fn no_cache_render_1_large_section_partially(b: &mut ::test::Bencher) {
 
 #[bench]
 #[cfg(feature = "bench")]
+// Note: 'no_cache' here refers to the glyph positioning/drawing caches (not the gpu cache)
+fn render_v_center_1_large_section_partially(b: &mut ::test::Bencher) {
+    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
+    let text = include_str!("lots_of_lipsum.txt");
+
+    bench(
+        b,
+        &[Section {
+            text,
+            screen_position: (0.0, 300.0),
+            bounds: (600.0, 600.0),
+            layout: Layout::default().v_align(VerticalAlign::Center),
+            ..Section::default()
+        }],
+        brush,
+    );
+}
+
+#[bench]
+#[cfg(feature = "bench")]
+// Note: 'no_cache' here refers to the glyph positioning/drawing caches (not the gpu cache)
+fn no_cache_render_v_center_1_large_section_partially(b: &mut ::test::Bencher) {
+    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
+        .cache_glyph_positioning(false)
+        .cache_glyph_drawing(false);
+    let text = include_str!("lots_of_lipsum.txt");
+
+    bench(
+        b,
+        &[Section {
+            text,
+            screen_position: (0.0, 300.0),
+            bounds: (600.0, 600.0),
+            layout: Layout::default().v_align(VerticalAlign::Center),
+            ..Section::default()
+        }],
+        brush,
+    );
+}
+
+#[bench]
+#[cfg(feature = "bench")]
+fn render_v_bottom_1_large_section_partially(b: &mut ::test::Bencher) {
+    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
+    let text = include_str!("lots_of_lipsum.txt");
+
+    bench(
+        b,
+        &[Section {
+            text,
+            screen_position: (0.0, 600.0),
+            bounds: (600.0, 600.0),
+            layout: Layout::default().v_align(VerticalAlign::Bottom),
+            ..Section::default()
+        }],
+        brush,
+    );
+}
+
+#[bench]
+#[cfg(feature = "bench")]
+// Note: 'no_cache' here refers to the glyph positioning/drawing caches (not the gpu cache)
+fn no_cache_render_v_bottom_1_large_section_partially(b: &mut ::test::Bencher) {
+    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
+        .cache_glyph_positioning(false)
+        .cache_glyph_drawing(false);
+    let text = include_str!("lots_of_lipsum.txt");
+
+    bench(
+        b,
+        &[Section {
+            text,
+            screen_position: (0.0, 600.0),
+            bounds: (600.0, 600.0),
+            layout: Layout::default().v_align(VerticalAlign::Bottom),
+            ..Section::default()
+        }],
+        brush,
+    );
+}
+
+#[bench]
+#[cfg(feature = "bench")]
 fn render_100_small_sections_fully(b: &mut ::test::Bencher) {
     let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
     let text = include_str!("small_lipsum.txt");
@@ -465,6 +548,10 @@ fn bench(
     sections: &[gfx_glyph::Section],
     brush: gfx_glyph::GlyphBrushBuilder,
 ) {
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", "gfx_glyph=warn");
+    }
+
     let _ = env_logger::try_init();
 
     let (_context, _device, factory, main_color, main_depth) = headless_gl_init();
