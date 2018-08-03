@@ -172,6 +172,7 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                     .lines(bound_w);
 
                 for line in lines {
+                    // top align can bound check & exit early
                     if v_align_top && caret.1 >= screen_position.1 + bound_h {
                         break;
                     }
@@ -189,20 +190,31 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                         VerticalAlign::Center | VerticalAlign::Bottom => {
                             let shift_up = if v_align == VerticalAlign::Center {
                                 (caret.1 - screen_position.1) / 2.0
-                            }
-                            else {
+                            } else {
                                 caret.1 - screen_position.1
                             };
 
-                            // caret is the current bottom
-                            let mut current = out.first().unwrap().0.clone();
-                            for (g, ..) in &mut out {
-                                mem::swap(&mut current, g);
-                                let mut pos = current.position();
-                                pos.y -= shift_up;
-                                current = current.into_unpositioned().positioned(pos);
-                                mem::swap(&mut current, g);
-                            }
+                            let (min_x, max_x) = h_align.x_bounds(screen_position.0, bound_w);
+                            let (min_y, max_y) = v_align.y_bounds(screen_position.1, bound_h);
+
+                            // y-position and filter out-of-bounds glyphs
+                            let shifted: Vec<_> = out
+                                .drain(..)
+                                .filter_map(|(g, color, font)| {
+                                    let mut pos = g.position();
+                                    pos.y -= shift_up;
+                                    let shifted_g = g.into_unpositioned().positioned(pos);
+                                    Some((shifted_g, color, font)).filter(|(g, ..)| {
+                                        g.pixel_bounding_box()
+                                            .map(|bb| {
+                                                bb.max.y >= min_y
+                                                    && bb.min.y <= max_y
+                                                    && bb.max.x >= min_x
+                                                    && bb.min.x <= max_x
+                                            }).unwrap_or(false)
+                                    })
+                                }).collect();
+                            mem::replace(&mut out, shifted);
                         }
                     }
                 }
@@ -293,6 +305,18 @@ pub enum HorizontalAlign {
     Right,
 }
 
+impl HorizontalAlign {
+    pub(crate) fn x_bounds(self, screen_x: f32, bound_w: f32) -> (i32, i32) {
+        let (min, max) = match self {
+            HorizontalAlign::Left => (screen_x, screen_x + bound_w),
+            HorizontalAlign::Center => (screen_x - bound_w / 2.0, screen_x + bound_w / 2.0),
+            HorizontalAlign::Right => (screen_x - bound_w, screen_x),
+        };
+
+        (min.floor() as i32, max.ceil() as i32)
+    }
+}
+
 /// Describes vertical alignment preference for positioning & bounds. Currently a placeholder
 /// for future functionality.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -303,6 +327,18 @@ pub enum VerticalAlign {
     Center,
     /// Characters/bounds start above the render position and progress upward.
     Bottom,
+}
+
+impl VerticalAlign {
+    pub(crate) fn y_bounds(self, screen_y: f32, bound_h: f32) -> (i32, i32) {
+        let (min, max) = match self {
+            VerticalAlign::Top => (screen_y, screen_y + bound_h),
+            VerticalAlign::Center => (screen_y - bound_h / 2.0, screen_y + bound_h / 2.0),
+            VerticalAlign::Bottom => (screen_y - bound_h, screen_y),
+        };
+
+        (min.floor() as i32, max.ceil() as i32)
+    }
 }
 
 #[cfg(test)]
