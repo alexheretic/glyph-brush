@@ -213,8 +213,6 @@ pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>, H = DefaultS
     keep_in_cache: FxHashSet<SectionHash>,
 
     // config
-    gpu_cache_scale_tolerance: f32,
-    gpu_cache_position_tolerance: f32,
     cache_glyph_positioning: bool,
     cache_glyph_drawing: bool,
 
@@ -436,21 +434,24 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
             || self.draw_cache.as_ref().unwrap().texture_updated
             || self.draw_cache.as_ref().unwrap().last_text_state != current_text_state
         {
+            let mut gpu_cache_rebuilt = false;
             loop {
-                let mut no_text = true;
+                if !gpu_cache_rebuilt {
+                    let mut no_text = true;
 
-                for section_hash in &self.section_buffer {
-                    let GlyphedSection { ref glyphs, .. } =
-                        self.calculate_glyph_cache[section_hash];
-                    for &(ref glyph, _, font_id) in glyphs {
-                        self.font_cache.queue_glyph(font_id.0, glyph.clone());
-                        no_text = false;
+                    for section_hash in &self.section_buffer {
+                        let GlyphedSection { ref glyphs, .. } =
+                            self.calculate_glyph_cache[section_hash];
+                        for &(ref glyph, _, font_id) in glyphs {
+                            self.font_cache.queue_glyph(font_id.0, glyph.clone());
+                            no_text = false;
+                        }
                     }
-                }
 
-                if no_text {
-                    self.clear_section_buffer();
-                    return Ok(());
+                    if no_text {
+                        self.clear_section_buffer();
+                        return Ok(());
+                    }
                 }
 
                 let tex = self.font_cache_tex.0.clone();
@@ -461,10 +462,6 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
                 }) {
                     let (width, height) = self.font_cache.dimensions();
                     let (new_width, new_height) = (width * 2, height * 2);
-
-                    if let Some(ref mut cache) = self.draw_cache {
-                        cache.texture_updated = true;
-                    }
 
                     if log_enabled!(log::Level::Warn) {
                         warn!(
@@ -478,17 +475,21 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
                         );
                     }
 
-                    let new_cache = CacheBuilder {
-                        width: new_width,
-                        height: new_height,
-                        scale_tolerance: self.gpu_cache_scale_tolerance,
-                        position_tolerance: self.gpu_cache_position_tolerance,
-                        ..CacheBuilder::default()
-                    }.build();
-
                     match create_texture(&mut self.factory, new_width, new_height) {
                         Ok((new_tex, tex_view)) => {
-                            self.font_cache = new_cache;
+                            CacheBuilder {
+                                width: new_width,
+                                height: new_height,
+                                ..self.font_cache.to_builder()
+                            }.rebuild(&mut self.font_cache);
+
+                            // queue is intact
+                            gpu_cache_rebuilt = true;
+
+                            if let Some(ref mut cache) = self.draw_cache {
+                                cache.texture_updated = true;
+                            }
+
                             self.font_cache_tex.1 = tex_view;
                             self.font_cache_tex.0 = new_tex;
                             continue;
