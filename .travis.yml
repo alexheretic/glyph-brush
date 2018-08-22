@@ -8,12 +8,15 @@ rust:
 env:
 - RUST_BACKTRACE=full
 matrix:
+  allow_failures:
+  - os: osx
+    rust: nightly
   fast_finish: true
 os:
 - linux
 - osx
 script:
-- cargo test
 - if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then
-    cargo bench --no-run --all-features;
+    cargo build --all-features --all-targets;
   fi
+- cargo test
