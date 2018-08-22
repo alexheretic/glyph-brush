@@ -45,6 +45,7 @@ pub struct VariedSection<'a> {
 }
 
 impl Default for VariedSection<'static> {
+    #[inline]
     fn default() -> Self {
         Self {
             screen_position: (0.0, 0.0),
@@ -121,6 +122,7 @@ pub struct SectionText<'a> {
 }
 
 impl Default for SectionText<'static> {
+    #[inline]
     fn default() -> Self {
         Self {
             text: "",
@@ -211,6 +213,7 @@ pub struct Section<'a> {
 }
 
 impl Default for Section<'static> {
+    #[inline]
     fn default() -> Self {
         Self {
             text: "",

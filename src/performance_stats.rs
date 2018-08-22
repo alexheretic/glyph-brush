@@ -41,8 +41,7 @@ impl PerformanceStats {
                 vertex_done,
                 all_done: t,
             });
-        }
-        else if self.partial.len() == 1 {
+        } else if self.partial.len() == 1 {
             // cached
             let start = self.partial.pop().unwrap();
             self.draw = Some(DrawCall {
@@ -51,8 +50,7 @@ impl PerformanceStats {
                 vertex_done: start,
                 all_done: t,
             });
-        }
-        else {
+        } else {
             panic!("Incorrect partial {:?}", self.partial);
         }
     }

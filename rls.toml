@@ -1,2 +1,2 @@
 # atom ide-rust
-features = ["bench", "performance_stats"]
+all_features = true

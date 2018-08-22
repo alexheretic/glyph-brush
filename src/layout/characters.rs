@@ -1,8 +1,7 @@
 use super::*;
 use layout::words::Words;
 use std::iter::{FusedIterator, Iterator};
-use std::mem;
-use std::str::CharIndices;
+use std::{mem, str::CharIndices};
 
 /// Single character info
 pub(crate) struct Character<'font> {

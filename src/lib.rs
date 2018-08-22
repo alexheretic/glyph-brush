@@ -43,7 +43,7 @@
 //! ```
 #![allow(unknown_lints)]
 #![warn(clippy)]
-#![cfg_attr(feature = "bench", feature(test))]
+
 #[cfg(test)]
 #[macro_use]
 extern crate approx;
@@ -52,8 +52,6 @@ extern crate env_logger;
 #[cfg(test)]
 #[macro_use]
 extern crate lazy_static;
-#[cfg(feature = "bench")]
-extern crate test;
 
 extern crate backtrace;
 #[macro_use]
@@ -95,17 +93,11 @@ use gfx::traits::FactoryExt;
 use gfx::{format, handle, texture};
 use pipe::*;
 use rustc_hash::{FxHashMap, FxHashSet};
-use rusttype::gpu_cache::{Cache, CacheBuilder};
-use rusttype::point;
+use rusttype::{gpu_cache::Cache, point};
 use std::borrow::Cow;
-use std::collections::hash_map::Entry;
-use std::collections::{HashMap, HashSet};
-use std::error::Error;
-use std::hash::BuildHasher;
-use std::hash::BuildHasherDefault;
-use std::hash::{Hash, Hasher};
-use std::i32;
-use std::{fmt, slice};
+use std::collections::{hash_map::Entry, HashMap, HashSet};
+use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
+use std::{error::Error, fmt, i32, slice};
 
 /// [`PositionedGlyph`](struct.PositionedGlyph.html) iterator.
 pub type PositionedGlyphIter<'a, 'font> = std::iter::Map<
@@ -324,8 +316,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
                 #[cfg(feature = "performance_stats")]
                 self.perf.layout_finished();
             }
-        }
-        else {
+        } else {
             #[cfg(feature = "performance_stats")]
             self.perf.layout_start();
             self.calculate_glyph_cache.insert(
@@ -477,11 +468,10 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
 
                     match create_texture(&mut self.factory, new_width, new_height) {
                         Ok((new_tex, tex_view)) => {
-                            CacheBuilder {
-                                width: new_width,
-                                height: new_height,
-                                ..self.font_cache.to_builder()
-                            }.rebuild(&mut self.font_cache);
+                            self.font_cache
+                                .to_builder()
+                                .dimensions(new_width, new_height)
+                                .rebuild(&mut self.font_cache);
 
                             // queue is intact
                             gpu_cache_rebuilt = true;
@@ -566,8 +556,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
                     cache.texture_updated = false;
                 }
                 cache
-            }
-            else {
+            } else {
                 DrawnGlyphBrush {
                     pipe_data: {
                         let sampler = self.factory.create_sampler(texture::SamplerInfo::new(
@@ -639,8 +628,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
             }
             self.calculate_glyph_cache
                 .retain(|key, _| active.contains(key));
-        }
-        else {
+        } else {
             self.section_buffer.clear();
             self.calculate_glyph_cache.clear();
             self.keep_in_cache.clear();
@@ -658,8 +646,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
                 gfx::Primitive::TriangleStrip,
                 gfx::state::Rasterizer::new_fill(),
                 glyph_pipe::Init::new(color_format, depth_format, self.depth_test),
-            )
-            .unwrap()
+            ).unwrap()
     }
 
     fn empty_slice() -> gfx::Slice<R> {
@@ -800,8 +787,7 @@ fn vertex(
             tex_right_bottom: [uv_rect.max.x, uv_rect.min.y],
             color,
         })
-    }
-    else {
+    } else {
         if rect.is_err() {
             warn!("Cache miss?: {:?}", rect);
         }

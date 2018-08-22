@@ -1,10 +1,7 @@
 use super::*;
-use layout::words::RelativePositionedGlyph;
-use layout::words::Words;
-use layout::words::ZERO_V_METRICS;
+use layout::words::{RelativePositionedGlyph, Words, ZERO_V_METRICS};
 use rusttype::vector;
-use std::iter::Peekable;
-use std::iter::{FusedIterator, Iterator};
+use std::iter::{FusedIterator, Iterator, Peekable};
 
 /// A line of `Word`s limited to a max width bound.
 pub(crate) struct Line<'font> {
@@ -104,8 +101,7 @@ impl<'a, 'b, 'font, L: LineBreaker> Iterator for Lines<'a, 'b, 'font, L> {
                 if progressed && (caret.x + word_max_x).ceil() > self.width_bound {
                     break;
                 }
-            }
-            else {
+            } else {
                 break;
             }
 

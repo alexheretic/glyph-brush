@@ -1,7 +1,6 @@
 use super::*;
-use std::fmt;
-use std::mem;
 use std::sync::{Mutex, MutexGuard};
+use std::{fmt, mem};
 
 /// Common glyph layout logic.
 pub trait GlyphCruncher<'font> {
@@ -305,17 +304,9 @@ impl<'a, H: BuildHasher> GlyphCalculatorBuilder<'a, H> {
 
     /// Builds a `GlyphCalculator`
     pub fn build(self) -> GlyphCalculator<'a, H> {
-        let fonts = {
-            let mut fonts = FontMap::with_capacity(self.font_data.len());
-            for (idx, data) in self.font_data.into_iter().enumerate() {
-                fonts.insert(idx, data);
-            }
-            fonts
-        };
-
         GlyphCalculator {
-            fonts,
-            calculate_glyph_cache: Mutex::new(HashMap::default()),
+            fonts: self.font_data.into_iter().enumerate().collect(),
+            calculate_glyph_cache: Mutex::default(),
             section_hasher: self.section_hasher,
         }
     }

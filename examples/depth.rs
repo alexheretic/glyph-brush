@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<Error>> {
     if env::var("RUST_LOG").is_err() {
         env::set_var("RUST_LOG", "gfx_glyph=warn");
     }
-    
+
     env_logger::init();
 
     if cfg!(target_os = "linux") {

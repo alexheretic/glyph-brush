@@ -8,8 +8,7 @@ pub use self::builtin::*;
 
 use super::*;
 use characters::Characters;
-use std::ops;
-use std::slice::Iter;
+use std::{ops, slice::Iter};
 use vec_map::VecMap;
 
 /// Logic to calculate glyph positioning based on [`Font`](struct.Font.html) and

@@ -1,8 +1,5 @@
 use super::*;
-use std::fmt;
-use std::iter::FusedIterator;
-use std::str;
-use std::str::CharIndices;
+use std::{fmt, iter::FusedIterator, str, str::CharIndices};
 use xi_unicode;
 
 /// Indicator that a character is a line break, soft or hard. Includes the offset (byte-index)
@@ -64,8 +61,7 @@ impl<'a> Iterator for AnyCharLineBreakerIter<'a> {
         while self.current_break.is_some() {
             if self.current_break.as_ref().unwrap().0 < b_index + 1 {
                 self.current_break = self.breaks.next();
-            }
-            else {
+            } else {
                 break;
             }
         }
@@ -88,8 +84,7 @@ impl LineBreaker for BuiltInLineBreaker {
                 xi_unicode::LineBreakIterator::new(text).map(|(offset, hard)| {
                     if hard {
                         LineBreak::Hard(offset)
-                    }
-                    else {
+                    } else {
                         LineBreak::Soft(offset)
                     }
                 }),

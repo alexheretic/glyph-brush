@@ -246,26 +246,15 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
             .link_program(
                 include_bytes!("shader/vert.glsl"),
                 include_bytes!("shader/frag.glsl"),
-            )
-            .unwrap();
-
-        let fonts = {
-            let mut fonts = FontMap::with_capacity(self.font_data.len());
-            for (idx, data) in self.font_data.into_iter().enumerate() {
-                fonts.insert(idx, data);
-            }
-            fonts
-        };
+            ).unwrap();
 
         GlyphBrush {
-            fonts,
-            font_cache: CacheBuilder {
-                width: cache_width,
-                height: cache_height,
-                scale_tolerance: self.gpu_cache_scale_tolerance,
-                position_tolerance: self.gpu_cache_position_tolerance,
-                ..CacheBuilder::default()
-            }.build(),
+            fonts: self.font_data.into_iter().enumerate().collect(),
+            font_cache: Cache::builder()
+                .dimensions(cache_width, cache_height)
+                .scale_tolerance(self.gpu_cache_scale_tolerance)
+                .position_tolerance(self.gpu_cache_position_tolerance)
+                .build(),
             font_cache_tex,
             texture_filter_method: self.texture_filter_method,
 

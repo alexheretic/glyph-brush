@@ -1,35 +1,22 @@
-#![cfg_attr(feature = "bench", feature(test))]
-#[cfg(feature = "bench")]
+#![feature(test)]
 extern crate test;
 
-#[cfg(feature = "bench")]
 extern crate env_logger;
-#[cfg(feature = "bench")]
 extern crate gfx;
-#[cfg(feature = "bench")]
 extern crate gfx_core;
-#[cfg(feature = "bench")]
 extern crate gfx_device_gl;
-#[cfg(feature = "bench")]
 extern crate gfx_glyph;
-#[cfg(feature = "bench")]
 extern crate gfx_window_glutin;
-#[cfg(feature = "bench")]
 extern crate glutin;
 
-#[cfg(feature = "bench")]
 mod gfx_noop;
 
-#[cfg(feature = "bench")]
 use gfx_glyph::*;
-#[cfg(feature = "bench")]
 use std::f32;
 
-#[cfg(feature = "bench")]
 const TEST_FONT: &[u8] = include_bytes!("../tests/DejaVuSansMono.ttf");
 
 #[bench]
-#[cfg(feature = "bench")]
 fn render_3_medium_sections_fully(b: &mut ::test::Bencher) {
     use gfx_glyph::*;
 
@@ -64,7 +51,6 @@ fn render_3_medium_sections_fully(b: &mut ::test::Bencher) {
 }
 
 #[bench]
-#[cfg(feature = "bench")]
 // Note: 'no_cache' here refers to the glyph positioning/drawing caches (not the gpu cache)
 fn no_cache_render_3_medium_sections_fully(b: &mut ::test::Bencher) {
     let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
@@ -100,7 +86,6 @@ fn no_cache_render_3_medium_sections_fully(b: &mut ::test::Bencher) {
 }
 
 #[bench]
-#[cfg(feature = "bench")]
 fn render_1_large_section_partially(b: &mut ::test::Bencher) {
     let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
     let text = include_str!("lots_of_lipsum.txt");
@@ -117,7 +102,6 @@ fn render_1_large_section_partially(b: &mut ::test::Bencher) {
 }
 
 #[bench]
-#[cfg(feature = "bench")]
 // Note: 'no_cache' here refers to the glyph positioning/drawing caches (not the gpu cache)
 fn no_cache_render_1_large_section_partially(b: &mut ::test::Bencher) {
     let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
@@ -137,7 +121,6 @@ fn no_cache_render_1_large_section_partially(b: &mut ::test::Bencher) {
 }
 
 #[bench]
-#[cfg(feature = "bench")]
 // Note: 'no_cache' here refers to the glyph positioning/drawing caches (not the gpu cache)
 fn render_v_center_1_large_section_partially(b: &mut ::test::Bencher) {
     let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
@@ -157,7 +140,6 @@ fn render_v_center_1_large_section_partially(b: &mut ::test::Bencher) {
 }
 
 #[bench]
-#[cfg(feature = "bench")]
 // Note: 'no_cache' here refers to the glyph positioning/drawing caches (not the gpu cache)
 fn no_cache_render_v_center_1_large_section_partially(b: &mut ::test::Bencher) {
     let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
@@ -179,7 +161,6 @@ fn no_cache_render_v_center_1_large_section_partially(b: &mut ::test::Bencher) {
 }
 
 #[bench]
-#[cfg(feature = "bench")]
 fn render_v_bottom_1_large_section_partially(b: &mut ::test::Bencher) {
     let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
     let text = include_str!("lots_of_lipsum.txt");
@@ -198,7 +179,6 @@ fn render_v_bottom_1_large_section_partially(b: &mut ::test::Bencher) {
 }
 
 #[bench]
-#[cfg(feature = "bench")]
 // Note: 'no_cache' here refers to the glyph positioning/drawing caches (not the gpu cache)
 fn no_cache_render_v_bottom_1_large_section_partially(b: &mut ::test::Bencher) {
     let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
@@ -220,7 +200,6 @@ fn no_cache_render_v_bottom_1_large_section_partially(b: &mut ::test::Bencher) {
 }
 
 #[bench]
-#[cfg(feature = "bench")]
 fn render_100_small_sections_fully(b: &mut ::test::Bencher) {
     let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
     let text = include_str!("small_lipsum.txt");
@@ -239,7 +218,6 @@ fn render_100_small_sections_fully(b: &mut ::test::Bencher) {
 }
 
 #[bench]
-#[cfg(feature = "bench")]
 // Note: 'no_cache' here refers to the glyph positioning/drawing caches (not the gpu cache)
 fn no_cache_render_100_small_sections_fully(b: &mut ::test::Bencher) {
     let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
@@ -261,7 +239,6 @@ fn no_cache_render_100_small_sections_fully(b: &mut ::test::Bencher) {
 }
 
 #[bench]
-#[cfg(feature = "bench")]
 /// section is rendered with text edits each run to the end
 fn continually_modify_end_text_of_1_of_3(b: &mut ::test::Bencher) {
     let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
@@ -297,14 +274,12 @@ fn continually_modify_end_text_of_1_of_3(b: &mut ::test::Bencher) {
                     ..Section::default()
                 },
             ]
-        })
-        .collect();
+        }).collect();
 
     bench_variants(b, &variants, brush);
 }
 
 #[bench]
-#[cfg(feature = "bench")]
 /// section is rendered with text edits each run to the beginning
 fn continually_modify_start_text_of_1_of_3(b: &mut ::test::Bencher) {
     let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
@@ -340,14 +315,12 @@ fn continually_modify_start_text_of_1_of_3(b: &mut ::test::Bencher) {
                     ..Section::default()
                 },
             ]
-        })
-        .collect();
+        }).collect();
 
     bench_variants(b, &variants, brush);
 }
 
 #[bench]
-#[cfg(feature = "bench")]
 /// section is rendered with text edits each run to the middle
 fn continually_modify_middle_text_of_1_of_3(b: &mut ::test::Bencher) {
     let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
@@ -388,14 +361,12 @@ fn continually_modify_middle_text_of_1_of_3(b: &mut ::test::Bencher) {
                     ..Section::default()
                 },
             ]
-        })
-        .collect();
+        }).collect();
 
     bench_variants(b, &variants, brush);
 }
 
 #[bench]
-#[cfg(feature = "bench")]
 /// section is rendered with the bounds redefined each run to the middle
 fn continually_modify_bounds_of_1_of_3(b: &mut ::test::Bencher) {
     let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
@@ -425,14 +396,12 @@ fn continually_modify_bounds_of_1_of_3(b: &mut ::test::Bencher) {
                     ..Section::default()
                 },
             ]
-        })
-        .collect();
+        }).collect();
 
     bench_variants(b, &variants, brush);
 }
 
 #[bench]
-#[cfg(feature = "bench")]
 /// section is rendered with the bounds redefined each run to the middle
 fn continually_modify_z_of_1_of_3(b: &mut ::test::Bencher) {
     let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
@@ -463,14 +432,12 @@ fn continually_modify_z_of_1_of_3(b: &mut ::test::Bencher) {
                     ..Section::default()
                 },
             ]
-        })
-        .collect();
+        }).collect();
 
     bench_variants(b, &variants, brush);
 }
 
 #[bench]
-#[cfg(feature = "bench")]
 /// section is rendered with the bounds redefined each run to the middle
 fn continually_modify_position_of_1_of_3(b: &mut ::test::Bencher) {
     let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
@@ -501,15 +468,13 @@ fn continually_modify_position_of_1_of_3(b: &mut ::test::Bencher) {
                     ..Section::default()
                 },
             ]
-        })
-        .collect();
+        }).collect();
 
     bench_variants(b, &variants, brush);
 }
 
 /// Renders a different set of sections each run by
 /// cycling through the provided `variants`
-#[cfg(feature = "bench")]
 fn bench_variants(
     b: &mut ::test::Bencher,
     variants: &[Vec<gfx_glyph::Section>],
@@ -542,7 +507,6 @@ fn bench_variants(
     });
 }
 
-#[cfg(feature = "bench")]
 fn bench(
     b: &mut ::test::Bencher,
     sections: &[gfx_glyph::Section],
@@ -577,7 +541,6 @@ fn bench(
     });
 }
 
-#[cfg(feature = "bench")]
 fn headless_gl_init() -> (
     glutin::HeadlessContext,
     gfx_device_gl::Device,

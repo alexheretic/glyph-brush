@@ -112,8 +112,7 @@ impl<'a, 'b, 'font, L: LineBreaker> Iterator for Words<'a, 'b, 'font, L> {
                         word.max.x = word.max.x.max(glyph_bounds.max.x);
                         word.max.y = word.max.y.max(glyph_bounds.max.y);
                         bounds = Some(word);
-                    }
-                    else {
+                    } else {
                         bounds = Some(glyph_bounds);
                     }
 

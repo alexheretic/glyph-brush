@@ -51,11 +51,11 @@ fn main() -> Result<(), Box<Error>> {
             &events_loop,
         );
 
-    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(
-        include_bytes!("DejaVuSans.ttf") as &[u8]
-    ).initial_cache_size((2048, 2048))
-        .gpu_cache_position_tolerance(1.0)
-        .build(factory.clone());
+    let mut glyph_brush =
+        GlyphBrushBuilder::using_font_bytes(include_bytes!("DejaVuSans.ttf") as &[u8])
+            .initial_cache_size((2048, 2048))
+            .gpu_cache_position_tolerance(1.0)
+            .build(factory.clone());
 
     let mut text: String = include_str!("loads-of-unicode.txt").into();
     let mut encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
@@ -102,8 +102,7 @@ fn main() -> Result<(), Box<Error>> {
                         // increase/decrease font size with mouse wheel
                         if y > 0.0 {
                             font_size += (font_size / 4.0).max(2.0)
-                        }
-                        else {
+                        } else {
                             font_size *= 4.0 / 5.0
                         };
                         font_size = font_size.max(1.0).min(MAX_FONT_SIZE);

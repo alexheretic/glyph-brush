@@ -16,8 +16,7 @@ macro_rules! outer_backtrace {
                         if name.contains("gfx_glyph") {
                             on_lib = true;
                         }
-                    }
-                    else if on_lib {
+                    } else if on_lib {
                         if !name.contains("gfx_glyph") {
                             outside_lib = true;
                         }
