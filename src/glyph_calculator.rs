@@ -67,9 +67,6 @@ pub trait GlyphCruncher<'font> {
 /// # Example
 ///
 /// ```
-/// # extern crate gfx;
-/// # extern crate gfx_window_glutin;
-/// # extern crate glutin;
 /// extern crate gfx_glyph;
 /// use gfx_glyph::{GlyphCalculatorBuilder, GlyphCruncher, Section};
 /// # fn main() {
@@ -214,9 +211,6 @@ impl<'a, 'b, H> Drop for GlyphCalculatorGuard<'a, 'b, H> {
 /// # Example
 ///
 /// ```no_run
-/// # extern crate gfx;
-/// # extern crate gfx_window_glutin;
-/// # extern crate glutin;
 /// extern crate gfx_glyph;
 /// use gfx_glyph::GlyphCalculatorBuilder;
 /// # fn main() {
