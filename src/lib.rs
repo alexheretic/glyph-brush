@@ -44,69 +44,50 @@
 #![allow(unknown_lints)]
 #![warn(clippy)]
 
-#[cfg(test)]
-#[macro_use]
-extern crate approx;
-#[cfg(test)]
-extern crate env_logger;
-#[cfg(test)]
-#[macro_use]
-extern crate lazy_static;
-
 extern crate backtrace;
 #[macro_use]
 extern crate gfx;
 extern crate gfx_core;
 #[macro_use]
 extern crate log;
+extern crate glyph_brush;
 extern crate ordered_float;
 extern crate rustc_hash;
-extern crate rusttype;
+extern crate rusttype as full_rusttype;
 extern crate seahash;
-extern crate vec_map;
-extern crate xi_unicode;
+
+#[cfg(test)]
+extern crate approx;
+#[cfg(test)]
+extern crate env_logger;
 
 mod builder;
-mod layout;
 mod pipe;
-mod section;
 #[macro_use]
 mod trace;
-mod glyph_calculator;
-mod owned_section;
 #[cfg(feature = "performance_stats")]
 mod performance_stats;
 
 pub use builder::*;
-pub use glyph_calculator::*;
-pub use layout::*;
-pub use linebreak::*;
-pub use owned_section::*;
-pub use rusttype::{
-    Font, Glyph, GlyphId, HMetrics, Point, PositionedGlyph, Rect, Scale, ScaledGlyph, SharedBytes,
-    VMetrics,
+pub use glyph_brush::{
+    rusttype,
+    rusttype::{Font, Point, PositionedGlyph, Rect, Scale, SharedBytes},
+    BuiltInLineBreaker, FontId, GlyphCruncher, HorizontalAlign, Layout, LineBreak, LineBreaker,
+    OwnedSectionText, OwnedVariedSection, PositionedGlyphIter, Section, SectionText, VariedSection,
+    VerticalAlign, FontMap,
 };
-pub use section::*;
 
+use full_rusttype::{gpu_cache::Cache, point};
 use gfx::handle::{RawDepthStencilView, RawRenderTargetView};
 use gfx::traits::FactoryExt;
 use gfx::{format, handle, texture};
+use glyph_brush::{Color, GlyphPositioner, GlyphedSection, SectionGeometry};
 use pipe::*;
 use rustc_hash::{FxHashMap, FxHashSet};
-use rusttype::{gpu_cache::Cache, point};
 use std::borrow::Cow;
 use std::collections::{hash_map::Entry, HashMap, HashSet};
 use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
-use std::{error::Error, fmt, i32, slice};
-
-/// [`PositionedGlyph`](struct.PositionedGlyph.html) iterator.
-pub type PositionedGlyphIter<'a, 'font> = std::iter::Map<
-    slice::Iter<'a, (rusttype::PositionedGlyph<'font>, [f32; 4], section::FontId)>,
-    fn(&'a (rusttype::PositionedGlyph<'font>, [f32; 4], section::FontId))
-        -> &'a rusttype::PositionedGlyph<'font>,
->;
-
-pub(crate) type Color = [f32; 4];
+use std::{error::Error, fmt, i32};
 
 /// A hash of `Section` data
 type SectionHash = u64;
@@ -182,7 +163,7 @@ type DefaultSectionHasher = BuildHasherDefault<seahash::SeaHasher>;
 /// [`GlyphBrush::draw_queued`](#method.draw_queued) call when that section has not been used since
 /// the previous draw call.
 pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>, H = DefaultSectionHasher> {
-    fonts: FontMap<'font>,
+    fonts: Vec<Font<'font>>,
     font_cache: Cache<'font>,
     font_cache_tex: (
         gfx::handle::Texture<R, TexSurface>,
@@ -270,7 +251,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
         let section = section.into();
         if cfg!(debug_assertions) {
             for text in &section.text {
-                assert!(self.fonts.contains_key(text.font_id.0));
+                assert!(self.fonts.len() > text.font_id.0, "Invalid font id");
             }
         }
         let section_hash = self.cache_glyphs(&section, custom_layout);
@@ -308,25 +289,31 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
             if let Entry::Vacant(entry) = self.calculate_glyph_cache.entry(section_hash) {
                 #[cfg(feature = "performance_stats")]
                 self.perf.layout_start();
+
+                let geometry = SectionGeometry::from(section);
                 entry.insert(GlyphedSection {
-                    bounds: layout.bounds_rect(section),
-                    glyphs: layout.calculate_glyphs(&self.fonts, section),
+                    bounds: layout.bounds_rect(&geometry),
+                    glyphs: layout.calculate_glyphs(&self.fonts, &geometry, &section.text),
                     z: section.z,
                 });
+
                 #[cfg(feature = "performance_stats")]
                 self.perf.layout_finished();
             }
         } else {
             #[cfg(feature = "performance_stats")]
             self.perf.layout_start();
+
+            let geometry = SectionGeometry::from(section);
             self.calculate_glyph_cache.insert(
                 section_hash,
                 GlyphedSection {
-                    bounds: layout.bounds_rect(section),
-                    glyphs: layout.calculate_glyphs(&self.fonts, section),
+                    bounds: layout.bounds_rect(&geometry),
+                    glyphs: layout.calculate_glyphs(&self.fonts, &geometry, &section.text),
                     z: section.z,
                 },
             );
+
             #[cfg(feature = "performance_stats")]
             self.perf.layout_finished();
         }
@@ -610,7 +597,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     }
 
     /// Returns [`FontMap`](type.FontMap.html) of available fonts.
-    pub fn fonts(&self) -> &FontMap<'font> {
+    pub fn fonts(&self) -> &impl FontMap<'font> {
         &self.fonts
     }
 
@@ -699,9 +686,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     ///
     /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
     pub fn add_font<'a: 'font>(&mut self, font_data: Font<'a>) -> FontId {
-        let next_id = FontId(self.fonts.keys().max().unwrap() + 1);
-        self.fonts.insert(next_id.0, font_data);
-        next_id
+        self.fonts.push(font_data);
+        FontId(self.fonts.len() - 1)
     }
 }
 

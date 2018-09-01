@@ -1,4 +1,5 @@
 use super::*;
+use std::borrow::Cow;
 use std::f32;
 
 #[derive(Debug, Clone)]
@@ -86,6 +87,17 @@ impl<'a> From<&'a OwnedSectionText> for SectionText<'a> {
             scale: owned.scale,
             color: owned.color,
             font_id: owned.font_id,
+        }
+    }
+}
+
+impl<'a, 'b> From<&'a SectionText<'b>> for OwnedSectionText {
+    fn from(st: &'a SectionText<'b>) -> Self {
+        Self {
+            text: st.text.into(),
+            scale: st.scale,
+            color: st.color,
+            font_id: st.font_id,
         }
     }
 }

@@ -1,6 +1,8 @@
 use super::owned_section::*;
 use super::*;
+use std::borrow::Cow;
 use std::f32;
+use std::hash::*;
 
 /// An object that contains all the info to render a varied section of text. That is one including
 /// many parts with differing fonts/scales/colors bowing to a single layout.
@@ -11,7 +13,7 @@ use std::f32;
 /// # Example
 ///
 /// ```
-/// use gfx_glyph::{SectionText, VariedSection};
+/// use glyph_brush::{SectionText, VariedSection};
 ///
 /// let section = VariedSection {
 ///     text: vec![
@@ -89,7 +91,29 @@ impl<'a> Hash for VariedSection<'a> {
             z.into(),
         ];
 
-        (layout, text, ord_floats).hash(state);
+        layout.hash(state);
+
+        for t in text {
+            let SectionText {
+                text,
+                scale,
+                color,
+                font_id,
+            } = *t;
+
+            let ord_floats: &[OrderedFloat<_>] = &[
+                scale.x.into(),
+                scale.y.into(),
+                color[0].into(),
+                color[1].into(),
+                color[2].into(),
+                color[3].into(),
+            ];
+
+            (text, font_id, ord_floats).hash(state);
+        }
+
+        ord_floats.hash(state);
     }
 }
 
@@ -100,77 +124,19 @@ impl<'a> VariedSection<'a> {
             bounds: self.bounds,
             z: self.z,
             layout: self.layout,
-            text: self.text.iter().map(|t| t.to_owned()).collect(),
+            text: self.text.iter().map(OwnedSectionText::from).collect(),
         }
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct SectionText<'a> {
-    /// Text to render
-    pub text: &'a str,
-    /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
-    pub scale: Scale,
-    /// Rgba color of rendered text. Defaults to black.
-    pub color: [f32; 4],
-    /// Font id to use for this section.
-    ///
-    /// It must be known to the `GlyphBrush` it is being used with,
-    /// either `FontId::default()` or the return of
-    /// [`add_font`](struct.GlyphBrushBuilder.html#method.add_font).
-    pub font_id: FontId,
-}
-
-impl Default for SectionText<'static> {
-    #[inline]
-    fn default() -> Self {
+impl<'a, 'b> From<&'a VariedSection<'b>> for SectionGeometry {
+    fn from(section: &'a VariedSection<'b>) -> Self {
         Self {
-            text: "",
-            scale: Scale::uniform(16.0),
-            color: [0.0, 0.0, 0.0, 1.0],
-            font_id: FontId::default(),
+            bounds: section.bounds,
+            screen_position: section.screen_position,
         }
     }
 }
-
-impl<'a> Hash for SectionText<'a> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        use ordered_float::OrderedFloat;
-
-        let SectionText {
-            text,
-            scale,
-            color,
-            font_id,
-        } = *self;
-
-        let ord_floats: &[OrderedFloat<_>] = &[
-            scale.x.into(),
-            scale.y.into(),
-            color[0].into(),
-            color[1].into(),
-            color[2].into(),
-            color[3].into(),
-        ];
-
-        (text, font_id, ord_floats).hash(state);
-    }
-}
-
-impl<'a> SectionText<'a> {
-    pub fn to_owned(&self) -> OwnedSectionText {
-        OwnedSectionText {
-            text: self.text.to_owned(),
-            scale: self.scale,
-            color: self.color,
-            font_id: self.font_id,
-        }
-    }
-}
-
-/// Id for a font, the default `FontId(0)` will always be present in a `GlyphBrush`
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
-pub struct FontId(pub usize);
 
 /// An object that contains all the info to render a section of text.
 ///
@@ -179,10 +145,10 @@ pub struct FontId(pub usize);
 /// # Example
 ///
 /// ```
-/// use gfx_glyph::Section;
+/// use glyph_brush::Section;
 ///
 /// let section = Section {
-///     text: "Hello gfx_glyph",
+///     text: "Hello glyph_brush",
 ///     ..Section::default()
 /// };
 /// # let _ = section;

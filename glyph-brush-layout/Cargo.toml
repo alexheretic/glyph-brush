@@ -1,0 +1,18 @@
+[package]
+name = "glyph_brush_layout"
+version = "0.1.0"
+authors = ["Alex Butler <alexheretic@gmail.com>"]
+description = "Text layout for rusttype"
+repository = "https://github.com/alexheretic/gfx-glyph"
+keywords = ["layout", "text"]
+license = "Apache-2.0"
+readme="README.md"
+
+[dependencies]
+rusttype = { version = "0.7", features = ["gpu_cache"] }
+xi-unicode = "0.1"
+
+[dev-dependencies]
+approx = "0.3"
+lazy_static = "1"
+ordered-float = "0.5"

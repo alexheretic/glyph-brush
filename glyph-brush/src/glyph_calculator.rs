@@ -1,6 +1,21 @@
 use super::*;
-use std::sync::{Mutex, MutexGuard};
-use std::{fmt, mem};
+use rustc_hash::*;
+use full_rusttype::point;
+use std::{
+    borrow::Cow,
+    collections::{hash_map::Entry, HashSet},
+    fmt,
+    hash::{BuildHasher, Hash, Hasher},
+    i32, mem, slice,
+    sync::{Mutex, MutexGuard},
+};
+
+/// [`PositionedGlyph`](struct.PositionedGlyph.html) iterator.
+pub type PositionedGlyphIter<'a, 'font> = std::iter::Map<
+    slice::Iter<'a, (rusttype::PositionedGlyph<'font>, [f32; 4], FontId)>,
+    fn(&'a (rusttype::PositionedGlyph<'font>, [f32; 4], FontId))
+        -> &'a rusttype::PositionedGlyph<'font>,
+>;
 
 /// Common glyph layout logic.
 pub trait GlyphCruncher<'font> {
@@ -67,15 +82,15 @@ pub trait GlyphCruncher<'font> {
 /// # Example
 ///
 /// ```
-/// extern crate gfx_glyph;
-/// use gfx_glyph::{GlyphCalculatorBuilder, GlyphCruncher, Section};
+/// extern crate glyph_brush;
+/// use glyph_brush::{GlyphCalculatorBuilder, GlyphCruncher, Section};
 /// # fn main() {
 ///
-/// let dejavu: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
+/// let dejavu: &[u8] = include_bytes!("../../examples/DejaVuSans.ttf");
 /// let glyphs = GlyphCalculatorBuilder::using_font_bytes(dejavu).build();
 ///
 /// let section = Section {
-///     text: "Hello gfx_glyph",
+///     text: "Hello glyph_brush",
 ///     ..Section::default()
 /// };
 ///
@@ -84,8 +99,6 @@ pub trait GlyphCruncher<'font> {
 /// let mut scope = glyphs.cache_scope();
 ///
 /// let bounds = scope.pixel_bounds(section);
-/// # let _ = bounds;
-/// # let _ = glyphs;
 /// # }
 /// ```
 ///
@@ -102,7 +115,7 @@ pub trait GlyphCruncher<'font> {
 /// is over, similar to when a `GlyphBrush` draws. Section calculations are cached for the next
 /// 'cache frame', if not used then they will be dropped.
 pub struct GlyphCalculator<'font, H = DefaultSectionHasher> {
-    fonts: FontMap<'font>,
+    fonts: Vec<Font<'font>>,
 
     // cache of section-layout hash -> computed glyphs, this avoid repeated glyph computation
     // for identical layout/sections common to repeated frame rendering
@@ -122,7 +135,7 @@ impl<'font, H: BuildHasher + Clone> GlyphCalculator<'font, H> {
         GlyphCalculatorGuard {
             fonts: &self.fonts,
             glyph_cache: self.calculate_glyph_cache.lock().unwrap(),
-            cached: HashSet::default(),
+            cached: FxHashSet::default(),
             section_hasher: self.section_hasher.clone(),
         }
     }
@@ -130,7 +143,7 @@ impl<'font, H: BuildHasher + Clone> GlyphCalculator<'font, H> {
 
 /// [`GlyphCalculator`](struct.GlyphCalculator.html) scoped cache lock.
 pub struct GlyphCalculatorGuard<'brush, 'font: 'brush, H = DefaultSectionHasher> {
-    fonts: &'brush FontMap<'font>,
+    fonts: &'brush Vec<Font<'font>>,
     glyph_cache: MutexGuard<'brush, FxHashMap<u64, GlyphedSection<'font>>>,
     cached: FxHashSet<u64>,
     section_hasher: H,
@@ -150,9 +163,10 @@ impl<'brush, 'font, H: BuildHasher> GlyphCalculatorGuard<'brush, 'font, H> {
         };
 
         if let Entry::Vacant(entry) = self.glyph_cache.entry(section_hash) {
+            let geometry = SectionGeometry::from(section);
             entry.insert(GlyphedSection {
-                bounds: layout.bounds_rect(section),
-                glyphs: layout.calculate_glyphs(self.fonts, section),
+                bounds: layout.bounds_rect(&geometry),
+                glyphs: layout.calculate_glyphs(self.fonts, &geometry, &section.text),
                 z: section.z,
             });
         }
@@ -211,13 +225,12 @@ impl<'a, 'b, H> Drop for GlyphCalculatorGuard<'a, 'b, H> {
 /// # Example
 ///
 /// ```no_run
-/// extern crate gfx_glyph;
-/// use gfx_glyph::GlyphCalculatorBuilder;
+/// extern crate glyph_brush;
+/// use glyph_brush::GlyphCalculatorBuilder;
 /// # fn main() {
 ///
-/// let dejavu: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
+/// let dejavu: &[u8] = include_bytes!("../../examples/DejaVuSans.ttf");
 /// let mut glyphs = GlyphCalculatorBuilder::using_font_bytes(dejavu).build();
-/// # let _ = glyphs;
 /// # }
 /// ```
 pub struct GlyphCalculatorBuilder<'a, H = DefaultSectionHasher> {
@@ -299,22 +312,24 @@ impl<'a, H: BuildHasher> GlyphCalculatorBuilder<'a, H> {
     /// Builds a `GlyphCalculator`
     pub fn build(self) -> GlyphCalculator<'a, H> {
         GlyphCalculator {
-            fonts: self.font_data.into_iter().enumerate().collect(),
+            fonts: self.font_data,
             calculate_glyph_cache: Mutex::default(),
             section_hasher: self.section_hasher,
         }
     }
 }
 
+// FIXME pub(crate)
 #[derive(Clone)]
-pub(crate) struct GlyphedSection<'font> {
+pub struct GlyphedSection<'font> {
     pub bounds: Rect<f32>,
     pub glyphs: Vec<(PositionedGlyph<'font>, Color, FontId)>,
     pub z: f32,
 }
 
 impl<'font> GlyphedSection<'font> {
-    pub(crate) fn pixel_bounds(&self) -> Option<Rect<i32>> {
+    // FIXME pub(crate)
+    pub fn pixel_bounds(&self) -> Option<Rect<i32>> {
         let Self {
             ref glyphs, bounds, ..
         } = *self;
@@ -382,7 +397,8 @@ impl<'font> GlyphedSection<'font> {
         Some(pixel_bounds).filter(|_| !no_match)
     }
 
-    pub(crate) fn glyphs(&self) -> PositionedGlyphIter<'_, 'font> {
+    // FIXME pub(crate)
+    pub fn glyphs(&self) -> PositionedGlyphIter<'_, 'font> {
         self.glyphs.iter().map(|(g, ..)| g)
     }
 }
@@ -394,7 +410,7 @@ mod test {
 
     lazy_static! {
         static ref A_FONT: Font<'static> =
-            Font::from_bytes(include_bytes!("../tests/DejaVuSansMono.ttf") as &[u8])
+            Font::from_bytes(include_bytes!("../../tests/DejaVuSansMono.ttf") as &[u8])
                 .expect("Could not create rusttype::Font");
     }
 
@@ -416,7 +432,7 @@ mod test {
         let pixel_bounds = glyphs.pixel_bounds(&section).expect("None bounds");
         let layout_bounds = Layout::default()
             .v_align(VerticalAlign::Bottom)
-            .bounds_rect(&section.into());
+            .bounds_rect(&SectionGeometry::from(&VariedSection::from(section)));
 
         assert!(
             layout_bounds.min.y <= pixel_bounds.min.y as f32,

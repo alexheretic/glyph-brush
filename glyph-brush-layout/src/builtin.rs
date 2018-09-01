@@ -1,4 +1,8 @@
-use super::*;
+use super::{
+    BuiltInLineBreaker, Color, FontId, FontMap, GlyphPositioner, LineBreaker, PositionedGlyph,
+    Rect, SectionGeometry, SectionText,
+};
+use full_rusttype::Point;
 use characters::Characters;
 use std::mem;
 
@@ -9,9 +13,8 @@ use std::mem;
 ///
 /// # Example
 /// ```
-/// # use gfx_glyph::*;
+/// # use glyph_brush_layout::*;
 /// let layout = Layout::default().h_align(HorizontalAlign::Right);
-/// # let _layout = layout;
 /// ```
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum Layout<L: LineBreaker> {
@@ -133,25 +136,26 @@ impl<L: LineBreaker> Layout<L> {
 }
 
 impl<L: LineBreaker> GlyphPositioner for Layout<L> {
-    fn calculate_glyphs<'font>(
+    fn calculate_glyphs<'font, F: FontMap<'font>>(
         &self,
-        font_map: &FontMap<'font>,
-        section: &VariedSection,
+        font_map: &F,
+        geometry: &SectionGeometry,
+        sections: &[SectionText],
     ) -> Vec<(PositionedGlyph<'font>, Color, FontId)> {
         use Layout::{SingleLine, Wrap};
 
-        let VariedSection {
+        let SectionGeometry {
             screen_position,
             bounds: (bound_w, bound_h),
             ..
-        } = *section;
+        } = *geometry;
 
         match *self {
             SingleLine {
                 h_align,
                 v_align,
                 line_breaker,
-            } => Characters::new(font_map, section.text.iter(), line_breaker)
+            } => Characters::new(font_map, sections.iter(), line_breaker)
                 .words()
                 .lines(bound_w)
                 .next()
@@ -167,7 +171,7 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                 let mut caret = screen_position;
                 let v_align_top = v_align == VerticalAlign::Top;
 
-                let mut lines = Characters::new(font_map, section.text.iter(), line_breaker)
+                let mut lines = Characters::new(font_map, sections.iter(), line_breaker)
                     .words()
                     .lines(bound_w);
 
@@ -224,14 +228,13 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
         }
     }
 
-    fn bounds_rect(&self, section: &VariedSection) -> Rect<f32> {
+    fn bounds_rect(&self, geometry: &SectionGeometry) -> Rect<f32> {
         use Layout::{SingleLine, Wrap};
 
-        let VariedSection {
+        let SectionGeometry {
             screen_position: (screen_x, screen_y),
             bounds: (bound_w, bound_h),
-            ..
-        } = *section;
+        } = *geometry;
 
         let (h_align, v_align) = match *self {
             Wrap {
@@ -345,19 +348,17 @@ impl VerticalAlign {
 mod layout_test {
     use super::*;
     use ordered_float::OrderedFloat;
+    use rusttype::{Font, Scale};
     use std::collections::*;
     use std::f32;
+    use xi_unicode;
     use BuiltInLineBreaker::*;
 
     lazy_static! {
         static ref A_FONT: Font<'static> =
             Font::from_bytes(include_bytes!("../../tests/DejaVuSansMono.ttf") as &[u8])
                 .expect("Could not create rusttype::Font");
-        static ref FONT_MAP: FontMap<'static> = {
-            let mut map = FontMap::new();
-            map.insert(0, A_FONT.clone());
-            map
-        };
+        static ref FONT_MAP: Vec<Font<'static>> = vec![A_FONT.clone()];
     }
 
     /// Checks the order of glyphs in the first arg iterable matches the
@@ -384,12 +385,13 @@ mod layout_test {
         let glyphs = Layout::default_single_line()
             .line_breaker(AnyCharLineBreaker)
             .calculate_glyphs(
-                &FONT_MAP,
-                &Section {
+                &*FONT_MAP,
+                &SectionGeometry::default(),
+                &[SectionText {
                     text: "hello world",
                     scale: Scale::uniform(20.0),
-                    ..Section::default()
-                }.into(),
+                    ..SectionText::default()
+                }],
             );
 
         assert_glyph_order!(glyphs, "helloworld");
@@ -409,12 +411,13 @@ mod layout_test {
             .line_breaker(AnyCharLineBreaker)
             .h_align(HorizontalAlign::Right)
             .calculate_glyphs(
-                &FONT_MAP,
-                &Section {
+                &*FONT_MAP,
+                &SectionGeometry::default(),
+                &[SectionText {
                     text: "hello world",
                     scale: Scale::uniform(20.0),
-                    ..Section::default()
-                }.into(),
+                    ..SectionText::default()
+                }],
             );
 
         assert_glyph_order!(glyphs, "helloworld");
@@ -438,12 +441,13 @@ mod layout_test {
             .line_breaker(AnyCharLineBreaker)
             .h_align(HorizontalAlign::Center)
             .calculate_glyphs(
-                &FONT_MAP,
-                &Section {
+                &*FONT_MAP,
+                &SectionGeometry::default(),
+                &[SectionText {
                     text: "hello world",
                     scale: Scale::uniform(20.0),
-                    ..Section::default()
-                }.into(),
+                    ..SectionText::default()
+                }],
             );
 
         assert_glyph_order!(glyphs, "helloworld");
@@ -473,12 +477,13 @@ mod layout_test {
         let glyphs = Layout::default_single_line()
             .line_breaker(AnyCharLineBreaker)
             .calculate_glyphs(
-                &FONT_MAP,
-                &Section {
+                &*FONT_MAP,
+                &SectionGeometry::default(),
+                &[SectionText {
                     text: "hello\nworld",
                     scale: Scale::uniform(20.0),
-                    ..Section::default()
-                }.into(),
+                    ..SectionText::default()
+                }],
             );
 
         assert_glyph_order!(glyphs, "hello");
@@ -493,13 +498,16 @@ mod layout_test {
     #[test]
     fn wrap_word_left() {
         let glyphs = Layout::default_single_line().calculate_glyphs(
-            &FONT_MAP,
-            &Section {
+            &*FONT_MAP,
+            &SectionGeometry {
+                bounds: (85.0, f32::INFINITY), // should only be enough room for the 1st word
+                ..SectionGeometry::default()
+            },
+            &[SectionText {
                 text: "hello what's _happening_?",
                 scale: Scale::uniform(20.0),
-                bounds: (85.0, f32::INFINITY), // should only be enough room for the 1st word
-                ..Section::default()
-            }.into(),
+                ..SectionText::default()
+            }],
         );
 
         assert_glyph_order!(glyphs, "hello");
@@ -512,13 +520,16 @@ mod layout_test {
         );
 
         let glyphs = Layout::default_single_line().calculate_glyphs(
-            &FONT_MAP,
-            &Section {
+            &*FONT_MAP,
+            &SectionGeometry {
+                bounds: (125.0, f32::INFINITY),
+                ..SectionGeometry::default()
+            },
+            &[SectionText {
                 text: "hello what's _happening_?",
                 scale: Scale::uniform(20.0),
-                bounds: (125.0, f32::INFINITY), // should only be enough room for the 1,2 words
-                ..Section::default()
-            }.into(),
+                ..SectionText::default()
+            }],
         );
 
         assert_glyph_order!(glyphs, "hellowhat's");
@@ -536,13 +547,16 @@ mod layout_test {
         let glyphs = Layout::default_single_line()
             .line_breaker(AnyCharLineBreaker)
             .calculate_glyphs(
-                &FONT_MAP,
-                &Section {
+                &*FONT_MAP,
+                &SectionGeometry {
+                    bounds: (50.0, f32::INFINITY),
+                    ..SectionGeometry::default()
+                },
+                &[SectionText {
                     text: "helloworld",
                     scale: Scale::uniform(20.0),
-                    bounds: (50.0, f32::INFINITY),
-                    ..Section::default()
-                }.into(),
+                    ..SectionText::default()
+                }],
             );
 
         assert_glyph_order!(glyphs, "hell");
@@ -556,12 +570,13 @@ mod layout_test {
                         into the chestnut.";
 
         let glyphs = Layout::default_wrap().calculate_glyphs(
-            &FONT_MAP,
-            &Section {
+            &*FONT_MAP,
+            &SectionGeometry::default(),
+            &[SectionText {
                 text: test_str,
                 scale: Scale::uniform(20.0),
-                ..Section::default()
-            }.into(),
+                ..SectionText::default()
+            }],
         );
 
         assert_glyph_order!(glyphs, "Autumnmoonlightawormdigssilentlyintothechestnut.");
@@ -578,28 +593,28 @@ mod layout_test {
     #[test]
     fn leftover_max_vmetrics() {
         let glyphs = Layout::default_single_line().calculate_glyphs(
-            &FONT_MAP,
-            &VariedSection {
-                text: vec![
-                    SectionText {
-                        text: "Autumn moonlight, ",
-                        scale: Scale::uniform(30.0),
-                        ..SectionText::default()
-                    },
-                    SectionText {
-                        text: "a worm digs silently ",
-                        scale: Scale::uniform(40.0),
-                        ..SectionText::default()
-                    },
-                    SectionText {
-                        text: "into the chestnut.",
-                        scale: Scale::uniform(10.0),
-                        ..SectionText::default()
-                    },
-                ],
+            &*FONT_MAP,
+            &SectionGeometry {
                 bounds: (750.0, f32::INFINITY),
-                ..VariedSection::default()
+                ..SectionGeometry::default()
             },
+            &[
+                SectionText {
+                    text: "Autumn moonlight, ",
+                    scale: Scale::uniform(30.0),
+                    ..SectionText::default()
+                },
+                SectionText {
+                    text: "a worm digs silently ",
+                    scale: Scale::uniform(40.0),
+                    ..SectionText::default()
+                },
+                SectionText {
+                    text: "into the chestnut.",
+                    scale: Scale::uniform(10.0),
+                    ..SectionText::default()
+                },
+            ],
         );
 
         let max_v_metrics = A_FONT.v_metrics(Scale::uniform(40.0));
@@ -615,28 +630,26 @@ mod layout_test {
     #[test]
     fn eol_new_line_hard_breaks() {
         let glyphs = Layout::default_wrap().calculate_glyphs(
-            &FONT_MAP,
-            &VariedSection {
-                text: vec![
-                    SectionText {
-                        text: "Autumn moonlight, \n",
-                        ..SectionText::default()
-                    },
-                    SectionText {
-                        text: "a worm digs silently ",
-                        ..SectionText::default()
-                    },
-                    SectionText {
-                        text: "\n",
-                        ..SectionText::default()
-                    },
-                    SectionText {
-                        text: "into the chestnut.",
-                        ..SectionText::default()
-                    },
-                ],
-                ..VariedSection::default()
-            },
+            &*FONT_MAP,
+            &SectionGeometry::default(),
+            &[
+                SectionText {
+                    text: "Autumn moonlight, \n",
+                    ..SectionText::default()
+                },
+                SectionText {
+                    text: "a worm digs silently ",
+                    ..SectionText::default()
+                },
+                SectionText {
+                    text: "\n",
+                    ..SectionText::default()
+                },
+                SectionText {
+                    text: "into the chestnut.",
+                    ..SectionText::default()
+                },
+            ],
         );
 
         let y_ords: HashSet<OrderedFloat<f32>> = glyphs
@@ -672,12 +685,13 @@ mod layout_test {
         );
 
         let glyphs = Layout::default_single_line().calculate_glyphs(
-            &FONT_MAP,
-            &Section {
+            &*FONT_MAP,
+            &SectionGeometry::default(),
+            &[SectionText {
                 text: unicode_str,
                 scale: Scale::uniform(20.0),
-                ..Section::default()
-            }.into(),
+                ..SectionText::default()
+            }],
         );
 
         assert_glyph_order!(glyphs, "\u{2764}\u{2764}\u{e9}\u{2764}\u{2764}");
@@ -692,25 +706,25 @@ mod layout_test {
     #[test]
     fn no_inherent_section_break() {
         let glyphs = Layout::default_wrap().calculate_glyphs(
-            &FONT_MAP,
-            &VariedSection {
-                text: vec![
-                    SectionText {
-                        text: "The ",
-                        ..SectionText::default()
-                    },
-                    SectionText {
-                        text: "moon",
-                        ..SectionText::default()
-                    },
-                    SectionText {
-                        text: "light",
-                        ..SectionText::default()
-                    },
-                ],
+            &*FONT_MAP,
+            &SectionGeometry {
                 bounds: (50.0, ::std::f32::INFINITY),
-                ..VariedSection::default()
+                ..SectionGeometry::default()
             },
+            &[
+                SectionText {
+                    text: "The ",
+                    ..SectionText::default()
+                },
+                SectionText {
+                    text: "moon",
+                    ..SectionText::default()
+                },
+                SectionText {
+                    text: "light",
+                    ..SectionText::default()
+                },
+            ],
         );
 
         assert_glyph_order!(glyphs, "Themoonlight");

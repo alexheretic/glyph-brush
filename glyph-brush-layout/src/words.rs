@@ -1,6 +1,8 @@
-use super::*;
-use layout::characters::Character;
-use layout::lines::Lines;
+use super::{Color, FontId, FontMap};
+use full_rusttype::{point, Point, PositionedGlyph, Rect, ScaledGlyph, VMetrics};
+use characters::{Character, Characters};
+use linebreak::{LineBreak, LineBreaker};
+use lines::Lines;
 use std::iter::{FusedIterator, Iterator};
 
 pub(crate) const ZERO_V_METRICS: VMetrics = VMetrics {
@@ -49,12 +51,21 @@ impl<'font> RelativePositionedGlyph<'font> {
 }
 
 /// `Word` iterator.
-pub(crate) struct Words<'a, 'b, 'font: 'a + 'b, L: LineBreaker> {
-    pub(crate) characters: Characters<'a, 'b, 'font, L>,
+pub(crate) struct Words<'a, 'b, 'font: 'a + 'b, L, F>
+where
+    L: LineBreaker,
+    F: FontMap<'font> + 'b,
+{
+    pub(crate) characters: Characters<'a, 'b, 'font, L, F>,
 }
 
-impl<'a, 'b, 'font, L: LineBreaker> Words<'a, 'b, 'font, L> {
-    pub(crate) fn lines(self, width_bound: f32) -> Lines<'a, 'b, 'font, L> {
+impl<'a, 'b, 'font, L, F> Words<'a, 'b, 'font, L, F>
+where
+    'font: 'a + 'b,
+    L: LineBreaker,
+    F: FontMap<'font>,
+{
+    pub(crate) fn lines(self, width_bound: f32) -> Lines<'a, 'b, 'font, L, F> {
         Lines {
             words: self.peekable(),
             width_bound,
@@ -62,7 +73,11 @@ impl<'a, 'b, 'font, L: LineBreaker> Words<'a, 'b, 'font, L> {
     }
 }
 
-impl<'a, 'b, 'font, L: LineBreaker> Iterator for Words<'a, 'b, 'font, L> {
+impl<'a, 'b, 'font, L, F> Iterator for Words<'a, 'b, 'font, L, F>
+where
+    L: LineBreaker,
+    F: FontMap<'font> + 'b,
+{
     type Item = Word<'font>;
 
     #[inline]
@@ -144,4 +159,6 @@ impl<'a, 'b, 'font, L: LineBreaker> Iterator for Words<'a, 'b, 'font, L> {
     }
 }
 
-impl<'a, 'b, 'font, L: LineBreaker> FusedIterator for Words<'a, 'b, 'font, L> {}
+impl<'a, 'b, 'font, L: LineBreaker, F: FontMap<'font>> FusedIterator
+    for Words<'a, 'b, 'font, L, F>
+{}

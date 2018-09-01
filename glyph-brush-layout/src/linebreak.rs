@@ -1,5 +1,4 @@
-use super::*;
-use std::{fmt, iter::FusedIterator, str, str::CharIndices};
+use std::{fmt, hash::Hash, iter::FusedIterator, str, str::CharIndices};
 use xi_unicode;
 
 /// Indicator that a character is a line break, soft or hard. Includes the offset (byte-index)
@@ -28,6 +27,7 @@ pub trait LineBreaker: fmt::Debug + Copy + Hash {
     fn line_breaks<'a>(&self, glyph_info: &'a str) -> Box<Iterator<Item = LineBreak> + 'a>;
 }
 
+/// Built-in linebreaking logic.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum BuiltInLineBreaker {
     /// LineBreaker that follows Unicode Standard Annex #14. That effectively means it

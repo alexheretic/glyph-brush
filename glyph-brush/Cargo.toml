@@ -1,0 +1,19 @@
+[package]
+name = "glyph_brush"
+version = "0.0.1"
+authors = ["Alex Butler <alexheretic@gmail.com>"]
+description = "Fast cached text render library using rusttype"
+repository = "https://github.com/alexheretic/gfx-glyph"
+keywords = ["font", "ttf", "truetype", "text"]
+license = "Apache-2.0"
+readme="README.md"
+
+[dependencies]
+glyph_brush_layout = { version = "0.1", path = "../glyph-brush-layout" }
+ordered-float = "0.5"
+rustc-hash = "1"
+rusttype = { version = "0.7", features = ["gpu_cache"] }
+seahash = "3"
+
+[dev-dependencies]
+lazy_static = "1"

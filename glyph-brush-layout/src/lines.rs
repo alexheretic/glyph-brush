@@ -1,7 +1,8 @@
-use super::*;
-use layout::words::{RelativePositionedGlyph, Words, ZERO_V_METRICS};
-use rusttype::vector;
+use super::{Color, FontId, FontMap, HorizontalAlign, VerticalAlign};
+use full_rusttype::{point, vector, PositionedGlyph, VMetrics};
+use linebreak::LineBreaker;
 use std::iter::{FusedIterator, Iterator, Peekable};
+use words::{RelativePositionedGlyph, Words, ZERO_V_METRICS};
 
 /// A line of `Word`s limited to a max width bound.
 pub(crate) struct Line<'font> {
@@ -76,12 +77,19 @@ impl<'font> Line<'font> {
 ///
 /// Note: Will always have at least one word, if possible, even if the word itself
 /// breaks the `width_bound`.
-pub(crate) struct Lines<'a, 'b, 'font: 'a + 'b, L: LineBreaker> {
-    pub(crate) words: Peekable<Words<'a, 'b, 'font, L>>,
+pub(crate) struct Lines<'a, 'b, 'font, L, F>
+where
+    'font: 'a + 'b,
+    L: LineBreaker,
+    F: FontMap<'font> + 'b,
+{
+    pub(crate) words: Peekable<Words<'a, 'b, 'font, L, F>>,
     pub(crate) width_bound: f32,
 }
 
-impl<'a, 'b, 'font, L: LineBreaker> Iterator for Lines<'a, 'b, 'font, L> {
+impl<'a, 'b, 'font, L: LineBreaker, F: FontMap<'font> + 'b> Iterator
+    for Lines<'a, 'b, 'font, L, F>
+{
     type Item = Line<'font>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -139,4 +147,6 @@ impl<'a, 'b, 'font, L: LineBreaker> Iterator for Lines<'a, 'b, 'font, L> {
     }
 }
 
-impl<'a, 'b, 'font, L: LineBreaker> FusedIterator for Lines<'a, 'b, 'font, L> {}
+impl<'a, 'b, 'font, L: LineBreaker, F: FontMap<'font>> FusedIterator
+    for Lines<'a, 'b, 'font, L, F>
+{}

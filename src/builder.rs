@@ -249,7 +249,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
             ).unwrap();
 
         GlyphBrush {
-            fonts: self.font_data.into_iter().enumerate().collect(),
+            fonts: self.font_data,
             font_cache: Cache::builder()
                 .dimensions(cache_width, cache_height)
                 .scale_tolerance(self.gpu_cache_scale_tolerance)

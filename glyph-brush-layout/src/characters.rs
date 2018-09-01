@@ -1,7 +1,11 @@
-use super::*;
-use layout::words::Words;
+use super::{Color, EolLineBreak, FontId, FontMap, SectionText};
+use full_rusttype::ScaledGlyph;
+use linebreak::{LineBreak, LineBreaker};
 use std::iter::{FusedIterator, Iterator};
+use std::marker::PhantomData;
+use std::slice;
 use std::{mem, str::CharIndices};
+use words::Words;
 
 /// Single character info
 pub(crate) struct Character<'font> {
@@ -15,11 +19,17 @@ pub(crate) struct Character<'font> {
 }
 
 /// `Character` iterator
-pub(crate) struct Characters<'a, 'b, 'font: 'a + 'b, L: LineBreaker> {
-    font_map: &'b FontMap<'font>,
-    section_text: Iter<'a, SectionText<'a>>,
+pub(crate) struct Characters<'a, 'b, 'font, L, F>
+where
+    'font: 'a + 'b,
+    L: LineBreaker,
+    F: FontMap<'font> + 'b,
+{
+    font_map: &'b F,
+    section_text: slice::Iter<'a, SectionText<'a>>,
     line_breaker: L,
     part_info: Option<PartInfo<'a>>,
+    phantom: PhantomData<&'font ()>,
 }
 
 struct PartInfo<'a> {
@@ -29,29 +39,37 @@ struct PartInfo<'a> {
     next_break: Option<LineBreak>,
 }
 
-impl<'a, 'b, 'font, L: LineBreaker> Characters<'a, 'b, 'font, L> {
+impl<'a, 'b, 'font, L, F> Characters<'a, 'b, 'font, L, F>
+where
+    L: LineBreaker,
+    F: FontMap<'font>,
+{
     /// Returns a new `Characters` iterator.
     pub(crate) fn new(
-        font_map: &'b FontMap<'font>,
-        section_text: Iter<'a, SectionText<'a>>,
+        font_map: &'b F,
+        section_text: slice::Iter<'a, SectionText<'a>>,
         line_breaker: L,
     ) -> Self {
         Self {
             font_map,
             section_text,
             line_breaker,
-
             part_info: None,
+            phantom: PhantomData,
         }
     }
 
     /// Wraps into a `Words` iterator.
-    pub(crate) fn words(self) -> Words<'a, 'b, 'font, L> {
+    pub(crate) fn words(self) -> Words<'a, 'b, 'font, L, F> {
         Words { characters: self }
     }
 }
 
-impl<'a, 'b, 'font, L: LineBreaker> Iterator for Characters<'a, 'b, 'font, L> {
+impl<'a, 'b, 'font, L, F> Iterator for Characters<'a, 'b, 'font, L, F>
+where
+    L: LineBreaker,
+    F: FontMap<'font>,
+{
     type Item = Character<'font>;
 
     #[inline]
@@ -92,7 +110,7 @@ impl<'a, 'b, 'font, L: LineBreaker> Iterator for Characters<'a, 'b, 'font, L> {
                     }
                 }
 
-                let glyph = self.font_map[font_id].glyph(c).scaled(*scale);
+                let glyph = self.font_map.font(*font_id).glyph(c).scaled(*scale);
 
                 let mut line_break = next_break.filter(|b| b.offset() == byte_index + 1);
                 if line_break.is_some() && byte_index + 1 == text.len() {
@@ -115,4 +133,8 @@ impl<'a, 'b, 'font, L: LineBreaker> Iterator for Characters<'a, 'b, 'font, L> {
     }
 }
 
-impl<'a, 'b, 'font, L: LineBreaker> FusedIterator for Characters<'a, 'b, 'font, L> {}
+impl<'a, 'b, 'font, L, F> FusedIterator for Characters<'a, 'b, 'font, L, F>
+where
+    L: LineBreaker,
+    F: FontMap<'font>,
+{}
