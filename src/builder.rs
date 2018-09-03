@@ -32,10 +32,12 @@ pub struct GlyphBrushBuilder<'a, H = DefaultSectionHasher> {
 impl<'a> GlyphBrushBuilder<'a> {
     /// Specifies the default font data used to render glyphs.
     /// Referenced with `FontId(0)`, which is default.
+    #[inline]
     pub fn using_font_bytes<B: Into<SharedBytes<'a>>>(font_0_data: B) -> Self {
         Self::using_font(Font::from_bytes(font_0_data).unwrap())
     }
 
+    #[inline]
     pub fn using_fonts_bytes<B, V>(font_data: V) -> Self
     where
         B: Into<SharedBytes<'a>>,
@@ -52,6 +54,7 @@ impl<'a> GlyphBrushBuilder<'a> {
 
     /// Specifies the default font used to render glyphs.
     /// Referenced with `FontId(0)`, which is default.
+    #[inline]
     pub fn using_font(font_0: Font<'a>) -> Self {
         Self::using_fonts(vec![font_0])
     }
@@ -66,77 +69,7 @@ impl<'a> GlyphBrushBuilder<'a> {
 }
 
 impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
-    /// Adds additional fonts to the one added in [`using_font`](#method.using_font) /
-    /// [`using_font_bytes`](#method.using_font_bytes).
-    /// Returns a [`FontId`](struct.FontId.html) to reference this font.
-    pub fn add_font_bytes<B: Into<SharedBytes<'a>>>(&mut self, font_data: B) -> FontId {
-        self.inner.add_font_bytes(font_data)
-    }
-
-    /// Adds additional fonts to the one added in [`using_font`](#method.using_font) /
-    /// [`using_font_bytes`](#method.using_font_bytes).
-    /// Returns a [`FontId`](struct.FontId.html) to reference this font.
-    pub fn add_font(&mut self, font_data: Font<'a>) -> FontId {
-        self.inner.add_font(font_data)
-    }
-
-    /// Initial size of 2D texture used as a gpu cache, pixels (width, height).
-    /// The GPU cache will dynamically quadruple in size whenever the current size
-    /// is insufficient.
-    ///
-    /// Defaults to `(256, 256)`
-    pub fn initial_cache_size(mut self, size: (u32, u32)) -> Self {
-        self.inner = self.inner.initial_cache_size(size);
-        self
-    }
-
-    /// Sets the maximum allowed difference in scale used for judging whether to reuse an
-    /// existing glyph in the GPU cache.
-    ///
-    /// Defaults to `0.5`
-    ///
-    /// See rusttype docs for `rusttype::gpu_cache::Cache`
-    pub fn gpu_cache_scale_tolerance(mut self, tolerance: f32) -> Self {
-        self.inner = self.inner.gpu_cache_scale_tolerance(tolerance);
-        self
-    }
-
-    /// Sets the maximum allowed difference in subpixel position used for judging whether
-    /// to reuse an existing glyph in the GPU cache. Anything greater than or equal to
-    /// 1.0 means "don't care".
-    ///
-    /// Defaults to `0.1`
-    ///
-    /// See rusttype docs for `rusttype::gpu_cache::Cache`
-    pub fn gpu_cache_position_tolerance(mut self, tolerance: f32) -> Self {
-        self.inner = self.inner.gpu_cache_position_tolerance(tolerance);
-        self
-    }
-
-    /// Sets whether perform the calculation of glyph positioning according to the layout
-    /// every time, or use a cached result if the input `Section` and `GlyphPositioner` are the
-    /// same hash as a previous call.
-    ///
-    /// Improves performance. Should only disable if using a custom GlyphPositioner that is
-    /// impure according to it's inputs, so caching a previous call is not desired. Disabling
-    /// also disables [`cache_glyph_drawing`](#method.cache_glyph_drawing).
-    ///
-    /// Defaults to `true`
-    pub fn cache_glyph_positioning(mut self, cache: bool) -> Self {
-        self.inner = self.inner.cache_glyph_positioning(cache);
-        self
-    }
-
-    /// Sets optimising drawing by reusing the last draw requesting an identical draw queue.
-    ///
-    /// Improves performance. Is disabled if
-    /// [`cache_glyph_positioning`](#method.cache_glyph_positioning) is disabled.
-    ///
-    /// Defaults to `true`
-    pub fn cache_glyph_drawing(mut self, cache: bool) -> Self {
-        self.inner = self.inner.cache_glyph_drawing(cache);
-        self
-    }
+    delegate_glyph_brush_builder_fns!(inner);
 
     /// Sets the depth test to use on the text section **z** values.
     ///
@@ -150,8 +83,9 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     /// # use gfx_glyph::GlyphBrushBuilder;
     /// # fn main() {
     /// # let some_font: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
-    /// GlyphBrushBuilder::using_font_bytes(some_font).depth_test(gfx::preset::depth::LESS_EQUAL_WRITE)
-    /// // ...
+    /// GlyphBrushBuilder::using_font_bytes(some_font)
+    ///     .depth_test(gfx::preset::depth::LESS_EQUAL_WRITE)
+    ///     // ...
     /// # ;
     /// # }
     /// ```
@@ -173,7 +107,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     /// # let some_font: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
     /// GlyphBrushBuilder::using_font_bytes(some_font)
     ///     .texture_filter_method(gfx::texture::FilterMethod::Scale)
-    /// // ...
+    ///     // ...
     /// # ;
     /// # }
     /// ```
@@ -198,8 +132,9 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     /// # fn main() {
     /// # let some_font: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
     /// # type SomeOtherBuildHasher = ::std::hash::BuildHasherDefault<seahash::SeaHasher>;
-    /// GlyphBrushBuilder::using_font_bytes(some_font).section_hasher(SomeOtherBuildHasher::default())
-    /// // ...
+    /// GlyphBrushBuilder::using_font_bytes(some_font)
+    ///     .section_hasher(SomeOtherBuildHasher::default())
+    ///     // ...
     /// # ;
     /// # }
     /// ```

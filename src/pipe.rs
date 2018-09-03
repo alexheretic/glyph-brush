@@ -88,10 +88,11 @@ pub trait RawAndFormat {
 
 impl<R: Resources, T: Formatted> RawAndFormat for RenderTargetView<R, T> {
     type Raw = RawRenderTargetView<R>;
+    #[inline]
     fn as_raw(&self) -> &Self::Raw {
         self.raw()
     }
-
+    #[inline]
     fn format(&self) -> Format {
         T::get_format()
     }
@@ -99,10 +100,11 @@ impl<R: Resources, T: Formatted> RawAndFormat for RenderTargetView<R, T> {
 
 impl<R: Resources, T: Formatted> RawAndFormat for DepthStencilView<R, T> {
     type Raw = RawDepthStencilView<R>;
+    #[inline]
     fn as_raw(&self) -> &Self::Raw {
         self.raw()
     }
-
+    #[inline]
     fn format(&self) -> Format {
         T::get_format()
     }
@@ -110,10 +112,11 @@ impl<R: Resources, T: Formatted> RawAndFormat for DepthStencilView<R, T> {
 
 impl<'a, R> RawAndFormat for (&'a R, Format) {
     type Raw = R;
+    #[inline]
     fn as_raw(&self) -> &Self::Raw {
         self.0
     }
-
+    #[inline]
     fn format(&self) -> Format {
         self.1
     }

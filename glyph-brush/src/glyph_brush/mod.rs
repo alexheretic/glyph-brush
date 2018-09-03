@@ -17,41 +17,45 @@ type SectionHash = u64;
 type DefaultSectionHasher = BuildHasherDefault<seahash::SeaHasher>;
 
 /// Object allowing glyph drawing, containing cache state. Manages glyph positioning cacheing,
-/// glyph draw caching & efficient GPU texture cache updating and re-sizing on demand.
+/// glyph draw caching & efficient GPU texture cache updating.
 ///
 /// Build using a [`GlyphBrushBuilder`](struct.GlyphBrushBuilder.html).
 ///
 /// # Example
 ///
 /// ```no_run
-/// # extern crate gfx;
-/// # extern crate gfx_window_glutin;
-/// # extern crate glutin;
-/// extern crate gfx_glyph;
-/// # use gfx_glyph::{GlyphBrushBuilder};
-/// use gfx_glyph::Section;
-/// # fn main() -> Result<(), String> {
-/// # let events_loop = glutin::EventsLoop::new();
-/// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
-/// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
-/// #         glutin::WindowBuilder::new(),
-/// #         glutin::ContextBuilder::new(),
-/// #         &events_loop);
-/// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
-/// # let dejavu: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
-/// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu)
-/// #     .build(gfx_factory.clone());
+/// extern crate glyph_brush;
+///
+/// use glyph_brush::{BrushAction, GlyphBrushBuilder, Section};
+///
+/// # fn main() -> Result<(), glyph_brush::BrushError> {
+/// let dejavu: &[u8] = include_bytes!("../../../examples/DejaVuSans.ttf");
+/// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
 /// # let some_other_section = Section { text: "another", ..Section::default() };
 ///
 /// let section = Section {
-///     text: "Hello gfx_glyph",
+///     text: "Hello glyph_brush",
 ///     ..Section::default()
 /// };
 ///
 /// glyph_brush.queue(section);
 /// glyph_brush.queue(some_other_section);
 ///
-/// glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth)?;
+/// # let screen_dimensions = (1024, 768);
+/// # let update_texture = |_, _| {};
+/// # let into_vertex = |_| ();
+/// match glyph_brush.process_queued(
+///     screen_dimensions,
+///     |rect, tex_data| update_texture(rect, tex_data),
+///     |vertex_data| into_vertex(vertex_data),
+/// )? {
+///     BrushAction::Draw(vertices) => {
+///         // Draw new vertices
+///     }
+///     BrushAction::ReDraw => {
+///         // Re-draw last frame's vertices unmodified
+///     }
+/// }
 /// # Ok(())
 /// # }
 /// ```
@@ -128,9 +132,9 @@ impl<'font, H: BuildHasher> GlyphCruncher<'font> for GlyphBrush<'font, H> {
 }
 
 impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
-    /// Queues a section/layout to be drawn by the next call of
-    /// [`draw_queued`](struct.GlyphBrush.html#method.draw_queued). Can be called multiple times
-    /// to queue multiple sections for drawing.
+    /// Queues a section/layout to be processed by the next call of
+    /// [`process_queued`](struct.GlyphBrush.html#method.process_queued). Can be called multiple
+    /// times to queue multiple sections for drawing.
     ///
     /// Used to provide custom `GlyphPositioner` logic, if using built-in
     /// [`Layout`](enum.Layout.html) simply use [`queue`](struct.GlyphBrush.html#method.queue)
@@ -151,9 +155,9 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
         self.section_buffer.push(section_hash);
     }
 
-    /// Queues a section/layout to be drawn by the next call of
-    /// [`draw_queued`](struct.GlyphBrush.html#method.draw_queued). Can be called multiple times
-    /// to queue multiple sections for drawing.
+    /// Queues a section/layout to be processed by the next call of
+    /// [`process_queued`](struct.GlyphBrush.html#method.process_queued). Can be called multiple
+    /// times to queue multiple sections for drawing.
     ///
     /// Benefits from caching, see [caching behaviour](#caching-behaviour).
     pub fn queue<'a, S>(&mut self, section: S)
@@ -180,23 +184,14 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
 
         if self.cache_glyph_positioning {
             if let Entry::Vacant(entry) = self.calculate_glyph_cache.entry(section_hash) {
-                #[cfg(feature = "performance_stats")]
-                self.perf.layout_start();
-
                 let geometry = SectionGeometry::from(section);
                 entry.insert(GlyphedSection {
                     bounds: layout.bounds_rect(&geometry),
                     glyphs: layout.calculate_glyphs(&self.fonts, &geometry, &section.text),
                     z: section.z,
                 });
-
-                #[cfg(feature = "performance_stats")]
-                self.perf.layout_finished();
             }
         } else {
-            #[cfg(feature = "performance_stats")]
-            self.perf.layout_start();
-
             let geometry = SectionGeometry::from(section);
             self.calculate_glyph_cache.insert(
                 section_hash,
@@ -206,52 +201,28 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
                     z: section.z,
                 },
             );
-
-            #[cfg(feature = "performance_stats")]
-            self.perf.layout_finished();
         }
         section_hash
     }
 
-    /// Draws all queued sections onto a render target, applying a position transform (e.g.
-    /// a projection).
+    /// Processes all queued sections, calling texture update logic when necessary &
+    /// returning a `BrushAction`.
     /// See [`queue`](struct.GlyphBrush.html#method.queue).
     ///
     /// Trims the cache, see [caching behaviour](#caching-behaviour).
     ///
-    /// # Raw usage
-    /// Can also be used with gfx raw render & depth views if necessary. The `Format` must also
-    /// be provided.
-    ///
     /// ```no_run
-    /// # extern crate gfx;
-    /// # extern crate gfx_window_glutin;
-    /// # extern crate glutin;
-    /// # extern crate gfx_glyph;
-    /// # use gfx_glyph::{GlyphBrushBuilder};
-    /// # use gfx_glyph::Section;
-    /// # use gfx::format;
-    /// # use gfx::format::Formatted;
-    /// # use gfx::memory::Typed;
-    /// # fn main() -> Result<(), String> {
-    /// # let events_loop = glutin::EventsLoop::new();
-    /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
-    /// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
-    /// #         glutin::WindowBuilder::new(),
-    /// #         glutin::ContextBuilder::new(),
-    /// #         &events_loop);
-    /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
-    /// # let dejavu: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
-    /// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu)
-    /// #     .build(gfx_factory.clone());
-    /// # let raw_render_view = gfx_color.raw();
-    /// # let raw_depth_view = gfx_depth.raw();
-    /// # let transform = [[0.0; 4]; 4];
-    /// glyph_brush.draw_queued_with_transform(
-    ///     transform,
-    ///     &mut gfx_encoder,
-    ///     &(raw_render_view, format::Srgba8::get_format()),
-    ///     &(raw_depth_view, format::Depth::get_format()),
+    /// # extern crate glyph_brush;
+    /// # use glyph_brush::*;
+    /// # fn main() -> Result<(), BrushError> {
+    /// # let dejavu: &[u8] = include_bytes!("../../../examples/DejaVuSans.ttf");
+    /// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
+    /// # let update_texture = |_, _| {};
+    /// # let into_vertex = |_| ();
+    /// glyph_brush.process_queued(
+    ///     (1024, 768),
+    ///     |rect, tex_data| update_texture(rect, tex_data),
+    ///     |vertex_data| into_vertex(vertex_data),
     /// )?
     /// # ;
     /// # Ok(())
@@ -409,29 +380,17 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     /// # Example
     ///
     /// ```no_run
-    /// # extern crate gfx;
-    /// # extern crate gfx_window_glutin;
-    /// # extern crate glutin;
-    /// extern crate gfx_glyph;
-    /// use gfx_glyph::{GlyphBrushBuilder, Section};
+    /// extern crate glyph_brush;
+    /// use glyph_brush::{GlyphBrushBuilder, Section};
     /// # fn main() {
-    /// # let events_loop = glutin::EventsLoop::new();
-    /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
-    /// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
-    /// #         glutin::WindowBuilder::new(),
-    /// #         glutin::ContextBuilder::new(),
-    /// #         &events_loop);
-    /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
     ///
     /// // dejavu is built as default `FontId(0)`
-    /// let dejavu: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
-    /// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build(gfx_factory.clone());
+    /// let dejavu: &[u8] = include_bytes!("../../../examples/DejaVuSans.ttf");
+    /// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
     ///
     /// // some time later, add another font referenced by a new `FontId`
-    /// let open_sans_italic: &[u8] = include_bytes!("../examples/OpenSans-Italic.ttf");
+    /// let open_sans_italic: &[u8] = include_bytes!("../../../examples/OpenSans-Italic.ttf");
     /// let open_sans_italic_id = glyph_brush.add_font_bytes(open_sans_italic);
-    /// # glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth).unwrap();
-    /// # let _ = open_sans_italic_id;
     /// # }
     /// ```
     pub fn add_font_bytes<'a: 'font, B: Into<SharedBytes<'a>>>(&mut self, font_data: B) -> FontId {
@@ -471,8 +430,11 @@ pub struct GlyphVertex {
     pub z: f32,
 }
 
+/// Actions that should be taken after processing queue data
 pub enum BrushAction<V> {
+    /// Draw new/changed vertix data.
     Draw(Vec<V>),
+    /// Re-draw last frame's vertices unmodified.
     ReDraw,
 }
 

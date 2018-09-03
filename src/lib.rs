@@ -50,6 +50,7 @@ extern crate gfx;
 extern crate gfx_core;
 #[macro_use]
 extern crate log;
+#[macro_use]
 extern crate glyph_brush;
 extern crate ordered_float;
 extern crate rustc_hash;
@@ -338,40 +339,39 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
                 to_vertex,
             );
 
-            if brush_action.is_ok() {
-                break;
-            } else if let Err(err) = brush_action {
-                let BrushError::TextureTooSmall { current, suggested } = err;
-                let (new_width, new_height) = suggested;
+            match brush_action {
+                Ok(_) => break,
+                Err(BrushError::TextureTooSmall { current, suggested }) => {
+                    let (new_width, new_height) = suggested;
 
-                if log_enabled!(log::Level::Warn) {
-                    warn!(
-                        "Increasing glyph texture size {old:?} -> {new:?}, as {reason:?}. \
-                         Consider building with `.initial_cache_size({new:?})` to avoid \
-                         resizing. Called from:\n{trace}",
-                        old = current,
-                        new = (new_width, new_height),
-                        reason = err,
-                        trace = outer_backtrace!()
-                    );
-                }
-
-                match create_texture(&mut self.factory, new_width, new_height) {
-                    Ok((new_tex, tex_view)) => {
-                        self.glyph_brush.resize_texture(new_width, new_height);
-
-                        if let Some(ref mut cache) = self.draw_cache {
-                            cache.pipe_data.font_tex.0 = tex_view.clone();
-                        }
-
-                        self.font_cache_tex.1 = tex_view;
-                        self.font_cache_tex.0 = new_tex;
+                    if log_enabled!(log::Level::Warn) {
+                        warn!(
+                            "Increasing glyph texture size {old:?} -> {new:?}. \
+                             Consider building with `.initial_cache_size({new:?})` to avoid \
+                             resizing. Called from:\n{trace}",
+                            old = current,
+                            new = (new_width, new_height),
+                            trace = outer_backtrace!()
+                        );
                     }
-                    Err(_) => {
-                        return Err(format!(
-                            "Failed to create {}x{} glyph texture",
-                            new_width, new_height
-                        ));
+
+                    match create_texture(&mut self.factory, new_width, new_height) {
+                        Ok((new_tex, tex_view)) => {
+                            self.glyph_brush.resize_texture(new_width, new_height);
+
+                            if let Some(ref mut cache) = self.draw_cache {
+                                cache.pipe_data.font_tex.0 = tex_view.clone();
+                            }
+
+                            self.font_cache_tex.1 = tex_view;
+                            self.font_cache_tex.0 = new_tex;
+                        }
+                        Err(_) => {
+                            return Err(format!(
+                                "Failed to create {}x{} glyph texture",
+                                new_width, new_height
+                            ));
+                        }
                     }
                 }
             }
@@ -383,8 +383,12 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
 
                 let draw_cache = if let Some(mut cache) = self.draw_cache.take() {
                     cache.pipe_data.vbuf = vbuf;
-                    cache.pipe_data.out = target.as_raw().clone();
-                    cache.pipe_data.out_depth = depth_target.as_raw().clone();
+                    if &cache.pipe_data.out != target.as_raw() {
+                        cache.pipe_data.out.clone_from(target.as_raw());
+                    }
+                    if &cache.pipe_data.out_depth != depth_target.as_raw() {
+                        cache.pipe_data.out_depth.clone_from(depth_target.as_raw());
+                    }
                     if cache.pso.0 != target.format() {
                         cache.pso = (
                             target.format(),
