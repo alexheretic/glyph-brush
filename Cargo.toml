@@ -29,9 +29,4 @@ glutin = "0.18"
 cgmath = "0.16"
 spin_sleep = "0.3"
 
-[features]
-# Compiles in additional performance stats gathering and info-logging
-# each draw (when slower than 1ms)
-performance_stats = []
-
 [workspace]

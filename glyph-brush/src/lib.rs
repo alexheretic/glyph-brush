@@ -1,3 +1,5 @@
+#[macro_use]
+extern crate log;
 extern crate glyph_brush_layout;
 extern crate ordered_float;
 extern crate rustc_hash;
@@ -8,11 +10,12 @@ extern crate seahash;
 #[macro_use]
 extern crate lazy_static;
 
+mod glyph_brush;
 mod glyph_calculator;
 mod owned_section;
 mod section;
 
-pub use glyph_brush_layout::rusttype;
+pub use glyph_brush::*;
 pub use glyph_brush_layout::*;
 pub use glyph_calculator::*;
 pub use owned_section::*;

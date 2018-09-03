@@ -24,9 +24,13 @@ use super::*;
 /// # }
 /// ```
 pub struct GlyphBrushBuilder<'a, H = DefaultSectionHasher> {
-    inner: glyph_brush::GlyphBrushBuilder<'a, H>,
-    depth_test: gfx::state::Depth,
-    texture_filter_method: texture::FilterMethod,
+    pub font_data: Vec<Font<'a>>,
+    pub initial_cache_size: (u32, u32),
+    pub gpu_cache_scale_tolerance: f32,
+    pub gpu_cache_position_tolerance: f32,
+    pub cache_glyph_positioning: bool,
+    pub cache_glyph_drawing: bool,
+    pub section_hasher: H,
 }
 
 impl<'a> GlyphBrushBuilder<'a> {
@@ -58,9 +62,13 @@ impl<'a> GlyphBrushBuilder<'a> {
 
     pub fn using_fonts<V: Into<Vec<Font<'a>>>>(fonts: V) -> Self {
         GlyphBrushBuilder {
-            inner: glyph_brush::GlyphBrushBuilder::using_fonts(fonts),
-            depth_test: gfx::preset::depth::PASS_TEST,
-            texture_filter_method: texture::FilterMethod::Bilinear,
+            font_data: fonts.into(),
+            initial_cache_size: (256, 256),
+            gpu_cache_scale_tolerance: 0.5,
+            gpu_cache_position_tolerance: 0.1,
+            cache_glyph_positioning: true,
+            cache_glyph_drawing: true,
+            section_hasher: DefaultSectionHasher::default(),
         }
     }
 }
@@ -70,14 +78,17 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     /// [`using_font_bytes`](#method.using_font_bytes).
     /// Returns a [`FontId`](struct.FontId.html) to reference this font.
     pub fn add_font_bytes<B: Into<SharedBytes<'a>>>(&mut self, font_data: B) -> FontId {
-        self.inner.add_font_bytes(font_data)
+        self.font_data
+            .push(Font::from_bytes(font_data.into()).unwrap());
+        FontId(self.font_data.len() - 1)
     }
 
     /// Adds additional fonts to the one added in [`using_font`](#method.using_font) /
     /// [`using_font_bytes`](#method.using_font_bytes).
     /// Returns a [`FontId`](struct.FontId.html) to reference this font.
     pub fn add_font(&mut self, font_data: Font<'a>) -> FontId {
-        self.inner.add_font(font_data)
+        self.font_data.push(font_data);
+        FontId(self.font_data.len() - 1)
     }
 
     /// Initial size of 2D texture used as a gpu cache, pixels (width, height).
@@ -86,7 +97,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     ///
     /// Defaults to `(256, 256)`
     pub fn initial_cache_size(mut self, size: (u32, u32)) -> Self {
-        self.inner = self.inner.initial_cache_size(size);
+        self.initial_cache_size = size;
         self
     }
 
@@ -97,7 +108,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     ///
     /// See rusttype docs for `rusttype::gpu_cache::Cache`
     pub fn gpu_cache_scale_tolerance(mut self, tolerance: f32) -> Self {
-        self.inner = self.inner.gpu_cache_scale_tolerance(tolerance);
+        self.gpu_cache_scale_tolerance = tolerance;
         self
     }
 
@@ -109,7 +120,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     ///
     /// See rusttype docs for `rusttype::gpu_cache::Cache`
     pub fn gpu_cache_position_tolerance(mut self, tolerance: f32) -> Self {
-        self.inner = self.inner.gpu_cache_position_tolerance(tolerance);
+        self.gpu_cache_position_tolerance = tolerance;
         self
     }
 
@@ -123,7 +134,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     ///
     /// Defaults to `true`
     pub fn cache_glyph_positioning(mut self, cache: bool) -> Self {
-        self.inner = self.inner.cache_glyph_positioning(cache);
+        self.cache_glyph_positioning = cache;
         self
     }
 
@@ -134,51 +145,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     ///
     /// Defaults to `true`
     pub fn cache_glyph_drawing(mut self, cache: bool) -> Self {
-        self.inner = self.inner.cache_glyph_drawing(cache);
-        self
-    }
-
-    /// Sets the depth test to use on the text section **z** values.
-    ///
-    /// Defaults to: *Always pass the depth test, never write to the depth buffer write*
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # extern crate gfx;
-    /// # extern crate gfx_glyph;
-    /// # use gfx_glyph::GlyphBrushBuilder;
-    /// # fn main() {
-    /// # let some_font: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
-    /// GlyphBrushBuilder::using_font_bytes(some_font).depth_test(gfx::preset::depth::LESS_EQUAL_WRITE)
-    /// // ...
-    /// # ;
-    /// # }
-    /// ```
-    pub fn depth_test(mut self, depth_test: gfx::state::Depth) -> Self {
-        self.depth_test = depth_test;
-        self
-    }
-
-    /// Sets the texture filtering method.
-    ///
-    /// Defaults to `Bilinear`
-    ///
-    /// # Example
-    /// ```no_run
-    /// # extern crate gfx;
-    /// # extern crate gfx_glyph;
-    /// # use gfx_glyph::GlyphBrushBuilder;
-    /// # fn main() {
-    /// # let some_font: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
-    /// GlyphBrushBuilder::using_font_bytes(some_font)
-    ///     .texture_filter_method(gfx::texture::FilterMethod::Scale)
-    /// // ...
-    /// # ;
-    /// # }
-    /// ```
-    pub fn texture_filter_method(mut self, filter_method: texture::FilterMethod) -> Self {
-        self.texture_filter_method = filter_method;
+        self.cache_glyph_drawing = cache;
         self
     }
 
@@ -205,36 +172,40 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     /// ```
     pub fn section_hasher<T: BuildHasher>(self, section_hasher: T) -> GlyphBrushBuilder<'a, T> {
         GlyphBrushBuilder {
-            inner: self.inner.section_hasher(section_hasher),
-            depth_test: self.depth_test,
-            texture_filter_method: self.texture_filter_method,
+            section_hasher,
+            font_data: self.font_data,
+            initial_cache_size: self.initial_cache_size,
+            gpu_cache_scale_tolerance: self.gpu_cache_scale_tolerance,
+            gpu_cache_position_tolerance: self.gpu_cache_position_tolerance,
+            cache_glyph_positioning: self.cache_glyph_positioning,
+            cache_glyph_drawing: self.cache_glyph_drawing,
         }
     }
 
     /// Builds a `GlyphBrush` using the input gfx factory
-    pub fn build<R, F>(self, mut factory: F) -> GlyphBrush<'a, R, F, H>
-    where
-        R: gfx::Resources,
-        F: gfx::Factory<R>,
-    {
-        let (cache_width, cache_height) = self.inner.initial_cache_size;
-        let font_cache_tex = create_texture(&mut factory, cache_width, cache_height).unwrap();
-        let program = factory
-            .link_program(
-                include_bytes!("shader/vert.glsl"),
-                include_bytes!("shader/frag.glsl"),
-            ).unwrap();
+    pub fn build(self) -> GlyphBrush<'a, H> {
+        let (cache_width, cache_height) = self.initial_cache_size;
 
         GlyphBrush {
-            font_cache_tex,
-            texture_filter_method: self.texture_filter_method,
-            glyph_brush: self.inner.build(),
+            fonts: self.font_data,
+            texture_cache: Cache::builder()
+                .dimensions(cache_width, cache_height)
+                .scale_tolerance(self.gpu_cache_scale_tolerance)
+                .position_tolerance(self.gpu_cache_position_tolerance)
+                .build(),
 
-            factory,
-            program,
             draw_cache: None,
+            section_buffer: Vec::new(),
+            calculate_glyph_cache: HashMap::default(),
+            keep_in_cache: HashSet::default(),
 
-            depth_test: self.depth_test,
+            cache_glyph_positioning: self.cache_glyph_positioning,
+            cache_glyph_drawing: self.cache_glyph_drawing && self.cache_glyph_positioning,
+
+            section_hasher: self.section_hasher,
+
+            #[cfg(feature = "performance_stats")]
+            perf: performance_stats::PerformanceStats::default(),
         }
     }
 }

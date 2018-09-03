@@ -10,6 +10,7 @@ readme="README.md"
 
 [dependencies]
 glyph_brush_layout = { version = "0.1", path = "../glyph-brush-layout" }
+log = "0.4"
 ordered-float = "0.5"
 rustc-hash = "1"
 rusttype = { version = "0.7", features = ["gpu_cache"] }
