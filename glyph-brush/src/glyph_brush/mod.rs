@@ -21,45 +21,6 @@ type DefaultSectionHasher = BuildHasherDefault<seahash::SeaHasher>;
 ///
 /// Build using a [`GlyphBrushBuilder`](struct.GlyphBrushBuilder.html).
 ///
-/// # Example
-///
-/// ```no_run
-/// extern crate glyph_brush;
-///
-/// use glyph_brush::{BrushAction, GlyphBrushBuilder, Section};
-///
-/// # fn main() -> Result<(), glyph_brush::BrushError> {
-/// let dejavu: &[u8] = include_bytes!("../../../examples/DejaVuSans.ttf");
-/// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
-/// # let some_other_section = Section { text: "another", ..Section::default() };
-///
-/// let section = Section {
-///     text: "Hello glyph_brush",
-///     ..Section::default()
-/// };
-///
-/// glyph_brush.queue(section);
-/// glyph_brush.queue(some_other_section);
-///
-/// # let screen_dimensions = (1024, 768);
-/// # let update_texture = |_, _| {};
-/// # let into_vertex = |_| ();
-/// match glyph_brush.process_queued(
-///     screen_dimensions,
-///     |rect, tex_data| update_texture(rect, tex_data),
-///     |vertex_data| into_vertex(vertex_data),
-/// )? {
-///     BrushAction::Draw(vertices) => {
-///         // Draw new vertices
-///     }
-///     BrushAction::ReDraw => {
-///         // Re-draw last frame's vertices unmodified
-///     }
-/// }
-/// # Ok(())
-/// # }
-/// ```
-///
 /// # Caching behaviour
 ///
 /// Calls to [`GlyphBrush::queue`](#method.queue),
@@ -338,6 +299,16 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
         Ok(result)
     }
 
+    /// Rebuilds the texture cache with new dimensions. Should be avoided if possible.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use glyph_brush::GlyphBrushBuilder;
+    /// # let dejavu: &[u8] = include_bytes!("../../../examples/DejaVuSans.ttf");
+    /// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
+    /// glyph_brush.resize_texture(512, 512);
+    /// ```
     pub fn resize_texture(&mut self, new_width: u32, new_height: u32) {
         self.texture_cache
             .to_builder()
