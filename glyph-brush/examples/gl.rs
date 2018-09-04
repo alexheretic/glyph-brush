@@ -1,4 +1,6 @@
 // TODO finish
+#![allow(unknown_lints)]
+#![allow(cast_lossless)]
 
 extern crate gl;
 extern crate glutin;
