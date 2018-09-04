@@ -356,7 +356,7 @@ mod layout_test {
 
     lazy_static! {
         static ref A_FONT: Font<'static> =
-            Font::from_bytes(include_bytes!("../../tests/DejaVuSansMono.ttf") as &[u8])
+            Font::from_bytes(include_bytes!("../../fonts/DejaVuSansMono.ttf") as &[u8])
                 .expect("Could not create rusttype::Font");
         static ref FONT_MAP: Vec<Font<'static>> = vec![A_FONT.clone()];
     }

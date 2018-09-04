@@ -55,12 +55,15 @@ fn main() -> Result<(), Box<Error>> {
         );
 
     let mut builder =
-        GlyphBrushBuilder::using_font_bytes(include_bytes!("DejaVuSans.ttf") as &[u8])
+        GlyphBrushBuilder::using_font_bytes(include_bytes!("../../fonts/DejaVuSans.ttf") as &[u8])
             .initial_cache_size((512, 512));
     let sans_font = FontId::default();
-    let italic_font = builder.add_font_bytes(include_bytes!("OpenSans-Italic.ttf") as &[u8]);
-    let serif_font = builder.add_font_bytes(include_bytes!("GaramondNo8-Reg.ttf") as &[u8]);
-    let mono_font = builder.add_font_bytes(include_bytes!("../tests/DejaVuSansMono.ttf") as &[u8]);
+    let italic_font =
+        builder.add_font_bytes(include_bytes!("../../fonts/OpenSans-Italic.ttf") as &[u8]);
+    let serif_font =
+        builder.add_font_bytes(include_bytes!("../../fonts/GaramondNo8-Reg.ttf") as &[u8]);
+    let mono_font =
+        builder.add_font_bytes(include_bytes!("../../fonts/DejaVuSansMono.ttf") as &[u8]);
 
     let mut glyph_brush = builder.build(factory.clone());
 

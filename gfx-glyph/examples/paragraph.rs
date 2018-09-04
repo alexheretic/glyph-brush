@@ -65,10 +65,10 @@ fn main() -> Result<(), Box<Error>> {
             &events_loop,
         );
 
-    let mut glyph_brush =
-        gfx_glyph::GlyphBrushBuilder::using_font_bytes(include_bytes!("DejaVuSans.ttf") as &[u8])
-            .initial_cache_size((1024, 1024))
-            .build(factory.clone());
+    let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
+    let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(dejavu)
+        .initial_cache_size((1024, 1024))
+        .build(factory.clone());
 
     let mut text: String = include_str!("lipsum.txt").into();
 

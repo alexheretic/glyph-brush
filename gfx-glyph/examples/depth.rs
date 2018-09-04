@@ -49,14 +49,17 @@ fn main() -> Result<(), Box<Error>> {
             &events_loop,
         );
 
-    let mut builder =
-        GlyphBrushBuilder::using_font_bytes(include_bytes!("DejaVuSans.ttf") as &[u8])
+    let fonts: Vec<&[u8]> = vec![
+        include_bytes!("../../fonts/DejaVuSans.ttf"),
+        include_bytes!("../../fonts/OpenSans-Italic.ttf"),
+    ];
+    let italic_font = FontId(1);
+
+    let mut glyph_brush = GlyphBrushBuilder::using_fonts_bytes(fonts)
         .initial_cache_size((512, 512))
         // Enable depth testing with less-equal drawing and update the depth buffer
-        .depth_test(gfx::preset::depth::LESS_EQUAL_WRITE);
-
-    let italic_font = builder.add_font_bytes(include_bytes!("OpenSans-Italic.ttf") as &[u8]);
-    let mut glyph_brush = builder.build(factory.clone());
+        .depth_test(gfx::preset::depth::LESS_EQUAL_WRITE)
+        .build(factory.clone());
 
     let mut encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
 

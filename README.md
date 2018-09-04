@@ -1,44 +1,11 @@
-gfx_glyph
-[![crates.io](https://img.shields.io/crates/v/gfx_glyph.svg)](https://crates.io/crates/gfx_glyph)
-[![Documentation](https://docs.rs/gfx_glyph/badge.svg)](https://docs.rs/gfx_glyph)
-================
+# glyph-brush
+Fast caching text rendering.
 
-Fast GPU cached text rendering using [gfx-rs](https://github.com/gfx-rs/gfx/tree/pre-ll) & [rusttype](https://gitlab.redox-os.org/redox-os/rusttype).
+## [gfx_glyph](gfx-glyph) [![crates.io](https://img.shields.io/crates/v/gfx_glyph.svg)](https://crates.io/crates/gfx_glyph) [![Documentation](https://docs.rs/gfx_glyph/badge.svg)](https://docs.rs/gfx_glyph)
+Text rendering for [gfx-rs](https://github.com/gfx-rs/gfx/tree/pre-ll).
 
-Makes use of three kinds of caching to optimise frame performance.
+## [glyph_brush](glyph_brush) [![crates.io](https://img.shields.io/crates/v/glyph_brush.svg)](https://crates.io/crates/glyph_brush) [![Documentation](https://docs.rs/glyph_brush/badge.svg)](https://docs.rs/glyph_brush)
+Render API agnostic rasterization & draw caching logic.
 
-* Caching of glyph positioning output to avoid repeated cost of identical text
-rendering on sequential frames.
-* Caches draw calculations to avoid repeated cost of identical text rendering on
-sequential frames.
-* GPU cache logic to dynamically maintain a GPU texture of rendered glyphs.
-
-```rust
-extern crate gfx_glyph;
-use gfx_glyph::{Section, GlyphBrushBuilder};
-
-let garamond: &[u8] = include_bytes!("GaramondNo8-Reg.ttf");
-let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(garamond)
-    .build(gfx_factory.clone());
-
-let section = Section {
-    text: "Hello gfx_glyph",
-    ..Section::default() // color, position, etc
-};
-
-glyph_brush.queue(section);
-glyph_brush.queue(some_other_section);
-
-glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth)?;
-```
-
-## Examples
-Have a look at
-* `cargo run --example paragraph --release`
-* `cargo run --example performance --release`
-* `cargo run --example varied --release`
-* `cargo run --example depth --release`
-
-
-## Limitations
-The current implementation supports OpenGL *(3.2 or later)*. In future we'll support the upcoming gfx-rs ll releases.
+## [glyph_brush_layout](glyph_brush_layout) [![crates.io](https://img.shields.io/crates/v/glyph_brush_layout.svg)](https://crates.io/crates/glyph_brush_layout) [![Documentation](https://docs.rs/glyph_brush_layout/badge.svg)](https://docs.rs/glyph_brush_layout)
+Text layout.

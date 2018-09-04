@@ -86,7 +86,7 @@ pub trait GlyphCruncher<'font> {
 /// use glyph_brush::{GlyphCalculatorBuilder, GlyphCruncher, Section};
 /// # fn main() {
 ///
-/// let dejavu: &[u8] = include_bytes!("../../examples/DejaVuSans.ttf");
+/// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
 /// let glyphs = GlyphCalculatorBuilder::using_font_bytes(dejavu).build();
 ///
 /// let section = Section {
@@ -229,7 +229,7 @@ impl<'a, 'b, H> Drop for GlyphCalculatorGuard<'a, 'b, H> {
 /// use glyph_brush::GlyphCalculatorBuilder;
 /// # fn main() {
 ///
-/// let dejavu: &[u8] = include_bytes!("../../examples/DejaVuSans.ttf");
+/// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
 /// let mut glyphs = GlyphCalculatorBuilder::using_font_bytes(dejavu).build();
 /// # }
 /// ```
@@ -410,7 +410,7 @@ mod test {
 
     lazy_static! {
         static ref A_FONT: Font<'static> =
-            Font::from_bytes(include_bytes!("../../tests/DejaVuSansMono.ttf") as &[u8])
+            Font::from_bytes(include_bytes!("../../fonts/DejaVuSansMono.ttf") as &[u8])
                 .expect("Could not create rusttype::Font");
     }
 

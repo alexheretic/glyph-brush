@@ -176,7 +176,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     /// # extern crate glyph_brush;
     /// # use glyph_brush::*;
     /// # fn main() -> Result<(), BrushError> {
-    /// # let dejavu: &[u8] = include_bytes!("../../../examples/DejaVuSans.ttf");
+    /// # let dejavu: &[u8] = include_bytes!("../../../fonts/DejaVuSans.ttf");
     /// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
     /// # let update_texture = |_, _| {};
     /// # let into_vertex = |_| ();
@@ -305,7 +305,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     ///
     /// ```no_run
     /// # use glyph_brush::GlyphBrushBuilder;
-    /// # let dejavu: &[u8] = include_bytes!("../../../examples/DejaVuSans.ttf");
+    /// # let dejavu: &[u8] = include_bytes!("../../../fonts/DejaVuSans.ttf");
     /// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
     /// glyph_brush.resize_texture(512, 512);
     /// ```
@@ -356,11 +356,11 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     /// # fn main() {
     ///
     /// // dejavu is built as default `FontId(0)`
-    /// let dejavu: &[u8] = include_bytes!("../../../examples/DejaVuSans.ttf");
+    /// let dejavu: &[u8] = include_bytes!("../../../fonts/DejaVuSans.ttf");
     /// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
     ///
     /// // some time later, add another font referenced by a new `FontId`
-    /// let open_sans_italic: &[u8] = include_bytes!("../../../examples/OpenSans-Italic.ttf");
+    /// let open_sans_italic: &[u8] = include_bytes!("../../../fonts/OpenSans-Italic.ttf");
     /// let open_sans_italic_id = glyph_brush.add_font_bytes(open_sans_italic);
     /// # }
     /// ```

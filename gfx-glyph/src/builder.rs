@@ -18,7 +18,7 @@ use super::*;
 /// #         glutin::ContextBuilder::new(),
 /// #         &events_loop);
 ///
-/// let dejavu: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
+/// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
 /// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build(gfx_factory.clone());
 /// # let _ = glyph_brush;
 /// # }
@@ -82,7 +82,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     /// # extern crate gfx_glyph;
     /// # use gfx_glyph::GlyphBrushBuilder;
     /// # fn main() {
-    /// # let some_font: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
+    /// # let some_font: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
     /// GlyphBrushBuilder::using_font_bytes(some_font)
     ///     .depth_test(gfx::preset::depth::LESS_EQUAL_WRITE)
     ///     // ...
@@ -104,7 +104,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     /// # extern crate gfx_glyph;
     /// # use gfx_glyph::GlyphBrushBuilder;
     /// # fn main() {
-    /// # let some_font: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
+    /// # let some_font: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
     /// GlyphBrushBuilder::using_font_bytes(some_font)
     ///     .texture_filter_method(gfx::texture::FilterMethod::Scale)
     ///     // ...
@@ -130,7 +130,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     /// # extern crate seahash;
     /// # use gfx_glyph::GlyphBrushBuilder;
     /// # fn main() {
-    /// # let some_font: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
+    /// # let some_font: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
     /// # type SomeOtherBuildHasher = ::std::hash::BuildHasherDefault<seahash::SeaHasher>;
     /// GlyphBrushBuilder::using_font_bytes(some_font)
     ///     .section_hasher(SomeOtherBuildHasher::default())

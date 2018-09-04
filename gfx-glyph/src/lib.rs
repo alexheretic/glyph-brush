@@ -25,7 +25,7 @@
 //! #         &events_loop);
 //! # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
 //!
-//! let dejavu: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
+//! let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
 //! let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build(gfx_factory.clone());
 //!
 //! # let some_other_section = Section { text: "another", ..Section::default() };
@@ -126,7 +126,7 @@ type DefaultSectionHasher = BuildHasherDefault<seahash::SeaHasher>;
 /// #         glutin::ContextBuilder::new(),
 /// #         &events_loop);
 /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
-/// # let dejavu: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
+/// # let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
 /// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu)
 /// #     .build(gfx_factory.clone());
 /// # let some_other_section = Section { text: "another", ..Section::default() };
@@ -293,7 +293,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     /// #         glutin::ContextBuilder::new(),
     /// #         &events_loop);
     /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
-    /// # let dejavu: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
+    /// # let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
     /// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu)
     /// #     .build(gfx_factory.clone());
     /// # let raw_render_view = gfx_color.raw();
@@ -494,11 +494,11 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
     ///
     /// // dejavu is built as default `FontId(0)`
-    /// let dejavu: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
+    /// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
     /// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build(gfx_factory.clone());
     ///
     /// // some time later, add another font referenced by a new `FontId`
-    /// let open_sans_italic: &[u8] = include_bytes!("../examples/OpenSans-Italic.ttf");
+    /// let open_sans_italic: &[u8] = include_bytes!("../../fonts/OpenSans-Italic.ttf");
     /// let open_sans_italic_id = glyph_brush.add_font_bytes(open_sans_italic);
     /// # glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth).unwrap();
     /// # let _ = open_sans_italic_id;

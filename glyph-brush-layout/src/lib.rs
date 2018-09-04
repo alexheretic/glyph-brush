@@ -7,8 +7,8 @@
 //! use glyph_brush_layout::{rusttype::*, *};
 //! # fn main() -> Result<(), rusttype::Error> {
 //!
-//! let dejavu = Font::from_bytes(&include_bytes!("../../examples/DejaVuSans.ttf")[..])?;
-//! let garamond = Font::from_bytes(&include_bytes!("../../examples/GaramondNo8-Reg.ttf")[..])?;
+//! let dejavu = Font::from_bytes(&include_bytes!("../../fonts/DejaVuSans.ttf")[..])?;
+//! let garamond = Font::from_bytes(&include_bytes!("../../fonts/GaramondNo8-Reg.ttf")[..])?;
 //!
 //! // Simple vec font mapping: FontId(0) -> deja vu sans, FontId(1) -> garamond
 //! let fonts = vec![dejavu, garamond];
@@ -83,8 +83,8 @@ pub use self::section::*;
 /// Re-exported rusttype types.
 pub mod rusttype {
     pub use full_rusttype::{
-        Error, Font, Glyph, GlyphId, HMetrics, Point, PositionedGlyph, Rect, Scale, ScaledGlyph,
-        SharedBytes, VMetrics,
+        point, Error, Font, Glyph, GlyphId, HMetrics, Point, PositionedGlyph, Rect, Scale,
+        ScaledGlyph, SharedBytes, VMetrics,
     };
 }
 

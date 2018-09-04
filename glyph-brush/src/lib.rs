@@ -4,7 +4,7 @@
 //! use glyph_brush::{BrushAction, BrushError, GlyphBrushBuilder, Section};
 //!
 //! # fn main() -> Result<(), glyph_brush::BrushError> {
-//! let dejavu: &[u8] = include_bytes!("../../examples/DejaVuSans.ttf");
+//! let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
 //! let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
 //! # let some_other_section = Section { text: "another", ..Section::default() };
 //!

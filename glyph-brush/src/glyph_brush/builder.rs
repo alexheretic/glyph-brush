@@ -7,7 +7,7 @@ use super::*;
 /// ```no_run
 /// use glyph_brush::GlyphBrushBuilder;
 ///
-/// let dejavu: &[u8] = include_bytes!("../../../examples/DejaVuSans.ttf");
+/// let dejavu: &[u8] = include_bytes!("../../../fonts/DejaVuSans.ttf");
 /// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
 /// ```
 pub struct GlyphBrushBuilder<'a, H = DefaultSectionHasher> {
@@ -152,7 +152,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     /// # extern crate seahash;
     /// # use glyph_brush::GlyphBrushBuilder;
     /// # fn main() {
-    /// # let some_font: &[u8] = include_bytes!("../../../examples/DejaVuSans.ttf");
+    /// # let some_font: &[u8] = include_bytes!("../../../fonts/DejaVuSans.ttf");
     /// # type SomeOtherBuildHasher = ::std::hash::BuildHasherDefault<seahash::SeaHasher>;
     /// GlyphBrushBuilder::using_font_bytes(some_font)
     ///     .section_hasher(SomeOtherBuildHasher::default())

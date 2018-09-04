@@ -51,11 +51,11 @@ fn main() -> Result<(), Box<Error>> {
             &events_loop,
         );
 
-    let mut glyph_brush =
-        GlyphBrushBuilder::using_font_bytes(include_bytes!("DejaVuSans.ttf") as &[u8])
-            .initial_cache_size((2048, 2048))
-            .gpu_cache_position_tolerance(1.0)
-            .build(factory.clone());
+    let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
+    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu)
+        .initial_cache_size((2048, 2048))
+        .gpu_cache_position_tolerance(1.0)
+        .build(factory.clone());
 
     let mut text: String = include_str!("loads-of-unicode.txt").into();
     let mut encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();

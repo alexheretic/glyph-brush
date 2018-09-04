@@ -14,7 +14,7 @@ mod gfx_noop;
 use gfx_glyph::*;
 use std::f32;
 
-const TEST_FONT: &[u8] = include_bytes!("../tests/DejaVuSansMono.ttf");
+const TEST_FONT: &[u8] = include_bytes!("../../fonts/DejaVuSansMono.ttf");
 
 #[bench]
 fn render_3_medium_sections_fully(b: &mut ::test::Bencher) {
