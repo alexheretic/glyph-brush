@@ -16,8 +16,8 @@ Text layout for [rusttype](https://gitlab.redox-os.org/redox-os/rusttype).
 extern crate glyph_brush_layout;
 use glyph_brush_layout::*;
 
-let dejavu = Font::from_bytes(&include_bytes!("../../examples/DejaVuSans.ttf")[..])?;
-let garamond = Font::from_bytes(&include_bytes!("../../examples/GaramondNo8-Reg.ttf")[..])?;
+let dejavu = Font::from_bytes(&include_bytes!("DejaVuSans.ttf")[..])?;
+let garamond = Font::from_bytes(&include_bytes!("GaramondNo8-Reg.ttf")[..])?;
 
 // Simple vec font mapping: FontId(0) -> deja vu sans, FontId(1) -> garamond
 let fonts = vec![dejavu, garamond];

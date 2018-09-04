@@ -17,7 +17,7 @@ extern crate glyph_brush;
 
 use glyph_brush::{BrushAction, BrushError, GlyphBrushBuilder, Section};
 
-let dejavu: &[u8] = include_bytes!("../../examples/DejaVuSans.ttf");
+let dejavu: &[u8] = include_bytes!("DejaVuSans.ttf");
 let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
 
 glyph_brush.queue(Section {
