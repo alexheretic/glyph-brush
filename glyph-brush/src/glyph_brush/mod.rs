@@ -319,6 +319,8 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     }
 
     /// Returns the available fonts.
+    ///
+    /// The `FontId` corresponds to the index of the font data.
     pub fn fonts(&self) -> &[Font<'font>] {
         &self.fonts
     }

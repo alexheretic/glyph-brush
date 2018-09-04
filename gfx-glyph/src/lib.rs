@@ -443,6 +443,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     }
 
     /// Returns the available fonts.
+    ///
+    /// The `FontId` corresponds to the index of the font data.
     #[inline]
     pub fn fonts(&self) -> &[Font<'font>] {
         self.glyph_brush.fonts()
