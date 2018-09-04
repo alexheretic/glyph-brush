@@ -411,7 +411,7 @@ pub enum BrushAction<V> {
 
 #[derive(Debug)]
 pub enum BrushError {
-    /// Texture is too small to cache queued glyphs.alloc
+    /// Texture is too small to cache queued glyphs
     ///
     /// A larger suggested size is included.
     TextureTooSmall {
