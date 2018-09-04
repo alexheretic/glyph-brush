@@ -3,7 +3,7 @@ gfx_glyph
 [![Documentation](https://docs.rs/gfx_glyph/badge.svg)](https://docs.rs/gfx_glyph)
 ================
 
-Fast GPU cached text rendering using [gfx-rs](https://github.com/gfx-rs/gfx/tree/pre-ll) & [glyph-brush](ttps://github.com/alexheretic/gfx-glyph/tree/master/glyph-brush).
+Fast GPU cached text rendering using [gfx-rs](https://github.com/gfx-rs/gfx/tree/pre-ll) & [glyph-brush](../glyph-brush).
 
 Makes use of three kinds of caching to optimise frame performance.
 
