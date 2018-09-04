@@ -442,9 +442,9 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
         Ok(())
     }
 
-    /// Returns [`FontMap`](type.FontMap.html) of available fonts.
+    /// Returns the available fonts.
     #[inline]
-    pub fn fonts(&self) -> &impl FontMap<'font> {
+    pub fn fonts(&self) -> &[Font<'font>] {
         self.glyph_brush.fonts()
     }
 

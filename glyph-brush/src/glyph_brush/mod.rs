@@ -318,8 +318,8 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
         self.draw_cache.take();
     }
 
-    /// Returns [`FontMap`](type.FontMap.html) of available fonts.
-    pub fn fonts(&self) -> &impl FontMap<'font> {
+    /// Returns the available fonts.
+    pub fn fonts(&self) -> &[Font<'font>] {
         &self.fonts
     }
 
