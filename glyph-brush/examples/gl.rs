@@ -1,3 +1,5 @@
+// TODO finish
+
 extern crate gl;
 extern crate glutin;
 extern crate glyph_brush;
@@ -164,7 +166,7 @@ fn main() -> Res<()> {
         loop {
             brush_action = glyph_brush.process_queued(
                 (width as _, height as _),
-                |rect, tex_data| {},
+                |_rect, _tex_data| {},
                 to_vertex,
             );
 
@@ -220,7 +222,7 @@ fn compile_shader(src: &str, ty: GLenum) -> Res<GLuint> {
         gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut status);
 
         // Fail on error
-        if status != (gl::TRUE as GLint) {
+        if status != gl::TRUE as GLint {
             let mut len = 0;
             gl::GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut len);
             let mut buf = Vec::with_capacity(len as usize);
@@ -248,7 +250,7 @@ fn link_program(vs: GLuint, fs: GLuint) -> Res<GLuint> {
         gl::GetProgramiv(program, gl::LINK_STATUS, &mut status);
 
         // Fail on error
-        if status != (gl::TRUE as GLint) {
+        if status != gl::TRUE as GLint {
             let mut len: GLint = 0;
             gl::GetProgramiv(program, gl::INFO_LOG_LENGTH, &mut len);
             let mut buf = Vec::with_capacity(len as usize);
