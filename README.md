@@ -14,4 +14,6 @@ Text layout for [rusttype](https://gitlab.redox-os.org/redox-os/rusttype).
 ## Examples
 `cargo run --example paragraph --release`
 
+![](https://image.ibb.co/hXoCxz/screen.png)
+
 Also look at the individual crate readmes.
