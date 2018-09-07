@@ -127,11 +127,10 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     /// ```no_run
     /// # extern crate gfx;
     /// # extern crate gfx_glyph;
-    /// # extern crate seahash;
     /// # use gfx_glyph::GlyphBrushBuilder;
     /// # fn main() {
     /// # let some_font: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-    /// # type SomeOtherBuildHasher = ::std::hash::BuildHasherDefault<seahash::SeaHasher>;
+    /// # type SomeOtherBuildHasher = std::collections::hash_map::RandomState;
     /// GlyphBrushBuilder::using_font_bytes(some_font)
     ///     .section_hasher(SomeOtherBuildHasher::default())
     ///     // ...
