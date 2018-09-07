@@ -12,12 +12,8 @@ readme="README.md"
 backtrace = "0.3"
 gfx = "0.17"
 gfx_core = "0.8"
-glyph_brush = { version = "0.1", path = "../glyph-brush" }
+glyph_brush = { version = "0.1.1", path = "../glyph-brush" }
 log = "0.4"
-ordered-float = "0.5"
-rustc-hash = "1"
-rusttype = { version = "0.7", features = ["gpu_cache"] }
-seahash = "3"
 
 [dev-dependencies]
 env_logger = "0.5"

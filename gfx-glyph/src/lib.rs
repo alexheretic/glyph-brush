@@ -52,10 +52,6 @@ extern crate gfx_core;
 extern crate log;
 #[macro_use]
 extern crate glyph_brush;
-extern crate ordered_float;
-extern crate rustc_hash;
-extern crate rusttype as full_rusttype;
-extern crate seahash;
 
 #[cfg(test)]
 extern crate approx;
@@ -76,14 +72,15 @@ pub use glyph_brush::{
     VariedSection, VerticalAlign,
 };
 
-use full_rusttype::point;
 use gfx::handle::{RawDepthStencilView, RawRenderTargetView};
 use gfx::traits::FactoryExt;
 use gfx::{format, handle, texture};
-use glyph_brush::{BrushAction, BrushError, GlyphPositioner};
+use glyph_brush::{
+    rusttype::point, BrushAction, BrushError, DefaultSectionHasher, GlyphPositioner,
+};
 use pipe::*;
 use std::borrow::Cow;
-use std::hash::{BuildHasher, BuildHasherDefault, Hash};
+use std::hash::{BuildHasher, Hash};
 use std::{error::Error, fmt, i32};
 
 // Type for the generated glyph cache texture
@@ -100,9 +97,6 @@ const IDENTITY_MATRIX4: [[f32; 4]; 4] = [
     [0.0, 0.0, 1.0, 0.0],
     [0.0, 0.0, 0.0, 1.0],
 ];
-
-/// A "practically collision free" `Section` hasher
-type DefaultSectionHasher = BuildHasherDefault<seahash::SeaHasher>;
 
 /// Object allowing glyph drawing, containing cache state. Manages glyph positioning cacheing,
 /// glyph draw caching & efficient GPU texture cache updating and re-sizing on demand.

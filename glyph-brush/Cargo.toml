@@ -1,6 +1,6 @@
 [package]
 name = "glyph_brush"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Alex Butler <alexheretic@gmail.com>"]
 description = "Fast cached text render library using rusttype"
 repository = "https://github.com/alexheretic/gfx-glyph"
@@ -9,7 +9,7 @@ license = "Apache-2.0"
 readme="README.md"
 
 [dependencies]
-glyph_brush_layout = { version = "0.1", path = "../glyph-brush-layout" }
+glyph_brush_layout = { version = "0.1.1", path = "../glyph-brush-layout" }
 log = "0.4"
 ordered-float = "0.5"
 rustc-hash = "1"

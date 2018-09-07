@@ -63,4 +63,4 @@ use glyph_brush_layout::rusttype::*;
 use std::hash::BuildHasherDefault;
 
 /// A "practically collision free" `Section` hasher
-type DefaultSectionHasher = BuildHasherDefault<seahash::SeaHasher>;
+pub type DefaultSectionHasher = BuildHasherDefault<seahash::SeaHasher>;
