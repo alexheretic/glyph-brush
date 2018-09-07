@@ -130,6 +130,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
         self.queue_custom_layout(section, &layout)
     }
 
+    #[inline]
     fn hash<T: Hash>(&self, hashable: &T) -> SectionHash {
         let mut s = self.section_hasher.build_hasher();
         hashable.hash(&mut s);
@@ -328,15 +329,11 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     fn clear_section_buffer(&mut self) {
         if self.cache_glyph_positioning {
             // clear section_buffer & trim calculate_glyph_cache to active sections
-            let mut active =
-                HashSet::with_capacity(self.section_buffer.len() + self.keep_in_cache.len());
-
-            for h in self.section_buffer.drain(..) {
-                active.insert(h);
-            }
-            for h in self.keep_in_cache.drain() {
-                active.insert(h);
-            }
+            let active: FxHashSet<_> = self
+                .section_buffer
+                .drain(..)
+                .chain(self.keep_in_cache.drain())
+                .collect();
             self.calculate_glyph_cache
                 .retain(|key, _| active.contains(key));
         } else {
