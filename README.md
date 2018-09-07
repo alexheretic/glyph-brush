@@ -1,5 +1,5 @@
 # glyph-brush
-Fast caching text rendering.
+Fast cached text rendering.
 
 ## [gfx_glyph](gfx-glyph) [![](https://img.shields.io/crates/v/gfx_glyph.svg)](https://crates.io/crates/gfx_glyph) [![](https://docs.rs/gfx_glyph/badge.svg)](https://docs.rs/gfx_glyph)
 Text rendering for [gfx-rs](https://github.com/gfx-rs/gfx/tree/pre-ll).
