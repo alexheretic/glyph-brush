@@ -31,7 +31,7 @@ type DefaultSectionHasher = BuildHasherDefault<seahash::SeaHasher>;
 /// used for actual drawing.
 ///
 /// The cache for a section will be **cleared** after a
-/// [`GlyphBrush::draw_queued`](#method.draw_queued) call when that section has not been used since
+/// [`GlyphBrush::process_queued`](#method.process_queued) call when that section has not been used since
 /// the previous draw call.
 pub struct GlyphBrush<'font, H = DefaultSectionHasher> {
     fonts: Vec<Font<'font>>,
