@@ -29,7 +29,6 @@ use std::hash::*;
 ///     ],
 ///     ..VariedSection::default()
 /// };
-/// # let _ = section;
 /// ```
 #[derive(Debug, Clone)]
 pub struct VariedSection<'a> {
@@ -151,7 +150,6 @@ impl<'a, 'b> From<&'a VariedSection<'b>> for SectionGeometry {
 ///     text: "Hello glyph_brush",
 ///     ..Section::default()
 /// };
-/// # let _ = section;
 /// ```
 #[derive(Debug, Clone, Copy)]
 pub struct Section<'a> {

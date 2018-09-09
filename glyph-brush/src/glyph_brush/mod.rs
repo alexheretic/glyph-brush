@@ -32,7 +32,7 @@ type DefaultSectionHasher = BuildHasherDefault<seahash::SeaHasher>;
 ///
 /// The cache for a section will be **cleared** after a
 /// [`GlyphBrush::process_queued`](#method.process_queued) call when that section has not been used since
-/// the previous draw call.
+/// the previous call.
 pub struct GlyphBrush<'font, H = DefaultSectionHasher> {
     fonts: Vec<Font<'font>>,
     texture_cache: Cache<'font>,
@@ -43,7 +43,7 @@ pub struct GlyphBrush<'font, H = DefaultSectionHasher> {
     calculate_glyph_cache: FxHashMap<SectionHash, GlyphedSection<'font>>,
 
     // buffer of section-layout hashs (that must exist in the calculate_glyph_cache)
-    // to be rendered on the next `draw_queued` call
+    // to be used on the next `process_queued` call
     section_buffer: Vec<SectionHash>,
 
     // Set of section hashs to keep in the glyph cache this frame even if they haven't been drawn

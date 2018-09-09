@@ -319,17 +319,15 @@ impl<'a, H: BuildHasher> GlyphCalculatorBuilder<'a, H> {
     }
 }
 
-// FIXME pub(crate)
 #[derive(Clone)]
-pub struct GlyphedSection<'font> {
+pub(crate) struct GlyphedSection<'font> {
     pub bounds: Rect<f32>,
     pub glyphs: Vec<(PositionedGlyph<'font>, Color, FontId)>,
     pub z: f32,
 }
 
 impl<'font> GlyphedSection<'font> {
-    // FIXME pub(crate)
-    pub fn pixel_bounds(&self) -> Option<Rect<i32>> {
+    pub(crate) fn pixel_bounds(&self) -> Option<Rect<i32>> {
         let Self {
             ref glyphs, bounds, ..
         } = *self;
@@ -397,8 +395,8 @@ impl<'font> GlyphedSection<'font> {
         Some(pixel_bounds).filter(|_| !no_match)
     }
 
-    // FIXME pub(crate)
-    pub fn glyphs(&self) -> PositionedGlyphIter<'_, 'font> {
+    #[inline]
+    pub(crate) fn glyphs(&self) -> PositionedGlyphIter<'_, 'font> {
         self.glyphs.iter().map(|(g, ..)| g)
     }
 }

@@ -1,5 +1,7 @@
 # master
 * Add public `DefaultSectionHasher`.
+* Remove leaked public `GlyphedSection`.
+* Improve some documentation using gfx-glyph specific terminology.
 * Optimise calculate_glyph_cache trimming using intermediate fx-hashing.
   ```
   name                             control ns/iter  change ns/iter  diff ns/iter   diff %  speedup
