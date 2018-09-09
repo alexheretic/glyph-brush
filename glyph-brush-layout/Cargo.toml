@@ -15,4 +15,4 @@ xi-unicode = "0.1"
 [dev-dependencies]
 approx = "0.3"
 lazy_static = "1"
-ordered-float = "0.5"
+ordered-float = "1"
