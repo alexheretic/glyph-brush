@@ -5,6 +5,7 @@
 //! Controls
 //! * Scroll to size text.
 //! * Type to modify text.
+//! * Resize window.
 
 extern crate env_logger;
 extern crate gl;
@@ -43,7 +44,7 @@ fn main() -> Res<()> {
     }
 
     let mut events = glutin::EventsLoop::new();
-    let title = "glyph_brush example - scroll to size, type to modify";
+    let title = "glyph_brush opengl example - scroll to size, type to modify";
 
     let window = glutin::GlWindow::new(
         glutin::WindowBuilder::new()

@@ -42,3 +42,7 @@ match glyph_brush.process_queued(
     }
 }
 ```
+
+## Examples
+Have a look at
+* `cargo run --example opengl --release`
