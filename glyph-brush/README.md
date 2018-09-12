@@ -37,7 +37,7 @@ match glyph_brush.process_queued(
     Ok(BrushAction::ReDraw) => {
         // Re-draw last frame's vertices unmodified.
     }
-    Err(BrushError::TextureTooSmall { suggested, .. }) => {
+    Err(BrushError::TextureTooSmall { suggested }) => {
         // Enlarge texture + glyph_brush texture cache and retry.
     }
 }
