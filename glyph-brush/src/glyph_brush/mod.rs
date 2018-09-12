@@ -319,6 +319,11 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
         self.draw_cache.take();
     }
 
+    /// Returns the texture cache pixel dimensions `(width, height)`.
+    pub fn texture_dimensions(&self) -> (u32, u32) {
+        self.texture_cache.dimensions()
+    }
+
     /// Returns the available fonts.
     ///
     /// The `FontId` corresponds to the index of the font data.
