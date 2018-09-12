@@ -31,8 +31,8 @@ type DefaultSectionHasher = BuildHasherDefault<seahash::SeaHasher>;
 /// used for actual drawing.
 ///
 /// The cache for a section will be **cleared** after a
-/// [`GlyphBrush::process_queued`](#method.process_queued) call when that section has not been used since
-/// the previous call.
+/// [`GlyphBrush::process_queued`](#method.process_queued) call when that section has not been used
+/// since the previous call.
 pub struct GlyphBrush<'font, H = DefaultSectionHasher> {
     fonts: Vec<Font<'font>>,
     texture_cache: Cache<'font>,
@@ -224,7 +224,6 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
             if self.texture_cache.cache_queued(update_texture).is_err() {
                 let (width, height) = self.texture_cache.dimensions();
                 return Err(BrushError::TextureTooSmall {
-                    current: (width, height),
                     suggested: (width * 2, height * 2),
                 });
             }
@@ -418,10 +417,7 @@ pub enum BrushError {
     /// Texture is too small to cache queued glyphs
     ///
     /// A larger suggested size is included.
-    TextureTooSmall {
-        current: (u32, u32),
-        suggested: (u32, u32),
-    },
+    TextureTooSmall { suggested: (u32, u32) },
 }
 impl fmt::Display for BrushError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

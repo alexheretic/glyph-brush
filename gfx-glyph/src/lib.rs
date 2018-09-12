@@ -41,11 +41,7 @@
 //! # Ok(())
 //! # }
 //! ```
-#![allow(unknown_lints)]
-#![warn(clippy)]
-
 extern crate backtrace;
-#[macro_use]
 extern crate gfx;
 extern crate gfx_core;
 #[macro_use]
@@ -335,7 +331,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
 
             match brush_action {
                 Ok(_) => break,
-                Err(BrushError::TextureTooSmall { current, suggested }) => {
+                Err(BrushError::TextureTooSmall { suggested }) => {
                     let (new_width, new_height) = suggested;
 
                     if log_enabled!(log::Level::Warn) {
@@ -343,7 +339,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
                             "Increasing glyph texture size {old:?} -> {new:?}. \
                              Consider building with `.initial_cache_size({new:?})` to avoid \
                              resizing. Called from:\n{trace}",
-                            old = current,
+                            old = self.glyph_brush.texture_dimensions(),
                             new = (new_width, new_height),
                             trace = outer_backtrace!()
                         );

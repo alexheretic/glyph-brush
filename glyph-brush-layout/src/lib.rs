@@ -52,9 +52,6 @@
 //! # }
 //! ```
 
-#![allow(unknown_lints)]
-#![warn(clippy)]
-
 extern crate rusttype as full_rusttype;
 extern crate xi_unicode;
 

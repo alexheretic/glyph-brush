@@ -2,6 +2,7 @@
 * Add public `DefaultSectionHasher`.
 * Add `GlyphBrush::texture_dimensions`.
 * Remove leaked public `GlyphedSection`.
+* Remove `current` from `TextureTooSmall`, replaced by using `texture_dimensions()`.
 * Improve some documentation using gfx-glyph specific terminology.
 * Optimise calculate_glyph_cache trimming using intermediate fx-hashing.
   ```

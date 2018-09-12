@@ -101,7 +101,7 @@ impl<'a, 'b, 'font, L: LineBreaker, F: FontMap<'font> + 'b> Iterator
 
         let mut progressed = false;
 
-        #[allow(while_let_loop)] // TODO use while-peek-next when nll lands
+        // TODO use while-peek-next when nll lands
         loop {
             if let Some(word) = self.words.peek() {
                 let word_max_x = word.bounds.map(|b| b.max.x).unwrap_or(word.layout_width);

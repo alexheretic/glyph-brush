@@ -2,8 +2,9 @@
 //!
 //! Uses instanced rendering with 1 vertex per glyph referencing a 1 byte per pixel texture.
 //!
-//! - Scroll to size text.
-//! - Type to modify text.
+//! Controls
+//! * Scroll to size text.
+//! * Type to modify text.
 
 extern crate env_logger;
 extern crate gl;
