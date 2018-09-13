@@ -1,5 +1,5 @@
 use super::{Color, EolLineBreak, FontId, FontMap, SectionText};
-use full_rusttype::ScaledGlyph;
+use full_rusttype::{Scale, ScaledGlyph};
 use linebreak::{LineBreak, LineBreaker};
 use std::iter::{FusedIterator, Iterator};
 use std::marker::PhantomData;
@@ -75,7 +75,13 @@ where
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if self.part_info.is_none() {
-            let section = self.section_text.next()?;
+            let mut section;
+            loop {
+                section = self.section_text.next()?;
+                if valid_section(&section) {
+                    break;
+                }
+            }
             let line_breaks = self.line_breaker.line_breaks(section.text);
             self.part_info = Some(PartInfo {
                 section,
@@ -138,3 +144,9 @@ where
     L: LineBreaker,
     F: FontMap<'font>,
 {}
+
+#[inline]
+fn valid_section(s: &SectionText) -> bool {
+    let Scale { x, y } = s.scale;
+    x > 0.0 && y > 0.0
+}

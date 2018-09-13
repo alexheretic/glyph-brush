@@ -364,6 +364,40 @@ mod layout_test {
     }
 
     #[test]
+    fn zero_scale_glyphs() {
+        let glyphs = Layout::default_single_line()
+            .line_breaker(AnyCharLineBreaker)
+            .calculate_glyphs(
+                &*FONT_MAP,
+                &SectionGeometry::default(),
+                &[SectionText {
+                    text: "hello world",
+                    scale: Scale::uniform(0.0),
+                    ..SectionText::default()
+                }],
+            );
+
+        assert!(glyphs.is_empty(), "{:?}", glyphs);
+    }
+
+    #[test]
+    fn negative_scale_glyphs() {
+        let glyphs = Layout::default_single_line()
+            .line_breaker(AnyCharLineBreaker)
+            .calculate_glyphs(
+                &*FONT_MAP,
+                &SectionGeometry::default(),
+                &[SectionText {
+                    text: "hello world",
+                    scale: Scale::uniform(-20.0),
+                    ..SectionText::default()
+                }],
+            );
+
+        assert!(glyphs.is_empty(), "{:?}", glyphs);
+    }
+
+    #[test]
     fn single_line_chars_left_simple() {
         let glyphs = Layout::default_single_line()
             .line_breaker(AnyCharLineBreaker)
