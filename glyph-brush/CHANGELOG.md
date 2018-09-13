@@ -4,6 +4,7 @@
 * Remove leaked public `GlyphedSection`.
 * Remove `current` from `TextureTooSmall`, replaced by using `texture_dimensions()`.
 * Improve some documentation using gfx-glyph specific terminology.
+* Fix `pixel_bounds` returning `None` for some infinite bound + non-default layout cases.
 * Optimise calculate_glyph_cache trimming using intermediate fx-hashing.
   ```
   name                             control ns/iter  change ns/iter  diff ns/iter   diff %  speedup

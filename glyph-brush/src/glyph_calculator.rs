@@ -1,6 +1,6 @@
 use super::*;
-use rustc_hash::*;
 use full_rusttype::point;
+use rustc_hash::*;
 use std::{
     borrow::Cow,
     collections::{hash_map::Entry, HashSet},
@@ -332,17 +332,19 @@ impl<'font> GlyphedSection<'font> {
             ref glyphs, bounds, ..
         } = *self;
 
-        let max_to_i32 = |max: f32| {
-            let ceil = max.ceil();
-            if ceil > i32::MAX as f32 {
-                return i32::MAX;
+        let to_i32 = |f: f32| {
+            if f > i32::MAX as f32 {
+                i32::MAX
+            } else if f < i32::MIN as f32 {
+                i32::MIN
+            } else {
+                f as i32
             }
-            ceil as i32
         };
 
         let layout_bounds = Rect {
-            min: point(bounds.min.x.floor() as i32, bounds.min.y.floor() as i32),
-            max: point(max_to_i32(bounds.max.x), max_to_i32(bounds.max.y)),
+            min: point(to_i32(bounds.min.x.floor()), to_i32(bounds.min.y.floor())),
+            max: point(to_i32(bounds.max.x.ceil()), to_i32(bounds.max.y.ceil())),
         };
 
         let inside_layout = |rect: Rect<i32>| {
@@ -445,5 +447,45 @@ mod test {
             layout_bounds.max.y,
             pixel_bounds.max.y
         );
+    }
+
+    #[test]
+    fn pixel_bounds_handle_infinity() {
+        let glyphs = GlyphCalculatorBuilder::using_font(A_FONT.clone()).build();
+        let mut glyphs = glyphs.cache_scope();
+
+        for h_align in &[
+            HorizontalAlign::Left,
+            HorizontalAlign::Center,
+            HorizontalAlign::Right,
+        ] {
+            for v_align in &[
+                VerticalAlign::Top,
+                VerticalAlign::Center,
+                VerticalAlign::Bottom,
+            ] {
+                let section = Section {
+                    text: "Hello\n\
+                           World",
+                    screen_position: (0.0, 20.0),
+                    bounds: (f32::INFINITY, f32::INFINITY),
+                    scale: Scale::uniform(16.0),
+                    layout: Layout::default().h_align(*h_align).v_align(*v_align),
+                    ..Section::default()
+                };
+
+                let inf_pixel_bounds = glyphs.pixel_bounds(&section);
+                let large_pixel_bounds = glyphs.pixel_bounds(Section {
+                    bounds: (1000.0, 1000.0),
+                    ..section
+                });
+
+                assert_eq!(
+                    inf_pixel_bounds, large_pixel_bounds,
+                    "h={:?}, v={:?}",
+                    h_align, v_align
+                );
+            }
+        }
     }
 }

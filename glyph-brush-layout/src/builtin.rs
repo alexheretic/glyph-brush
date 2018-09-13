@@ -2,8 +2,8 @@ use super::{
     BuiltInLineBreaker, Color, FontId, FontMap, GlyphPositioner, LineBreaker, PositionedGlyph,
     Rect, SectionGeometry, SectionText,
 };
-use full_rusttype::Point;
 use characters::Characters;
+use full_rusttype::point;
 use std::mem;
 
 /// Built-in [`GlyphPositioner`](trait.GlyphPositioner.html) implementations.
@@ -245,52 +245,13 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
             } => (h_align, v_align),
         };
 
-        let mut bounds = match h_align {
-            HorizontalAlign::Left => Rect {
-                min: Point {
-                    x: screen_x,
-                    y: screen_y,
-                },
-                max: Point {
-                    x: screen_x + bound_w,
-                    y: screen_y + bound_h,
-                },
-            },
-            HorizontalAlign::Center => Rect {
-                min: Point {
-                    x: screen_x - bound_w / 2.0,
-                    y: screen_y,
-                },
-                max: Point {
-                    x: screen_x + bound_w / 2.0,
-                    y: screen_y + bound_h,
-                },
-            },
-            HorizontalAlign::Right => Rect {
-                min: Point {
-                    x: screen_x - bound_w,
-                    y: screen_y,
-                },
-                max: Point {
-                    x: screen_x,
-                    y: screen_y + bound_h,
-                },
-            },
-        };
+        let (x_min, x_max) = h_align.x_bounds(screen_x, bound_w);
+        let (y_min, y_max) = v_align.y_bounds(screen_y, bound_h);
 
-        match v_align {
-            VerticalAlign::Top => {}
-            VerticalAlign::Center => {
-                bounds.min.y -= bound_h / 2.0;
-                bounds.max.y -= bound_h / 2.0;
-            }
-            VerticalAlign::Bottom => {
-                bounds.min.y -= bound_h;
-                bounds.max.y -= bound_h;
-            }
+        Rect {
+            min: point(x_min, y_min),
+            max: point(x_max, y_max),
         }
-
-        bounds
     }
 }
 
@@ -309,6 +270,7 @@ pub enum HorizontalAlign {
 }
 
 impl HorizontalAlign {
+    #[inline]
     pub(crate) fn x_bounds(self, screen_x: f32, bound_w: f32) -> (f32, f32) {
         let (min, max) = match self {
             HorizontalAlign::Left => (screen_x, screen_x + bound_w),
@@ -333,6 +295,7 @@ pub enum VerticalAlign {
 }
 
 impl VerticalAlign {
+    #[inline]
     pub(crate) fn y_bounds(self, screen_y: f32, bound_h: f32) -> (f32, f32) {
         let (min, max) = match self {
             VerticalAlign::Top => (screen_y, screen_y + bound_h),
@@ -341,6 +304,26 @@ impl VerticalAlign {
         };
 
         (min.floor(), max.ceil())
+    }
+}
+
+#[cfg(test)]
+mod bounds_test {
+    use super::*;
+    use std::f32::INFINITY as inf;
+
+    #[test]
+    fn v_align_y_bounds_inf() {
+        assert_eq!(VerticalAlign::Top.y_bounds(0.0, inf), (0.0, inf));
+        assert_eq!(VerticalAlign::Center.y_bounds(0.0, inf), (-inf, inf));
+        assert_eq!(VerticalAlign::Bottom.y_bounds(0.0, inf), (-inf, 0.0));
+    }
+
+    #[test]
+    fn h_align_x_bounds_inf() {
+        assert_eq!(HorizontalAlign::Left.x_bounds(0.0, inf), (0.0, inf));
+        assert_eq!(HorizontalAlign::Center.x_bounds(0.0, inf), (-inf, inf));
+        assert_eq!(HorizontalAlign::Right.x_bounds(0.0, inf), (-inf, 0.0));
     }
 }
 
