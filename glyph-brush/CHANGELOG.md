@@ -1,4 +1,6 @@
 # master
+
+# 0.2
 * Add public `DefaultSectionHasher`.
 * Add `GlyphBrush::texture_dimensions`.
 * Remove leaked public `GlyphedSection`.
