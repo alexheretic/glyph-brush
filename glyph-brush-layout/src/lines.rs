@@ -54,12 +54,12 @@ impl<'font> Line<'font> {
             VerticalAlign::Top => screen_left,
             VerticalAlign::Center => {
                 let mut screen_pos = screen_left;
-                screen_pos.x -= self.line_height() / 2.0;
+                screen_pos.y -= self.line_height() / 2.0;
                 screen_pos
             }
             VerticalAlign::Bottom => {
                 let mut screen_pos = screen_left;
-                screen_pos.x -= self.line_height();
+                screen_pos.y -= self.line_height();
                 screen_pos
             }
         };
