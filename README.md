@@ -12,7 +12,7 @@ Text layout for [rusttype](https://gitlab.redox-os.org/redox-os/rusttype).
 
 
 ## Examples
-`cargo run --example paragraph --release`
+`cargo run -p gfx_glyph --example paragraph --release`
 
 ![](https://image.ibb.co/hXoCxz/screen.png)
 
