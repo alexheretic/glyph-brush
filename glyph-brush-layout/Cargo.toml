@@ -1,6 +1,6 @@
 [package]
 name = "glyph_brush_layout"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Alex Butler <alexheretic@gmail.com>"]
 description = "Text layout for rusttype"
 repository = "https://github.com/alexheretic/gfx-glyph"
