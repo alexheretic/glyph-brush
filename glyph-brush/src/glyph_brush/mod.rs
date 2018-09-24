@@ -206,29 +206,24 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
             || self.draw_cache.is_none()
             || self.draw_cache.as_ref().unwrap().last_text_state != current_text_state
         {
-            let mut no_text = true;
+            let mut some_text = false;
 
             for section_hash in &self.section_buffer {
                 let GlyphedSection { ref glyphs, .. } = self.calculate_glyph_cache[section_hash];
                 for &(ref glyph, _, font_id) in glyphs {
                     self.texture_cache.queue_glyph(font_id.0, glyph.clone());
-                    no_text = false;
+                    some_text = true;
                 }
             }
 
-            if no_text {
-                self.clear_section_buffer();
-                return Ok(BrushAction::Draw(vec![]));
-            }
-
-            if self.texture_cache.cache_queued(update_texture).is_err() {
+            if some_text && self.texture_cache.cache_queued(update_texture).is_err() {
                 let (width, height) = self.texture_cache.dimensions();
                 return Err(BrushError::TextureTooSmall {
                     suggested: (width * 2, height * 2),
                 });
             }
 
-            let verts: Vec<V> = {
+            let verts: Vec<V> = if some_text {
                 let sections: Vec<_> = self
                     .section_buffer
                     .iter()
@@ -279,6 +274,8 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
                 }
 
                 verts
+            } else {
+                vec![]
             };
 
             self.draw_cache = Some(

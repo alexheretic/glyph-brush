@@ -1,4 +1,5 @@
 # master
+* Fix on-off single section cache clearing.
 
 # 0.2
 * Add public `DefaultSectionHasher`.
