@@ -36,7 +36,7 @@ type DefaultSectionHasher = BuildHasherDefault<seahash::SeaHasher>;
 pub struct GlyphBrush<'font, H = DefaultSectionHasher> {
     fonts: Vec<Font<'font>>,
     texture_cache: Cache<'font>,
-    draw_cache: Option<DrawnGlyphBrush>,
+    last_draw: LastDrawInfo,
 
     // cache of section-layout hash -> computed glyphs, this avoid repeated glyph computation
     // for identical layout/sections common to repeated frame rendering
@@ -202,9 +202,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     {
         let current_text_state = self.hash(&(&self.section_buffer, screen_w, screen_h));
 
-        let result = if !self.cache_glyph_drawing
-            || self.draw_cache.is_none()
-            || self.draw_cache.as_ref().unwrap().last_text_state != current_text_state
+        let result = if !self.cache_glyph_drawing || self.last_draw.text_state != current_text_state
         {
             let mut some_text = false;
 
@@ -278,15 +276,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
                 vec![]
             };
 
-            self.draw_cache = Some(
-                self.draw_cache
-                    .take()
-                    .map(|mut cache| {
-                        cache.last_text_state = current_text_state;
-                        cache
-                    }).unwrap_or_default(),
-            );
-
+            self.last_draw.text_state = current_text_state;
             BrushAction::Draw(verts)
         } else {
             BrushAction::ReDraw
@@ -312,7 +302,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
             .dimensions(new_width, new_height)
             .rebuild(&mut self.texture_cache);
 
-        self.draw_cache.take();
+        self.last_draw = LastDrawInfo::default();
     }
 
     /// Returns the texture cache pixel dimensions `(width, height)`.
@@ -378,8 +368,8 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
 }
 
 #[derive(Debug, Default)]
-struct DrawnGlyphBrush {
-    last_text_state: u64,
+struct LastDrawInfo {
+    text_state: u64,
 }
 
 // glyph: &PositionedGlyph,

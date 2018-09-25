@@ -1,5 +1,6 @@
 # master
 * Fix on-off single section cache clearing.
+* Fix double initial draw.
 
 # 0.2
 * Add public `DefaultSectionHasher`.

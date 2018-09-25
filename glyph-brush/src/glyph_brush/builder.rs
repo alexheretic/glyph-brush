@@ -184,7 +184,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
                 .position_tolerance(self.gpu_cache_position_tolerance)
                 .build(),
 
-            draw_cache: None,
+            last_draw: LastDrawInfo::default(),
             section_buffer: Vec::new(),
             calculate_glyph_cache: HashMap::default(),
             keep_in_cache: HashSet::default(),
