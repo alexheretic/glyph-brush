@@ -1,4 +1,6 @@
 # master
+
+# 0.2.1
 * Fix on-off single section cache clearing.
 * Fix double initial draw.
 
