@@ -2,11 +2,21 @@ sudo: false
 language: rust
 cache:
   cargo: true
+before_cache:
+- du -hd2 target
+# remove unneeded bits which can change each build
+- rm -rf ./target/debug/.fingerprint/{gfx_glyph,glyph_brush}* || true
+- rm -rf ./target/debug/*{incremental,examples,gfx_glyph,glyph_brush}* || true
+- rm -f ./target/.rustc_info.json || true
+# remove stuff that hasn't been accessed recently
+- find ./target -type f -atime +2 -ctime +2 -delete
+- du -hd2 target
+
 rust:
 - stable
 - nightly
 env:
-- RUST_BACKTRACE=full
+- RUST_BACKTRACE=full CARGO_INCREMENTAL=0
 matrix:
   allow_failures:
   - os: osx

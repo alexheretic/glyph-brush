@@ -1,5 +1,6 @@
 environment:
   RUST_BACKTRACE: full
+  CARGO_INCREMENTAL: 0
   matrix:
   - channel: stable
     target: x86_64-pc-windows-msvc
@@ -18,3 +19,6 @@ install:
 build: false
 test_script:
 - cargo test --all
+
+cache:
+- '%USERPROFILE%\.cargo\registry -> **\Cargo.toml'
