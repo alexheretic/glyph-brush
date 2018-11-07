@@ -139,6 +139,13 @@ impl<'font, H: BuildHasher + Clone> GlyphCalculator<'font, H> {
             section_hasher: self.section_hasher.clone(),
         }
     }
+
+    /// Returns the available fonts.
+    ///
+    /// The `FontId` corresponds to the index of the font data.
+    pub fn fonts(&self) -> &[Font<'font>] {
+        &self.fonts
+    }
 }
 
 /// [`GlyphCalculator`](struct.GlyphCalculator.html) scoped cache lock.
@@ -172,6 +179,13 @@ impl<'brush, 'font, H: BuildHasher> GlyphCalculatorGuard<'brush, 'font, H> {
         }
 
         section_hash
+    }
+
+    /// Returns the available fonts.
+    ///
+    /// The `FontId` corresponds to the index of the font data.
+    pub fn fonts(&self) -> &[Font<'font>] {
+        self.fonts
     }
 }
 
