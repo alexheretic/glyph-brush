@@ -16,7 +16,7 @@ glyph_brush = { version = "0.2", path = "../glyph-brush" }
 log = "0.4"
 
 [dev-dependencies]
-env_logger = "0.5"
+env_logger = { version = "0.6", default-features = false }
 approx = "0.3"
 gfx_device_gl = "0.15.3"
 gfx_window_glutin = "0.26"
