@@ -17,7 +17,6 @@ extern crate spin_sleep;
 
 use cgmath::{Matrix4, Rad, Transform};
 use gfx::{format, Device};
-use glutin::GlContext;
 use std::env;
 use std::error::Error;
 use std::f32::consts::PI as PI32;

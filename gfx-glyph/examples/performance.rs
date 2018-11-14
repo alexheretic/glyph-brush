@@ -7,7 +7,6 @@ extern crate spin_sleep;
 
 use gfx::{format, Device};
 use gfx_glyph::*;
-use glutin::GlContext;
 use std::env;
 use std::error::Error;
 

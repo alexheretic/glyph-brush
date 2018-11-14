@@ -272,7 +272,8 @@ fn continually_modify_end_text_of_1_of_3(b: &mut ::test::Bencher) {
                     ..Section::default()
                 },
             ]
-        }).collect();
+        })
+        .collect();
 
     bench_variants(b, &variants, brush);
 }
@@ -313,7 +314,8 @@ fn continually_modify_start_text_of_1_of_3(b: &mut ::test::Bencher) {
                     ..Section::default()
                 },
             ]
-        }).collect();
+        })
+        .collect();
 
     bench_variants(b, &variants, brush);
 }
@@ -359,7 +361,8 @@ fn continually_modify_middle_text_of_1_of_3(b: &mut ::test::Bencher) {
                     ..Section::default()
                 },
             ]
-        }).collect();
+        })
+        .collect();
 
     bench_variants(b, &variants, brush);
 }
@@ -394,7 +397,8 @@ fn continually_modify_bounds_of_1_of_3(b: &mut ::test::Bencher) {
                     ..Section::default()
                 },
             ]
-        }).collect();
+        })
+        .collect();
 
     bench_variants(b, &variants, brush);
 }
@@ -430,7 +434,8 @@ fn continually_modify_z_of_1_of_3(b: &mut ::test::Bencher) {
                     ..Section::default()
                 },
             ]
-        }).collect();
+        })
+        .collect();
 
     bench_variants(b, &variants, brush);
 }
@@ -466,7 +471,8 @@ fn continually_modify_position_of_1_of_3(b: &mut ::test::Bencher) {
                     ..Section::default()
                 },
             ]
-        }).collect();
+        })
+        .collect();
 
     bench_variants(b, &variants, brush);
 }
@@ -540,7 +546,7 @@ fn bench(
 }
 
 fn headless_gl_init() -> (
-    glutin::HeadlessContext,
+    glutin::Context,
     gfx_device_gl::Device,
     gfx_device_gl::Factory,
     gfx::handle::RenderTargetView<gfx_device_gl::Resources, gfx::format::Srgba8>,
@@ -552,11 +558,15 @@ fn headless_gl_init() -> (
     use glutin::GlContext;
 
     let (width, height) = (400, 300);
-    let context = glutin::HeadlessRendererBuilder::new(width, height)
-        .with_gl_profile(glutin::GlProfile::Core)
-        .with_gl(glutin::GlRequest::Specific(glutin::Api::OpenGl, (3, 2)))
-        .build()
-        .unwrap();
+    let events = glutin::EventsLoop::new();
+    let context = glutin::Context::new(
+        &events,
+        glutin::ContextBuilder::new()
+            .with_gl_profile(glutin::GlProfile::Core)
+            .with_gl(glutin::GlRequest::Specific(glutin::Api::OpenGl, (3, 2))),
+        false,
+    )
+    .unwrap();
 
     unsafe { context.make_current().unwrap() };
     let (device, factory) =
