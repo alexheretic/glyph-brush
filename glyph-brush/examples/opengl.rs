@@ -14,7 +14,7 @@ extern crate glyph_brush;
 extern crate spin_sleep;
 
 use gl::types::*;
-use glutin::{Api, GlProfile, GlRequest};
+use glutin::{Api, GlContext, GlProfile, GlRequest};
 use glyph_brush::{rusttype::*, *};
 use std::{env, ffi::CString, io, io::Write, mem, ptr, str};
 
@@ -190,9 +190,11 @@ fn main() -> Res<()> {
                         }
                         _ => (),
                     },
-                    WindowEvent::ReceivedCharacter(c) => if c != '\u{7f}' && c != '\u{8}' {
-                        text.push(c);
-                    },
+                    WindowEvent::ReceivedCharacter(c) => {
+                        if c != '\u{7f}' && c != '\u{8}' {
+                            text.push(c);
+                        }
+                    }
                     WindowEvent::MouseWheel {
                         delta: MouseScrollDelta::LineDelta(_, y),
                         ..

@@ -241,7 +241,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
                     z,
                 } in sections
                 {
-                    verts.extend(glyphs.into_iter().filter_map(|(glyph, color, font_id)| {
+                    verts.extend(glyphs.iter().filter_map(|(glyph, color, font_id)| {
                         match self.texture_cache.rect_for(font_id.0, glyph) {
                             Err(err) => {
                                 error!("Cache miss?: {:?}, {:?}: {}", font_id, glyph, err);
