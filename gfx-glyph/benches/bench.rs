@@ -404,18 +404,18 @@ fn continually_modify_bounds_of_1_of_3(b: &mut ::test::Bencher) {
 }
 
 #[bench]
-/// section is rendered with the bounds redefined each run to the middle
-fn continually_modify_z_of_1_of_3(b: &mut ::test::Bencher) {
+/// 1 section of 3 is rendered with a different colour each frame
+fn continually_modify_color_of_1_of_3(b: &mut ::test::Bencher) {
     let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
     let text = include_str!("lipsum.txt");
 
-    let variants: Vec<_> = vec![0.1, 0.2, 0.7]
+    let variants: Vec<_> = vec![[0.1, 0.2, 0.7, 1.0], [1.3, 0.5, 0.0, 1.0], [0.0, 0.0, 0.0, 1.0]]
         .into_iter()
-        .map(|z| {
+        .map(|color| {
             vec![
                 Section {
                     text,
-                    z,
+                    color,
                     bounds: (600.0, f32::INFINITY),
                     ..Section::default()
                 },
