@@ -51,7 +51,7 @@ fn main() -> Result<(), Box<Error>> {
             window_builder,
             context,
             &events_loop,
-        );
+        ).unwrap();
 
     let mut builder =
         GlyphBrushBuilder::using_font_bytes(include_bytes!("../../fonts/DejaVuSans.ttf") as &[u8])

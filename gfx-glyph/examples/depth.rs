@@ -46,7 +46,7 @@ fn main() -> Result<(), Box<Error>> {
             window_builder,
             context,
             &events_loop,
-        );
+        ).unwrap();
 
     let fonts: Vec<&[u8]> = vec![
         include_bytes!("../../fonts/DejaVuSans.ttf"),

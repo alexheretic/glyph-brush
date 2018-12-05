@@ -22,7 +22,7 @@
 //! #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
 //! #         glutin::WindowBuilder::new(),
 //! #         glutin::ContextBuilder::new(),
-//! #         &events_loop);
+//! #         &events_loop).unwrap();
 //! # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
 //!
 //! let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
@@ -114,7 +114,7 @@ const IDENTITY_MATRIX4: [[f32; 4]; 4] = [
 /// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
 /// #         glutin::WindowBuilder::new(),
 /// #         glutin::ContextBuilder::new(),
-/// #         &events_loop);
+/// #         &events_loop).unwrap();
 /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
 /// # let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
 /// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu)
@@ -281,7 +281,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     /// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
     /// #         glutin::WindowBuilder::new(),
     /// #         glutin::ContextBuilder::new(),
-    /// #         &events_loop);
+    /// #         &events_loop).unwrap();
     /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
     /// # let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
     /// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu)
@@ -482,7 +482,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     /// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
     /// #         glutin::WindowBuilder::new(),
     /// #         glutin::ContextBuilder::new(),
-    /// #         &events_loop);
+    /// #         &events_loop).unwrap();
     /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
     ///
     /// // dejavu is built as default `FontId(0)`

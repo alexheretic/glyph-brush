@@ -48,7 +48,7 @@ fn main() -> Result<(), Box<Error>> {
             window_builder,
             context,
             &events_loop,
-        );
+        ).unwrap();
 
     let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
     let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu)

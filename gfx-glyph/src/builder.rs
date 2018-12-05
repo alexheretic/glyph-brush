@@ -16,7 +16,7 @@ use super::*;
 /// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
 /// #         glutin::WindowBuilder::new(),
 /// #         glutin::ContextBuilder::new(),
-/// #         &events_loop);
+/// #         &events_loop).unwrap();
 ///
 /// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
 /// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build(gfx_factory.clone());
