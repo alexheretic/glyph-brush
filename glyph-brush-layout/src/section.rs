@@ -1,5 +1,5 @@
-use font::FontId;
-use rusttype::Scale;
+use crate::font::FontId;
+use crate::rusttype::Scale;
 use std::f32;
 
 /// RGBA `[0, 1]` color data.

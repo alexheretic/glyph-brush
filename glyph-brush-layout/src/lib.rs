@@ -79,13 +79,13 @@ pub use self::section::*;
 
 /// Re-exported rusttype types.
 pub mod rusttype {
-    pub use full_rusttype::{
+    pub use crate::full_rusttype::{
         point, Error, Font, Glyph, GlyphId, HMetrics, Point, PositionedGlyph, Rect, Scale,
         ScaledGlyph, SharedBytes, VMetrics,
     };
 }
 
-use rusttype::*;
+use crate::rusttype::*;
 use std::hash::Hash;
 
 /// Logic to calculate glyph positioning using [`Font`](struct.Font.html),
@@ -96,7 +96,7 @@ pub trait GlyphPositioner: Hash {
     /// return the same result when called with the same arguments to allow layout caching.
     fn calculate_glyphs<'font, F: FontMap<'font>>(
         &self,
-        &F,
+        _: &F,
         geometry: &SectionGeometry,
         sections: &[SectionText],
     ) -> Vec<(PositionedGlyph<'font>, Color, FontId)>;

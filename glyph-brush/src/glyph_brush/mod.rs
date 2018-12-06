@@ -3,7 +3,7 @@ mod builder;
 pub use self::builder::*;
 
 use super::*;
-use full_rusttype::gpu_cache::Cache;
+use crate::full_rusttype::gpu_cache::Cache;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::borrow::Cow;
 use std::collections::{hash_map::Entry, HashMap, HashSet};

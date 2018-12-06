@@ -1,8 +1,8 @@
 use super::{Color, FontId, FontMap};
-use full_rusttype::{point, Point, PositionedGlyph, Rect, ScaledGlyph, VMetrics};
-use characters::{Character, Characters};
-use linebreak::{LineBreak, LineBreaker};
-use lines::Lines;
+use crate::full_rusttype::{point, Point, PositionedGlyph, Rect, ScaledGlyph, VMetrics};
+use crate::characters::{Character, Characters};
+use crate::linebreak::{LineBreak, LineBreaker};
+use crate::lines::Lines;
 use std::iter::{FusedIterator, Iterator};
 
 pub(crate) const ZERO_V_METRICS: VMetrics = VMetrics {

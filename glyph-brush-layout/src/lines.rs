@@ -1,8 +1,8 @@
 use super::{Color, FontId, FontMap, HorizontalAlign, VerticalAlign};
-use full_rusttype::{point, vector, PositionedGlyph, VMetrics};
-use linebreak::LineBreaker;
+use crate::full_rusttype::{point, vector, PositionedGlyph, VMetrics};
+use crate::linebreak::LineBreaker;
 use std::iter::{FusedIterator, Iterator, Peekable};
-use words::{RelativePositionedGlyph, Words, ZERO_V_METRICS};
+use crate::words::{RelativePositionedGlyph, Words, ZERO_V_METRICS};
 
 /// A line of `Word`s limited to a max width bound.
 pub(crate) struct Line<'font> {

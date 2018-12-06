@@ -1,11 +1,11 @@
 use super::{Color, EolLineBreak, FontId, FontMap, SectionText};
-use full_rusttype::{Scale, ScaledGlyph};
-use linebreak::{LineBreak, LineBreaker};
+use crate::full_rusttype::{Scale, ScaledGlyph};
+use crate::linebreak::{LineBreak, LineBreaker};
 use std::iter::{FusedIterator, Iterator};
 use std::marker::PhantomData;
 use std::slice;
 use std::{mem, str::CharIndices};
-use words::Words;
+use crate::words::Words;
 
 /// Single character info
 pub(crate) struct Character<'font> {

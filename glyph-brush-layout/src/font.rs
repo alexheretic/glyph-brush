@@ -1,4 +1,4 @@
-use full_rusttype::Font;
+use crate::full_rusttype::Font;
 use std::ops;
 
 /// Id for a font
@@ -7,7 +7,7 @@ pub struct FontId(pub usize);
 
 /// Mapper of [`FontId`](struct.FontId.html) -> [`Font`](rusttype/struct.Font.html)
 pub trait FontMap<'font> {
-    fn font(&self, FontId) -> &Font<'font>;
+    fn font(&self, _: FontId) -> &Font<'font>;
 }
 
 impl<'font, T> FontMap<'font> for T

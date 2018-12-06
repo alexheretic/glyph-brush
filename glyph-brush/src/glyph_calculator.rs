@@ -1,5 +1,5 @@
 use super::*;
-use full_rusttype::point;
+use crate::full_rusttype::point;
 use rustc_hash::*;
 use std::{
     borrow::Cow,

@@ -53,11 +53,11 @@ mod glyph_calculator;
 mod owned_section;
 mod section;
 
-pub use glyph_brush::*;
+pub use crate::glyph_brush::*;
 pub use glyph_brush_layout::*;
-pub use glyph_calculator::*;
-pub use owned_section::*;
-pub use section::*;
+pub use crate::glyph_calculator::*;
+pub use crate::owned_section::*;
+pub use crate::section::*;
 
 use glyph_brush_layout::rusttype::*;
 use std::hash::BuildHasherDefault;

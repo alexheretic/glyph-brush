@@ -2,8 +2,8 @@ use super::{
     BuiltInLineBreaker, Color, FontId, FontMap, GlyphPositioner, LineBreaker, PositionedGlyph,
     Rect, SectionGeometry, SectionText,
 };
-use characters::Characters;
-use full_rusttype::point;
+use crate::characters::Characters;
+use crate::full_rusttype::point;
 use std::mem;
 
 /// Built-in [`GlyphPositioner`](trait.GlyphPositioner.html) implementations.
@@ -65,7 +65,7 @@ impl Layout<BuiltInLineBreaker> {
 impl<L: LineBreaker> Layout<L> {
     /// Returns an identical `Layout` but with the input `h_align`
     pub fn h_align(self, h_align: HorizontalAlign) -> Self {
-        use Layout::*;
+        use crate::Layout::*;
         match self {
             SingleLine {
                 line_breaker,
@@ -90,7 +90,7 @@ impl<L: LineBreaker> Layout<L> {
 
     /// Returns an identical `Layout` but with the input `v_align`
     pub fn v_align(self, v_align: VerticalAlign) -> Self {
-        use Layout::*;
+        use crate::Layout::*;
         match self {
             SingleLine {
                 line_breaker,
@@ -115,7 +115,7 @@ impl<L: LineBreaker> Layout<L> {
 
     /// Returns an identical `Layout` but with the input `line_breaker`
     pub fn line_breaker<L2: LineBreaker>(self, line_breaker: L2) -> Layout<L2> {
-        use Layout::*;
+        use crate::Layout::*;
         match self {
             SingleLine {
                 h_align, v_align, ..
@@ -142,7 +142,7 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
         geometry: &SectionGeometry,
         sections: &[SectionText],
     ) -> Vec<(PositionedGlyph<'font>, Color, FontId)> {
-        use Layout::{SingleLine, Wrap};
+        use crate::Layout::{SingleLine, Wrap};
 
         let SectionGeometry {
             screen_position,
@@ -229,7 +229,7 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
     }
 
     fn bounds_rect(&self, geometry: &SectionGeometry) -> Rect<f32> {
-        use Layout::{SingleLine, Wrap};
+        use crate::Layout::{SingleLine, Wrap};
 
         let SectionGeometry {
             screen_position: (screen_x, screen_y),
@@ -331,11 +331,11 @@ mod bounds_test {
 mod layout_test {
     use super::*;
     use ordered_float::OrderedFloat;
-    use rusttype::{Font, Scale};
+    use crate::rusttype::{Font, Scale};
     use std::collections::*;
     use std::f32;
     use xi_unicode;
-    use BuiltInLineBreaker::*;
+    use crate::BuiltInLineBreaker::*;
 
     lazy_static! {
         static ref A_FONT: Font<'static> =

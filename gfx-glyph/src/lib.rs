@@ -59,7 +59,7 @@ mod pipe;
 #[macro_use]
 mod trace;
 
-pub use builder::*;
+pub use crate::builder::*;
 pub use glyph_brush::{
     rusttype,
     rusttype::{Font, Point, PositionedGlyph, Rect, Scale, SharedBytes},
@@ -74,7 +74,7 @@ use gfx::{format, handle, texture};
 use glyph_brush::{
     rusttype::point, BrushAction, BrushError, DefaultSectionHasher, GlyphPositioner,
 };
-use pipe::*;
+use crate::pipe::*;
 use std::borrow::Cow;
 use std::hash::{BuildHasher, Hash};
 use std::{error::Error, fmt, i32};
