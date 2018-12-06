@@ -6,15 +6,6 @@
 //! * Type to add/remove text
 //! * Ctrl-Scroll to zoom in/out using a transform, this is cheap but notice how rusttype can't
 //!   render at full quality without the correct pixel information.
-
-extern crate cgmath;
-extern crate env_logger;
-extern crate gfx;
-extern crate gfx_glyph;
-extern crate gfx_window_glutin;
-extern crate glutin;
-extern crate spin_sleep;
-
 use cgmath::{Matrix4, Rad, Transform};
 use gfx::{format, Device};
 use std::{
@@ -26,7 +17,7 @@ use std::{
 
 const MAX_FONT_SIZE: f32 = 2000.0;
 
-fn main() -> Result<(), Box<Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
     if env::var("RUST_LOG").is_err() {
         env::set_var("RUST_LOG", "gfx_glyph=warn");
     }

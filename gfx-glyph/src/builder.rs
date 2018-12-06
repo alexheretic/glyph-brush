@@ -1,4 +1,5 @@
 use super::*;
+use glyph_brush::delegate_glyph_brush_builder_fns;
 
 /// Builder for a [`GlyphBrush`](struct.GlyphBrush.html).
 ///

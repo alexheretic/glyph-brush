@@ -1,5 +1,6 @@
-use super::*;
+use super::TexFormView;
 use gfx::{
+    self,
     format::{Format, Formatted},
     handle::{DepthStencilView, RawDepthStencilView, RawRenderTargetView, RenderTargetView},
     memory::Typed,
@@ -11,7 +12,7 @@ use gfx_core::pso;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RawDepthTarget;
 
-impl<'a> DataLink<'a> for RawDepthTarget {
+impl DataLink<'_> for RawDepthTarget {
     type Init = (format::Format, state::Depth);
     fn new() -> Self {
         RawDepthTarget
@@ -60,7 +61,7 @@ gfx_pipeline_base!( glyph_pipe {
     out_depth: RawDepthTarget,
 });
 
-impl<'a> glyph_pipe::Init<'a> {
+impl glyph_pipe::Init<'_> {
     pub fn new(
         color_format: format::Format,
         depth_format: format::Format,
@@ -112,7 +113,7 @@ impl<R: Resources, T: Formatted> RawAndFormat for DepthStencilView<R, T> {
     }
 }
 
-impl<'a, R> RawAndFormat for (&'a R, Format) {
+impl<R> RawAndFormat for (&R, Format) {
     type Raw = R;
     #[inline]
     fn as_raw(&self) -> &Self::Raw {

@@ -41,19 +41,6 @@
 //! # Ok(())
 //! # }
 //! ```
-extern crate backtrace;
-extern crate gfx;
-extern crate gfx_core;
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate glyph_brush;
-
-#[cfg(test)]
-extern crate approx;
-#[cfg(test)]
-extern crate env_logger;
-
 mod builder;
 mod pipe;
 #[macro_use]
@@ -67,18 +54,17 @@ pub use glyph_brush::{
     VariedSection, VerticalAlign,
 };
 
-use crate::pipe::*;
+use crate::pipe::{glyph_pipe, GlyphVertex, RawAndFormat};
 use gfx::{
     format,
-    handle::{
-        self, {RawDepthStencilView, RawRenderTargetView},
-    },
+    handle::{self, RawDepthStencilView, RawRenderTargetView},
     texture,
     traits::FactoryExt,
 };
 use glyph_brush::{
     rusttype::point, BrushAction, BrushError, DefaultSectionHasher, GlyphPositioner,
 };
+use log::{log_enabled, warn};
 use std::{
     borrow::Cow,
     error::Error,
@@ -169,9 +155,9 @@ pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>, H = DefaultS
     depth_test: gfx::state::Depth,
 }
 
-impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H> fmt::Debug for GlyphBrush<'font, R, F, H> {
+impl<R: gfx::Resources, F: gfx::Factory<R>, H> fmt::Debug for GlyphBrush<'_, R, F, H> {
     #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "GlyphBrush")
     }
 }
@@ -444,7 +430,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     ///
     /// The `FontId` corresponds to the index of the font data.
     #[inline]
-    pub fn fonts(&self) -> &[Font<'font>] {
+    pub fn fonts(&self) -> &[Font<'_>] {
         self.glyph_brush.fonts()
     }
 
@@ -594,7 +580,7 @@ fn create_texture<F, R>(
     factory: &mut F,
     width: u32,
     height: u32,
-) -> Result<(TexSurfaceHandle<R>, TexShaderView<R>), Box<Error>>
+) -> Result<(TexSurfaceHandle<R>, TexShaderView<R>), Box<dyn Error>>
 where
     R: gfx::Resources,
     F: gfx::Factory<R>,

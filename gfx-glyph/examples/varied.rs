@@ -2,19 +2,11 @@
 //! Controls
 //!
 //! * Resize window to adjust layout
-
-extern crate env_logger;
-extern crate gfx;
-extern crate gfx_glyph;
-extern crate gfx_window_glutin;
-extern crate glutin;
-extern crate spin_sleep;
-
 use gfx::{format, Device};
 use gfx_glyph::*;
 use std::{env, error::Error};
 
-fn main() -> Result<(), Box<Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
     if env::var("RUST_LOG").is_err() {
         env::set_var("RUST_LOG", "gfx_glyph=warn");
     }
