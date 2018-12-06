@@ -35,14 +35,6 @@
 //! # Ok(())
 //! # }
 //! ```
-
-#[macro_use]
-extern crate log;
-
-#[cfg(test)]
-#[macro_use]
-extern crate lazy_static;
-
 mod glyph_brush;
 mod glyph_calculator;
 mod owned_section;

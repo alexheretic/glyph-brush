@@ -4,6 +4,7 @@ pub use self::builder::*;
 
 use super::*;
 use full_rusttype::gpu_cache::Cache;
+use log::error;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{
     borrow::Cow,

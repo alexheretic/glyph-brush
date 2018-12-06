@@ -421,7 +421,7 @@ mod test {
     use super::*;
     use std::f32;
 
-    lazy_static! {
+    lazy_static::lazy_static! {
         static ref A_FONT: Font<'static> =
             Font::from_bytes(include_bytes!("../../fonts/DejaVuSansMono.ttf") as &[u8])
                 .expect("Could not create rusttype::Font");

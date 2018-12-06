@@ -51,15 +51,6 @@
 //! # Ok(())
 //! # }
 //! ```
-
-#[cfg(test)]
-#[macro_use]
-extern crate approx;
-#[cfg(test)]
-#[macro_use]
-extern crate lazy_static;
-
-
 mod builtin;
 mod characters;
 mod font;
