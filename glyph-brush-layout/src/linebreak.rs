@@ -1,4 +1,9 @@
-use std::{fmt, hash::Hash, iter::FusedIterator, str, str::CharIndices};
+use std::{
+    fmt,
+    hash::Hash,
+    iter::FusedIterator,
+    str::{self, CharIndices},
+};
 use xi_unicode;
 
 /// Indicator that a character is a line break, soft or hard. Includes the offset (byte-index)

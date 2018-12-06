@@ -61,23 +61,31 @@ mod trace;
 
 pub use crate::builder::*;
 pub use glyph_brush::{
-    rusttype,
-    rusttype::{Font, Point, PositionedGlyph, Rect, Scale, SharedBytes},
+    rusttype::{self, Font, Point, PositionedGlyph, Rect, Scale, SharedBytes},
     BuiltInLineBreaker, FontId, FontMap, GlyphCruncher, HorizontalAlign, Layout, LineBreak,
     LineBreaker, OwnedSectionText, OwnedVariedSection, PositionedGlyphIter, Section, SectionText,
     VariedSection, VerticalAlign,
 };
 
-use gfx::handle::{RawDepthStencilView, RawRenderTargetView};
-use gfx::traits::FactoryExt;
-use gfx::{format, handle, texture};
+use crate::pipe::*;
+use gfx::{
+    format,
+    handle::{
+        self, {RawDepthStencilView, RawRenderTargetView},
+    },
+    texture,
+    traits::FactoryExt,
+};
 use glyph_brush::{
     rusttype::point, BrushAction, BrushError, DefaultSectionHasher, GlyphPositioner,
 };
-use crate::pipe::*;
-use std::borrow::Cow;
-use std::hash::{BuildHasher, Hash};
-use std::{error::Error, fmt, i32};
+use std::{
+    borrow::Cow,
+    error::Error,
+    fmt,
+    hash::{BuildHasher, Hash},
+    i32,
+};
 
 // Type for the generated glyph cache texture
 type TexForm = format::U8Norm;
@@ -451,7 +459,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
                 gfx::Primitive::TriangleStrip,
                 gfx::state::Rasterizer::new_fill(),
                 glyph_pipe::Init::new(color_format, depth_format, self.depth_test),
-            ).unwrap()
+            )
+            .unwrap()
     }
 
     fn empty_slice() -> gfx::Slice<R> {

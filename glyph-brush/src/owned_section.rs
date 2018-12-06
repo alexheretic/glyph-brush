@@ -1,6 +1,5 @@
 use super::*;
-use std::borrow::Cow;
-use std::f32;
+use std::{borrow::Cow, f32};
 
 #[derive(Debug, Clone)]
 pub struct OwnedVariedSection {

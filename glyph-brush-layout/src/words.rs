@@ -1,8 +1,10 @@
 use super::{Color, FontId, FontMap};
-use crate::full_rusttype::{point, Point, PositionedGlyph, Rect, ScaledGlyph, VMetrics};
-use crate::characters::{Character, Characters};
-use crate::linebreak::{LineBreak, LineBreaker};
-use crate::lines::Lines;
+use crate::{
+    characters::{Character, Characters},
+    full_rusttype::{point, Point, PositionedGlyph, Rect, ScaledGlyph, VMetrics},
+    linebreak::{LineBreak, LineBreaker},
+    lines::Lines,
+};
 use std::iter::{FusedIterator, Iterator};
 
 pub(crate) const ZERO_V_METRICS: VMetrics = VMetrics {
@@ -161,4 +163,5 @@ where
 
 impl<'a, 'b, 'font, L: LineBreaker, F: FontMap<'font>> FusedIterator
     for Words<'a, 'b, 'font, L, F>
-{}
+{
+}

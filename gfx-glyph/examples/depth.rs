@@ -7,8 +7,7 @@ extern crate spin_sleep;
 
 use gfx::{format, Device};
 use gfx_glyph::*;
-use std::env;
-use std::error::Error;
+use std::{env, error::Error};
 
 fn main() -> Result<(), Box<Error>> {
     if env::var("RUST_LOG").is_err() {
@@ -46,7 +45,8 @@ fn main() -> Result<(), Box<Error>> {
             window_builder,
             context,
             &events_loop,
-        ).unwrap();
+        )
+        .unwrap();
 
     let fonts: Vec<&[u8]> = vec![
         include_bytes!("../../fonts/DejaVuSans.ttf"),

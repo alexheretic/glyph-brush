@@ -2,8 +2,7 @@ use super::{
     BuiltInLineBreaker, Color, FontId, FontMap, GlyphPositioner, LineBreaker, PositionedGlyph,
     Rect, SectionGeometry, SectionText,
 };
-use crate::characters::Characters;
-use crate::full_rusttype::point;
+use crate::{characters::Characters, full_rusttype::point};
 use std::mem;
 
 /// Built-in [`GlyphPositioner`](trait.GlyphPositioner.html) implementations.
@@ -215,9 +214,11 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                                                     && bb.min.y as f32 <= max_y
                                                     && bb.max.x as f32 >= min_x
                                                     && bb.min.x as f32 <= max_x
-                                            }).unwrap_or(false)
+                                            })
+                                            .unwrap_or(false)
                                     })
-                                }).collect();
+                                })
+                                .collect();
                             mem::replace(&mut out, shifted);
                         }
                     }
@@ -330,12 +331,13 @@ mod bounds_test {
 #[cfg(test)]
 mod layout_test {
     use super::*;
+    use crate::{
+        rusttype::{Font, Scale},
+        BuiltInLineBreaker::*,
+    };
     use ordered_float::OrderedFloat;
-    use crate::rusttype::{Font, Scale};
-    use std::collections::*;
-    use std::f32;
+    use std::{collections::*, f32};
     use xi_unicode;
-    use crate::BuiltInLineBreaker::*;
 
     lazy_static! {
         static ref A_FONT: Font<'static> =

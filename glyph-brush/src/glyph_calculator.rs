@@ -13,8 +13,9 @@ use std::{
 /// [`PositionedGlyph`](struct.PositionedGlyph.html) iterator.
 pub type PositionedGlyphIter<'a, 'font> = std::iter::Map<
     slice::Iter<'a, (rusttype::PositionedGlyph<'font>, [f32; 4], FontId)>,
-    fn(&'a (rusttype::PositionedGlyph<'font>, [f32; 4], FontId))
-        -> &'a rusttype::PositionedGlyph<'font>,
+    fn(
+        &'a (rusttype::PositionedGlyph<'font>, [f32; 4], FontId),
+    ) -> &'a rusttype::PositionedGlyph<'font>,
 >;
 
 /// Common glyph layout logic.

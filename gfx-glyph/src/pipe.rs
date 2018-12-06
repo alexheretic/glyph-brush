@@ -1,9 +1,11 @@
 use super::*;
-use gfx::format::{Format, Formatted};
-use gfx::handle::{DepthStencilView, RawDepthStencilView, RawRenderTargetView, RenderTargetView};
-use gfx::memory::Typed;
-use gfx::pso::*;
-use gfx::*;
+use gfx::{
+    format::{Format, Formatted},
+    handle::{DepthStencilView, RawDepthStencilView, RawRenderTargetView, RenderTargetView},
+    memory::Typed,
+    pso::*,
+    *,
+};
 use gfx_core::pso;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -37,7 +39,7 @@ impl<R: Resources> DataBind<R> for RawDepthTarget {
     }
 }
 
-gfx_defines!{
+gfx_defines! {
     vertex GlyphVertex {
         /// screen position
         left_top: [f32; 3] = "left_top",

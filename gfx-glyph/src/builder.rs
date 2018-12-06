@@ -157,7 +157,8 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
             .link_program(
                 include_bytes!("shader/vert.glsl"),
                 include_bytes!("shader/frag.glsl"),
-            ).unwrap();
+            )
+            .unwrap();
 
         GlyphBrush {
             font_cache_tex,

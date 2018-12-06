@@ -1,11 +1,15 @@
 use super::{Color, EolLineBreak, FontId, FontMap, SectionText};
-use crate::full_rusttype::{Scale, ScaledGlyph};
-use crate::linebreak::{LineBreak, LineBreaker};
-use std::iter::{FusedIterator, Iterator};
-use std::marker::PhantomData;
-use std::slice;
-use std::{mem, str::CharIndices};
-use crate::words::Words;
+use crate::{
+    full_rusttype::{Scale, ScaledGlyph},
+    linebreak::{LineBreak, LineBreaker},
+    words::Words,
+};
+use std::{
+    iter::{FusedIterator, Iterator},
+    marker::PhantomData,
+    mem, slice,
+    str::CharIndices,
+};
 
 /// Single character info
 pub(crate) struct Character<'font> {
@@ -143,7 +147,8 @@ impl<'a, 'b, 'font, L, F> FusedIterator for Characters<'a, 'b, 'font, L, F>
 where
     L: LineBreaker,
     F: FontMap<'font>,
-{}
+{
+}
 
 #[inline]
 fn valid_section(s: &SectionText) -> bool {

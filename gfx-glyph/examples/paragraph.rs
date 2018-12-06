@@ -17,11 +17,12 @@ extern crate spin_sleep;
 
 use cgmath::{Matrix4, Rad, Transform};
 use gfx::{format, Device};
-use std::env;
-use std::error::Error;
-use std::f32::consts::PI as PI32;
-use std::io;
-use std::io::Write;
+use std::{
+    env,
+    error::Error,
+    f32::consts::PI as PI32,
+    io::{self, Write},
+};
 
 const MAX_FONT_SIZE: f32 = 2000.0;
 
@@ -62,7 +63,8 @@ fn main() -> Result<(), Box<Error>> {
             window_builder,
             context,
             &events_loop,
-        ).unwrap();
+        )
+        .unwrap();
 
     let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
     let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(dejavu)
@@ -113,9 +115,11 @@ fn main() -> Result<(), Box<Error>> {
                             },
                         ..
                     } => ctrl = false,
-                    WindowEvent::ReceivedCharacter(c) => if c != '\u{7f}' && c != '\u{8}' {
-                        text.push(c);
-                    },
+                    WindowEvent::ReceivedCharacter(c) => {
+                        if c != '\u{7f}' && c != '\u{8}' {
+                            text.push(c);
+                        }
+                    }
                     WindowEvent::Resized(size) => {
                         window.resize(size.to_physical(window.get_hidpi_factor()));
                         gfx_window_glutin::update_views(&window, &mut main_color, &mut main_depth);

@@ -1,8 +1,5 @@
-use super::owned_section::*;
-use super::*;
-use std::borrow::Cow;
-use std::f32;
-use std::hash::*;
+use super::{owned_section::*, *};
+use std::{borrow::Cow, f32, hash::*};
 
 /// An object that contains all the info to render a varied section of text. That is one including
 /// many parts with differing fonts/scales/colors bowing to a single layout.

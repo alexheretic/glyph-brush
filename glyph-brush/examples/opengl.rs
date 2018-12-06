@@ -16,7 +16,12 @@ extern crate spin_sleep;
 use gl::types::*;
 use glutin::{Api, GlContext, GlProfile, GlRequest};
 use glyph_brush::{rusttype::*, *};
-use std::{env, ffi::CString, io, io::Write, mem, ptr, str};
+use std::{
+    env,
+    ffi::CString,
+    io::{self, Write},
+    mem, ptr, str,
+};
 
 type Res<T> = Result<T, Box<std::error::Error>>;
 /// `[left_top * 3, right_bottom * 2, tex_left_top * 2, tex_right_bottom * 2, color * 4]`

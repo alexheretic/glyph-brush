@@ -72,10 +72,7 @@ mod lines;
 mod section;
 mod words;
 
-pub use self::builtin::*;
-pub use self::font::*;
-pub use self::linebreak::*;
-pub use self::section::*;
+pub use self::{builtin::*, font::*, linebreak::*, section::*};
 
 /// Re-exported rusttype types.
 pub mod rusttype {

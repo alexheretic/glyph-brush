@@ -409,33 +409,37 @@ fn continually_modify_color_of_1_of_3(b: &mut ::test::Bencher) {
     let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
     let text = include_str!("lipsum.txt");
 
-    let variants: Vec<_> = vec![[0.1, 0.2, 0.7, 1.0], [1.3, 0.5, 0.0, 1.0], [0.0, 0.0, 0.0, 1.0]]
-        .into_iter()
-        .map(|color| {
-            vec![
-                Section {
-                    text,
-                    color,
-                    bounds: (600.0, f32::INFINITY),
-                    ..Section::default()
-                },
-                Section {
-                    text,
-                    screen_position: (600.0, 0.0),
-                    bounds: (600.0, f32::INFINITY),
-                    layout: Layout::default().h_align(HorizontalAlign::Center),
-                    ..Section::default()
-                },
-                Section {
-                    text,
-                    screen_position: (1200.0, 0.0),
-                    bounds: (600.0, f32::INFINITY),
-                    layout: Layout::default().h_align(HorizontalAlign::Right),
-                    ..Section::default()
-                },
-            ]
-        })
-        .collect();
+    let variants: Vec<_> = vec![
+        [0.1, 0.2, 0.7, 1.0],
+        [1.3, 0.5, 0.0, 1.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ]
+    .into_iter()
+    .map(|color| {
+        vec![
+            Section {
+                text,
+                color,
+                bounds: (600.0, f32::INFINITY),
+                ..Section::default()
+            },
+            Section {
+                text,
+                screen_position: (600.0, 0.0),
+                bounds: (600.0, f32::INFINITY),
+                layout: Layout::default().h_align(HorizontalAlign::Center),
+                ..Section::default()
+            },
+            Section {
+                text,
+                screen_position: (1200.0, 0.0),
+                bounds: (600.0, f32::INFINITY),
+                layout: Layout::default().h_align(HorizontalAlign::Right),
+                ..Section::default()
+            },
+        ]
+    })
+    .collect();
 
     bench_variants(b, &variants, brush);
 }
@@ -552,8 +556,7 @@ fn headless_gl_init() -> (
     gfx::handle::RenderTargetView<gfx_device_gl::Resources, gfx::format::Srgba8>,
     gfx::handle::DepthStencilView<gfx_device_gl::Resources, gfx::format::Depth>,
 ) {
-    use gfx::format;
-    use gfx::format::Formatted;
+    use gfx::format::{self, Formatted};
     use gfx_core::memory::Typed;
     use glutin::GlContext;
 
@@ -587,8 +590,9 @@ fn headless_gl_init() -> (
 }
 
 mod gfx_noop {
-    use gfx_core::{command, pso, shade, state, target, texture};
-    use gfx_core::{IndexType, Resources, VertexCount};
+    use gfx_core::{
+        command, pso, shade, state, target, texture, IndexType, Resources, VertexCount,
+    };
 
     pub struct NoopCommandBuffer;
     impl<R: Resources> command::Buffer<R> for NoopCommandBuffer {

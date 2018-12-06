@@ -5,10 +5,13 @@ pub use self::builder::*;
 use super::*;
 use crate::full_rusttype::gpu_cache::Cache;
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::borrow::Cow;
-use std::collections::{hash_map::Entry, HashMap, HashSet};
-use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
-use std::{fmt, i32};
+use std::{
+    borrow::Cow,
+    collections::{hash_map::Entry, HashMap, HashSet},
+    fmt,
+    hash::{BuildHasher, BuildHasherDefault, Hash, Hasher},
+    i32,
+};
 
 /// A hash of `Section` data
 type SectionHash = u64;
