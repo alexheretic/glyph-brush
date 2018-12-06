@@ -1,9 +1,9 @@
 use super::{Color, FontId, FontMap, HorizontalAlign, VerticalAlign};
 use crate::{
-    full_rusttype::{point, vector, PositionedGlyph, VMetrics},
     linebreak::LineBreaker,
     words::{RelativePositionedGlyph, Words, ZERO_V_METRICS},
 };
+use full_rusttype::{point, vector, PositionedGlyph, VMetrics};
 use std::iter::{FusedIterator, Iterator, Peekable};
 
 /// A line of `Word`s limited to a max width bound.
@@ -83,15 +83,13 @@ pub(crate) struct Lines<'a, 'b, 'font, L, F>
 where
     'font: 'a + 'b,
     L: LineBreaker,
-    F: FontMap<'font> + 'b,
+    F: FontMap<'font>,
 {
     pub(crate) words: Peekable<Words<'a, 'b, 'font, L, F>>,
     pub(crate) width_bound: f32,
 }
 
-impl<'a, 'b, 'font, L: LineBreaker, F: FontMap<'font> + 'b> Iterator
-    for Lines<'a, 'b, 'font, L, F>
-{
+impl<'font, L: LineBreaker, F: FontMap<'font>> Iterator for Lines<'_, '_, 'font, L, F> {
     type Item = Line<'font>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -103,15 +101,10 @@ impl<'a, 'b, 'font, L: LineBreaker, F: FontMap<'font> + 'b> Iterator
 
         let mut progressed = false;
 
-        // TODO use while-peek-next when nll lands
-        loop {
-            if let Some(word) = self.words.peek() {
-                let word_max_x = word.bounds.map(|b| b.max.x).unwrap_or(word.layout_width);
-                // only if `progressed` means the first word is allowed to overlap the bounds
-                if progressed && (caret.x + word_max_x).ceil() > self.width_bound {
-                    break;
-                }
-            } else {
+        while let Some(word) = self.words.peek() {
+            let word_max_x = word.bounds.map(|b| b.max.x).unwrap_or(word.layout_width);
+            // only if `progressed` means the first word is allowed to overlap the bounds
+            if progressed && (caret.x + word_max_x).ceil() > self.width_bound {
                 break;
             }
 
@@ -149,7 +142,4 @@ impl<'a, 'b, 'font, L: LineBreaker, F: FontMap<'font> + 'b> Iterator
     }
 }
 
-impl<'a, 'b, 'font, L: LineBreaker, F: FontMap<'font>> FusedIterator
-    for Lines<'a, 'b, 'font, L, F>
-{
-}
+impl<'font, L: LineBreaker, F: FontMap<'font>> FusedIterator for Lines<'_, '_, 'font, L, F> {}

@@ -1,4 +1,4 @@
-use crate::full_rusttype::Font;
+use full_rusttype::Font;
 use std::ops;
 
 /// Id for a font

@@ -2,7 +2,7 @@ use super::{
     BuiltInLineBreaker, Color, FontId, FontMap, GlyphPositioner, LineBreaker, PositionedGlyph,
     Rect, SectionGeometry, SectionText,
 };
-use crate::{characters::Characters, full_rusttype::point};
+use crate::{characters::Characters, rusttype::point};
 use std::mem;
 
 /// Built-in [`GlyphPositioner`](trait.GlyphPositioner.html) implementations.
@@ -139,7 +139,7 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
         &self,
         font_map: &F,
         geometry: &SectionGeometry,
-        sections: &[SectionText],
+        sections: &[SectionText<'_>],
     ) -> Vec<(PositionedGlyph<'font>, Color, FontId)> {
         use crate::Layout::{SingleLine, Wrap};
 
@@ -170,7 +170,7 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                 let mut caret = screen_position;
                 let v_align_top = v_align == VerticalAlign::Top;
 
-                let mut lines = Characters::new(font_map, sections.iter(), line_breaker)
+                let lines = Characters::new(font_map, sections.iter(), line_breaker)
                     .words()
                     .lines(bound_w);
 

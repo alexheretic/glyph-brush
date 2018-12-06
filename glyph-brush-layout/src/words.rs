@@ -1,10 +1,10 @@
 use super::{Color, FontId, FontMap};
 use crate::{
     characters::{Character, Characters},
-    full_rusttype::{point, Point, PositionedGlyph, Rect, ScaledGlyph, VMetrics},
     linebreak::{LineBreak, LineBreaker},
     lines::Lines,
 };
+use full_rusttype::{point, Point, PositionedGlyph, Rect, ScaledGlyph, VMetrics};
 use std::iter::{FusedIterator, Iterator};
 
 pub(crate) const ZERO_V_METRICS: VMetrics = VMetrics {
@@ -56,14 +56,13 @@ impl<'font> RelativePositionedGlyph<'font> {
 pub(crate) struct Words<'a, 'b, 'font: 'a + 'b, L, F>
 where
     L: LineBreaker,
-    F: FontMap<'font> + 'b,
+    F: FontMap<'font>,
 {
     pub(crate) characters: Characters<'a, 'b, 'font, L, F>,
 }
 
 impl<'a, 'b, 'font, L, F> Words<'a, 'b, 'font, L, F>
 where
-    'font: 'a + 'b,
     L: LineBreaker,
     F: FontMap<'font>,
 {
@@ -75,10 +74,10 @@ where
     }
 }
 
-impl<'a, 'b, 'font, L, F> Iterator for Words<'a, 'b, 'font, L, F>
+impl<'font, L, F> Iterator for Words<'_, '_, 'font, L, F>
 where
     L: LineBreaker,
-    F: FontMap<'font> + 'b,
+    F: FontMap<'font>,
 {
     type Item = Word<'font>;
 
@@ -161,7 +160,4 @@ where
     }
 }
 
-impl<'a, 'b, 'font, L: LineBreaker, F: FontMap<'font>> FusedIterator
-    for Words<'a, 'b, 'font, L, F>
-{
-}
+impl<'font, L: LineBreaker, F: FontMap<'font>> FusedIterator for Words<'_, '_, 'font, L, F> {}

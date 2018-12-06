@@ -1,7 +1,7 @@
 use super::{Color, EolLineBreak, FontId, FontMap, SectionText};
 use crate::{
-    full_rusttype::{Scale, ScaledGlyph},
     linebreak::{LineBreak, LineBreaker},
+    rusttype::{Scale, ScaledGlyph},
     words::Words,
 };
 use std::{
@@ -27,7 +27,7 @@ pub(crate) struct Characters<'a, 'b, 'font, L, F>
 where
     'font: 'a + 'b,
     L: LineBreaker,
-    F: FontMap<'font> + 'b,
+    F: FontMap<'font>,
 {
     font_map: &'b F,
     section_text: slice::Iter<'a, SectionText<'a>>,
@@ -39,7 +39,7 @@ where
 struct PartInfo<'a> {
     section: &'a SectionText<'a>,
     info_chars: CharIndices<'a>,
-    line_breaks: Box<Iterator<Item = LineBreak> + 'a>,
+    line_breaks: Box<dyn Iterator<Item = LineBreak> + 'a>,
     next_break: Option<LineBreak>,
 }
 
@@ -69,7 +69,7 @@ where
     }
 }
 
-impl<'a, 'b, 'font, L, F> Iterator for Characters<'a, 'b, 'font, L, F>
+impl<'font, L, F> Iterator for Characters<'_, '_, 'font, L, F>
 where
     L: LineBreaker,
     F: FontMap<'font>,
@@ -143,7 +143,7 @@ where
     }
 }
 
-impl<'a, 'b, 'font, L, F> FusedIterator for Characters<'a, 'b, 'font, L, F>
+impl<'font, L, F> FusedIterator for Characters<'_, '_, 'font, L, F>
 where
     L: LineBreaker,
     F: FontMap<'font>,
@@ -151,7 +151,7 @@ where
 }
 
 #[inline]
-fn valid_section(s: &SectionText) -> bool {
+fn valid_section(s: &SectionText<'_>) -> bool {
     let Scale { x, y } = s.scale;
     x > 0.0 && y > 0.0
 }

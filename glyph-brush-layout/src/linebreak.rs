@@ -29,7 +29,7 @@ impl LineBreak {
 /// Producer of a [`LineBreak`](enum.LineBreak.html) iterator. Used to allow to the
 /// [`Layout`](enum.Layout.html) to be line break aware in a generic way.
 pub trait LineBreaker: fmt::Debug + Copy + Hash {
-    fn line_breaks<'a>(&self, glyph_info: &'a str) -> Box<Iterator<Item = LineBreak> + 'a>;
+    fn line_breaks<'a>(&self, glyph_info: &'a str) -> Box<dyn Iterator<Item = LineBreak> + 'a>;
 }
 
 /// Built-in linebreaking logic.
@@ -57,7 +57,7 @@ struct AnyCharLineBreakerIter<'a> {
     current_break: Option<(usize, bool)>,
 }
 
-impl<'a> Iterator for AnyCharLineBreakerIter<'a> {
+impl Iterator for AnyCharLineBreakerIter<'_> {
     type Item = LineBreak;
 
     #[inline]
@@ -79,11 +79,11 @@ impl<'a> Iterator for AnyCharLineBreakerIter<'a> {
     }
 }
 
-impl<'a> FusedIterator for AnyCharLineBreakerIter<'a> {}
+impl FusedIterator for AnyCharLineBreakerIter<'_> {}
 
 impl LineBreaker for BuiltInLineBreaker {
     #[inline]
-    fn line_breaks<'a>(&self, text: &'a str) -> Box<Iterator<Item = LineBreak> + 'a> {
+    fn line_breaks<'a>(&self, text: &'a str) -> Box<dyn Iterator<Item = LineBreak> + 'a> {
         match *self {
             BuiltInLineBreaker::UnicodeLineBreaker => Box::new(
                 xi_unicode::LineBreakIterator::new(text).map(|(offset, hard)| {

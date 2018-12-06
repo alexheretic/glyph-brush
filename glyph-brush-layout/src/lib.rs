@@ -52,17 +52,13 @@
 //! # }
 //! ```
 
-extern crate rusttype as full_rusttype;
-extern crate xi_unicode;
-
 #[cfg(test)]
 #[macro_use]
 extern crate approx;
 #[cfg(test)]
 #[macro_use]
 extern crate lazy_static;
-#[cfg(test)]
-extern crate ordered_float;
+
 
 mod builtin;
 mod characters;
@@ -76,7 +72,7 @@ pub use self::{builtin::*, font::*, linebreak::*, section::*};
 
 /// Re-exported rusttype types.
 pub mod rusttype {
-    pub use crate::full_rusttype::{
+    pub use full_rusttype::{
         point, Error, Font, Glyph, GlyphId, HMetrics, Point, PositionedGlyph, Rect, Scale,
         ScaledGlyph, SharedBytes, VMetrics,
     };
@@ -95,7 +91,7 @@ pub trait GlyphPositioner: Hash {
         &self,
         _: &F,
         geometry: &SectionGeometry,
-        sections: &[SectionText],
+        sections: &[SectionText<'_>],
     ) -> Vec<(PositionedGlyph<'font>, Color, FontId)>;
 
     /// Return a screen rectangle according to the requested render position and bounds
