@@ -1,5 +1,5 @@
 use super::*;
-use crate::full_rusttype::point;
+use full_rusttype::point;
 use rustc_hash::*;
 use std::{
     borrow::Cow,
@@ -125,8 +125,8 @@ pub struct GlyphCalculator<'font, H = DefaultSectionHasher> {
     section_hasher: H,
 }
 
-impl<'font, H> fmt::Debug for GlyphCalculator<'font, H> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl<H> fmt::Debug for GlyphCalculator<'_, H> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "GlyphCalculator")
     }
 }
@@ -144,7 +144,7 @@ impl<'font, H: BuildHasher + Clone> GlyphCalculator<'font, H> {
     /// Returns the available fonts.
     ///
     /// The `FontId` corresponds to the index of the font data.
-    pub fn fonts(&self) -> &[Font<'font>] {
+    pub fn fonts(&self) -> &[Font<'_>] {
         &self.fonts
     }
 }
@@ -157,9 +157,9 @@ pub struct GlyphCalculatorGuard<'brush, 'font: 'brush, H = DefaultSectionHasher>
     section_hasher: H,
 }
 
-impl<'brush, 'font, H: BuildHasher> GlyphCalculatorGuard<'brush, 'font, H> {
+impl<H: BuildHasher> GlyphCalculatorGuard<'_, '_, H> {
     /// Returns the calculate_glyph_cache key for this sections glyphs
-    fn cache_glyphs<L>(&mut self, section: &VariedSection, layout: &L) -> u64
+    fn cache_glyphs<L>(&mut self, section: &VariedSection<'_>, layout: &L) -> u64
     where
         L: GlyphPositioner,
     {
@@ -185,20 +185,18 @@ impl<'brush, 'font, H: BuildHasher> GlyphCalculatorGuard<'brush, 'font, H> {
     /// Returns the available fonts.
     ///
     /// The `FontId` corresponds to the index of the font data.
-    pub fn fonts(&self) -> &[Font<'font>] {
+    pub fn fonts(&self) -> &[Font<'_>] {
         self.fonts
     }
 }
 
-impl<'brush, 'font> fmt::Debug for GlyphCalculatorGuard<'brush, 'font> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl fmt::Debug for GlyphCalculatorGuard<'_, '_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "GlyphCalculatorGuard")
     }
 }
 
-impl<'brush, 'font, H: BuildHasher> GlyphCruncher<'font>
-    for GlyphCalculatorGuard<'brush, 'font, H>
-{
+impl<'font, H: BuildHasher> GlyphCruncher<'font> for GlyphCalculatorGuard<'_, 'font, H> {
     fn pixel_bounds_custom_layout<'a, S, L>(
         &mut self,
         section: S,
@@ -228,7 +226,7 @@ impl<'brush, 'font, H: BuildHasher> GlyphCruncher<'font>
     }
 }
 
-impl<'a, 'b, H> Drop for GlyphCalculatorGuard<'a, 'b, H> {
+impl<H> Drop for GlyphCalculatorGuard<'_, '_, H> {
     fn drop(&mut self) {
         let cached = mem::replace(&mut self.cached, HashSet::default());
         self.glyph_cache.retain(|key, _| cached.contains(key));

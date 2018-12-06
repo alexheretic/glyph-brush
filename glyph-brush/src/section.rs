@@ -67,7 +67,7 @@ impl<'a, 'b> From<&'b VariedSection<'a>> for Cow<'b, VariedSection<'a>> {
     }
 }
 
-impl<'a> Hash for VariedSection<'a> {
+impl Hash for VariedSection<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         use ordered_float::OrderedFloat;
 
@@ -113,7 +113,7 @@ impl<'a> Hash for VariedSection<'a> {
     }
 }
 
-impl<'a> VariedSection<'a> {
+impl VariedSection<'_> {
     pub fn to_owned(&self) -> OwnedVariedSection {
         OwnedVariedSection {
             screen_position: self.screen_position,
@@ -125,8 +125,8 @@ impl<'a> VariedSection<'a> {
     }
 }
 
-impl<'a, 'b> From<&'a VariedSection<'b>> for SectionGeometry {
-    fn from(section: &'a VariedSection<'b>) -> Self {
+impl From<&VariedSection<'_>> for SectionGeometry {
+    fn from(section: &VariedSection<'_>) -> Self {
         Self {
             bounds: section.bounds,
             screen_position: section.screen_position,
@@ -189,8 +189,8 @@ impl Default for Section<'static> {
     }
 }
 
-impl<'a, 'b> From<&'b Section<'a>> for VariedSection<'a> {
-    fn from(s: &'b Section<'a>) -> Self {
+impl<'a> From<&Section<'a>> for VariedSection<'a> {
+    fn from(s: &Section<'a>) -> Self {
         let Section {
             text,
             scale,
@@ -229,8 +229,8 @@ impl<'a> From<Section<'a>> for Cow<'a, VariedSection<'a>> {
     }
 }
 
-impl<'a, 'b> From<&'b Section<'a>> for Cow<'a, VariedSection<'a>> {
-    fn from(section: &'b Section<'a>) -> Self {
+impl<'a> From<&Section<'a>> for Cow<'a, VariedSection<'a>> {
+    fn from(section: &Section<'a>) -> Self {
         Cow::Owned(VariedSection::from(section))
     }
 }

@@ -38,11 +38,6 @@
 
 #[macro_use]
 extern crate log;
-extern crate glyph_brush_layout;
-extern crate ordered_float;
-extern crate rustc_hash;
-extern crate rusttype as full_rusttype;
-extern crate seahash;
 
 #[cfg(test)]
 #[macro_use]

@@ -7,12 +7,6 @@
 //! * Type to modify text.
 //! * Resize window.
 
-extern crate env_logger;
-extern crate gl;
-extern crate glutin;
-extern crate glyph_brush;
-extern crate spin_sleep;
-
 use gl::types::*;
 use glutin::{Api, GlContext, GlProfile, GlRequest};
 use glyph_brush::{rusttype::*, *};

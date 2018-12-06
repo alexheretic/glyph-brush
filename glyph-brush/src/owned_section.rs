@@ -29,7 +29,7 @@ impl Default for OwnedVariedSection {
 }
 
 impl OwnedVariedSection {
-    pub fn to_borrowed(&self) -> VariedSection {
+    pub fn to_borrowed(&self) -> VariedSection<'_> {
         VariedSection {
             screen_position: self.screen_position,
             bounds: self.bounds,
@@ -90,8 +90,8 @@ impl<'a> From<&'a OwnedSectionText> for SectionText<'a> {
     }
 }
 
-impl<'a, 'b> From<&'a SectionText<'b>> for OwnedSectionText {
-    fn from(st: &'a SectionText<'b>) -> Self {
+impl From<&SectionText<'_>> for OwnedSectionText {
+    fn from(st: &SectionText<'_>) -> Self {
         Self {
             text: st.text.into(),
             scale: st.scale,

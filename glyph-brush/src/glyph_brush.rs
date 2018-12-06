@@ -3,7 +3,7 @@ mod builder;
 pub use self::builder::*;
 
 use super::*;
-use crate::full_rusttype::gpu_cache::Cache;
+use full_rusttype::gpu_cache::Cache;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{
     borrow::Cow,
@@ -59,8 +59,8 @@ pub struct GlyphBrush<'font, H = DefaultSectionHasher> {
     section_hasher: H,
 }
 
-impl<'font, H> fmt::Debug for GlyphBrush<'font, H> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl<H> fmt::Debug for GlyphBrush<'_, H> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "GlyphBrush")
     }
 }
@@ -141,7 +141,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     }
 
     /// Returns the calculate_glyph_cache key for this sections glyphs
-    fn cache_glyphs<L>(&mut self, section: &VariedSection, layout: &L) -> SectionHash
+    fn cache_glyphs<L>(&mut self, section: &VariedSection<'_>, layout: &L) -> SectionHash
     where
         L: GlyphPositioner,
     {
@@ -180,7 +180,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     /// # extern crate glyph_brush;
     /// # use glyph_brush::*;
     /// # fn main() -> Result<(), BrushError> {
-    /// # let dejavu: &[u8] = include_bytes!("../../../fonts/DejaVuSans.ttf");
+    /// # let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
     /// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
     /// # let update_texture = |_, _| {};
     /// # let into_vertex = |_| ();
@@ -295,7 +295,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     ///
     /// ```no_run
     /// # use glyph_brush::GlyphBrushBuilder;
-    /// # let dejavu: &[u8] = include_bytes!("../../../fonts/DejaVuSans.ttf");
+    /// # let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
     /// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
     /// glyph_brush.resize_texture(512, 512);
     /// ```
@@ -349,11 +349,11 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     /// # fn main() {
     ///
     /// // dejavu is built as default `FontId(0)`
-    /// let dejavu: &[u8] = include_bytes!("../../../fonts/DejaVuSans.ttf");
+    /// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
     /// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
     ///
     /// // some time later, add another font referenced by a new `FontId`
-    /// let open_sans_italic: &[u8] = include_bytes!("../../../fonts/OpenSans-Italic.ttf");
+    /// let open_sans_italic: &[u8] = include_bytes!("../../fonts/OpenSans-Italic.ttf");
     /// let open_sans_italic_id = glyph_brush.add_font_bytes(open_sans_italic);
     /// # }
     /// ```
@@ -410,7 +410,7 @@ pub enum BrushError {
     TextureTooSmall { suggested: (u32, u32) },
 }
 impl fmt::Display for BrushError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", std::error::Error::description(self))
     }
 }
