@@ -4,11 +4,10 @@ pub use self::builder::*;
 
 use super::*;
 use full_rusttype::gpu_cache::Cache;
+use hashbrown::hash_map::Entry;
 use log::error;
-use rustc_hash::{FxHashMap, FxHashSet};
 use std::{
     borrow::Cow,
-    collections::{hash_map::Entry, HashMap, HashSet},
     fmt,
     hash::{BuildHasher, BuildHasherDefault, Hash, Hasher},
     i32,
@@ -44,14 +43,14 @@ pub struct GlyphBrush<'font, H = DefaultSectionHasher> {
 
     // cache of section-layout hash -> computed glyphs, this avoid repeated glyph computation
     // for identical layout/sections common to repeated frame rendering
-    calculate_glyph_cache: FxHashMap<SectionHash, GlyphedSection<'font>>,
+    calculate_glyph_cache: hashbrown::HashMap<SectionHash, GlyphedSection<'font>>,
 
     // buffer of section-layout hashs (that must exist in the calculate_glyph_cache)
     // to be used on the next `process_queued` call
     section_buffer: Vec<SectionHash>,
 
     // Set of section hashs to keep in the glyph cache this frame even if they haven't been drawn
-    keep_in_cache: FxHashSet<SectionHash>,
+    keep_in_cache: hashbrown::HashSet<SectionHash>,
 
     // config
     cache_glyph_positioning: bool,
@@ -324,7 +323,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     fn clear_section_buffer(&mut self) {
         if self.cache_glyph_positioning {
             // clear section_buffer & trim calculate_glyph_cache to active sections
-            let active: FxHashSet<_> = self
+            let active: hashbrown::HashSet<_> = self
                 .section_buffer
                 .drain(..)
                 .chain(self.keep_in_cache.drain())

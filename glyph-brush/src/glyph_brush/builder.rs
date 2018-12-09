@@ -1,4 +1,9 @@
-use super::*;
+use super::LastDrawInfo;
+use crate::{
+    DefaultSectionHasher, Font, FontId, GlyphBrush, SharedBytes,
+};
+use full_rusttype::gpu_cache::Cache;
+use std::hash::BuildHasher;
 
 /// Builder for a [`GlyphBrush`](struct.GlyphBrush.html).
 ///
@@ -186,8 +191,8 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
 
             last_draw: LastDrawInfo::default(),
             section_buffer: Vec::new(),
-            calculate_glyph_cache: HashMap::default(),
-            keep_in_cache: HashSet::default(),
+            calculate_glyph_cache: hashbrown::HashMap::default(),
+            keep_in_cache: hashbrown::HashSet::default(),
 
             cache_glyph_positioning: self.cache_glyph_positioning,
             cache_glyph_drawing: self.cache_glyph_drawing && self.cache_glyph_positioning,
