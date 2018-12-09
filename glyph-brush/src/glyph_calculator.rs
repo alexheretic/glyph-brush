@@ -1,9 +1,8 @@
 use super::*;
 use full_rusttype::point;
-use rustc_hash::*;
+use hashbrown::hash_map::Entry;
 use std::{
     borrow::Cow,
-    collections::{hash_map::Entry, HashSet},
     fmt,
     hash::{BuildHasher, Hash, Hasher},
     i32, mem, slice,
@@ -120,7 +119,7 @@ pub struct GlyphCalculator<'font, H = DefaultSectionHasher> {
 
     // cache of section-layout hash -> computed glyphs, this avoid repeated glyph computation
     // for identical layout/sections common to repeated frame rendering
-    calculate_glyph_cache: Mutex<FxHashMap<u64, GlyphedSection<'font>>>,
+    calculate_glyph_cache: Mutex<hashbrown::HashMap<u64, GlyphedSection<'font>>>,
 
     section_hasher: H,
 }
@@ -136,7 +135,7 @@ impl<'font, H: BuildHasher + Clone> GlyphCalculator<'font, H> {
         GlyphCalculatorGuard {
             fonts: &self.fonts,
             glyph_cache: self.calculate_glyph_cache.lock().unwrap(),
-            cached: FxHashSet::default(),
+            cached: hashbrown::HashSet::default(),
             section_hasher: self.section_hasher.clone(),
         }
     }
@@ -152,8 +151,8 @@ impl<'font, H: BuildHasher + Clone> GlyphCalculator<'font, H> {
 /// [`GlyphCalculator`](struct.GlyphCalculator.html) scoped cache lock.
 pub struct GlyphCalculatorGuard<'brush, 'font: 'brush, H = DefaultSectionHasher> {
     fonts: &'brush Vec<Font<'font>>,
-    glyph_cache: MutexGuard<'brush, FxHashMap<u64, GlyphedSection<'font>>>,
-    cached: FxHashSet<u64>,
+    glyph_cache: MutexGuard<'brush, hashbrown::HashMap<u64, GlyphedSection<'font>>>,
+    cached: hashbrown::HashSet<u64>,
     section_hasher: H,
 }
 
@@ -228,7 +227,7 @@ impl<'font, H: BuildHasher> GlyphCruncher<'font> for GlyphCalculatorGuard<'_, 'f
 
 impl<H> Drop for GlyphCalculatorGuard<'_, '_, H> {
     fn drop(&mut self) {
-        let cached = mem::replace(&mut self.cached, HashSet::default());
+        let cached = mem::replace(&mut self.cached, hashbrown::HashSet::default());
         self.glyph_cache.retain(|key, _| cached.contains(key));
     }
 }
