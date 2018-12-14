@@ -12,8 +12,8 @@ Text layout for [rusttype](https://gitlab.redox-os.org/redox-os/rusttype).
 
 
 ## Examples
-`cargo run -p gfx_glyph --example paragraph --release`
+`cargo run -p glyph_brush --example opengl --release`
 
-![](https://image.ibb.co/hXoCxz/screen.png)
+![](https://i.ibb.co/RTRj6B4/glyph-brush-opengl.png)
 
 Also look at the individual crate readmes.

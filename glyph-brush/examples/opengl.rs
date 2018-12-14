@@ -57,7 +57,7 @@ fn main() -> Res<()> {
     )?;
     unsafe { window.make_current()? };
 
-    let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
+    let dejavu: &[u8] = include_bytes!("../../fonts/OpenSans-Light.ttf");
     let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
 
     // Load the OpenGL function pointers

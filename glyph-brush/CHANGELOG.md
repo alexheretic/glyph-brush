@@ -1,4 +1,5 @@
 # master
+* Use hashbrown map & sets improves some benchmarks by 1-4%.
 
 # 0.2.2
 * Add `GlyphCalculator::fonts` & `GlyphCalculatorGuard::fonts` methods.
