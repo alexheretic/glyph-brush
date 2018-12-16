@@ -1,5 +1,4 @@
 use full_rusttype::Font;
-use std::ops;
 
 /// Id for a font
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
@@ -12,10 +11,10 @@ pub trait FontMap<'font> {
 
 impl<'font, T> FontMap<'font> for T
 where
-    T: ops::Index<usize, Output = Font<'font>>,
+    T: AsRef<[Font<'font>]>,
 {
     #[inline]
     fn font(&self, i: FontId) -> &Font<'font> {
-        self.index(i.0)
+        &self.as_ref()[i.0]
     }
 }
