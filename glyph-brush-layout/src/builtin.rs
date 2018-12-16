@@ -335,7 +335,7 @@ mod layout_test {
         rusttype::{Font, Scale},
         BuiltInLineBreaker::*,
     };
-    use approx::{__assert_approx, assert_relative_eq, relative_eq};
+    use approx::assert_relative_eq;
     use lazy_static::lazy_static;
     use ordered_float::OrderedFloat;
     use std::{collections::*, f32};

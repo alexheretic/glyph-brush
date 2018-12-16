@@ -14,6 +14,6 @@ full_rusttype = { version = "0.7", features = ["gpu_cache"], package = "rusttype
 xi-unicode = "0.1"
 
 [dev-dependencies]
-approx = "0.3"
+approx = "0.3.1"
 lazy_static = "1"
 ordered-float = "1"
