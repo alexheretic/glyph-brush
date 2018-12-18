@@ -368,6 +368,39 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
         self.fonts.push(font_data);
         FontId(self.fonts.len() - 1)
     }
+
+    /// Retains the section in the cache as if it had been used in the last draw-frame.
+    ///
+    /// Should not generally be necessary, see [caching behaviour](#caching-behaviour).
+    pub fn keep_cached_custom_layout<'a, S, G>(&mut self, section: S, custom_layout: &G)
+    where
+        S: Into<Cow<'a, VariedSection<'a>>>,
+        G: GlyphPositioner,
+    {
+        if !self.cache_glyph_positioning {
+            return;
+        }
+        let section = section.into();
+        if cfg!(debug_assertions) {
+            for text in &section.text {
+                assert!(self.fonts.len() > text.font_id.0, "Invalid font id");
+            }
+        }
+        self.keep_in_cache
+            .insert(self.hash(&(section, custom_layout)));
+    }
+
+    /// Retains the section in the cache as if it had been used in the last draw-frame.
+    ///
+    /// Should not generally be necessary, see [caching behaviour](#caching-behaviour).
+    pub fn keep_cached<'a, S>(&mut self, section: S)
+    where
+        S: Into<Cow<'a, VariedSection<'a>>>,
+    {
+        let section = section.into();
+        let layout = section.layout;
+        self.keep_cached_custom_layout(section, &layout);
+    }
 }
 
 #[derive(Debug, Default)]
