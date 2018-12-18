@@ -225,6 +225,31 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
         self.glyph_brush.queue(section)
     }
 
+    /// Retains the section in the cache as if it had been used in the last draw-frame.
+    ///
+    /// Should not be necessary unless using multiple draws per frame with distinct transforms,
+    /// see [caching behaviour](#caching-behaviour).
+    #[inline]
+    pub fn keep_cached_custom_layout<'a, S, G>(&mut self, section: S, custom_layout: &G)
+    where
+        S: Into<Cow<'a, VariedSection<'a>>>,
+        G: GlyphPositioner,
+    {
+        self.glyph_brush.keep_cached_custom_layout(section, custom_layout)
+    }
+
+    /// Retains the section in the cache as if it had been used in the last draw-frame.
+    ///
+    /// Should not be necessary unless using multiple draws per frame with distinct transforms,
+    /// see [caching behaviour](#caching-behaviour).
+    #[inline]
+    pub fn keep_cached<'a, S>(&mut self, section: S)
+    where
+        S: Into<Cow<'a, VariedSection<'a>>>,
+    {
+        self.glyph_brush.keep_cached(section)
+    }
+
     /// Draws all queued sections onto a render target, applying a position transform (e.g.
     /// a projection).
     /// See [`queue`](struct.GlyphBrush.html#method.queue).
