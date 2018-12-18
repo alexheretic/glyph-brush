@@ -1,4 +1,5 @@
 # master
+* Add `GlyphBrush::keep_cached`.
 
 # 0.2.3
 * Use hashbrown map & sets improves some benchmarks by 1-4%.

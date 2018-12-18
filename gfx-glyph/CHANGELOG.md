@@ -1,4 +1,5 @@
 # master
+* Add `GlyphBrush::keep_cached`.
 
 # 0.13
 * Split crate creating layout project _glyph-brush-layout_ and render API agnostic _glyph-brush_. _gfx-glyph_ becomes a gfx-rs wrapper of _glyph-brush_. See [glyph_brush changes](../glyph-brush/CHANGELOG.md) & [glyph_brush_layout changes](../glyph-brush-layout/CHANGELOG.md).
