@@ -1,5 +1,7 @@
 # master
-* Implement `FontMap` for `AsRef<[Font]>` instead of `Index<usize, Output = Font>` to support arrays and slices. If this breaks your usage try implementing `FontMap` directly.`
+
+# 0.1.3
+* Implement `FontMap` for `AsRef<[Font]>` instead of `Index<usize, Output = Font>` to support arrays and slices. If this breaks your usage try implementing `FontMap` directly.
 
 # 0.1.2
 * Fix single-line vertical alignment y-adjustment for center & bottom.
