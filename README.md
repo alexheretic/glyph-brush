@@ -17,3 +17,6 @@ Text layout for [rusttype](https://gitlab.redox-os.org/redox-os/rusttype).
 ![](https://i.ibb.co/RTRj6B4/glyph-brush-opengl.png)
 
 Also look at the individual crate readmes.
+
+## Minimum supported rust compiler
+All crates maintained with [latest stable rust](https://gist.github.com/alexheretic/d1e98d8433b602e57f5d0a9637927e0c).
