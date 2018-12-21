@@ -1,4 +1,6 @@
 # master
+
+# 0.13.1
 * Add `GlyphBrush::keep_cached`.
 
 # 0.13
