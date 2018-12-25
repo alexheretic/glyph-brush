@@ -245,6 +245,7 @@ impl<H> Drop for GlyphCalculatorGuard<'_, '_, H> {
 /// let mut glyphs = GlyphCalculatorBuilder::using_font_bytes(dejavu).build();
 /// # }
 /// ```
+#[derive(Debug, Clone)]
 pub struct GlyphCalculatorBuilder<'a, H = DefaultSectionHasher> {
     font_data: Vec<Font<'a>>,
     section_hasher: H,
@@ -331,7 +332,7 @@ impl<'a, H: BuildHasher> GlyphCalculatorBuilder<'a, H> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct GlyphedSection<'font> {
     pub bounds: Rect<f32>,
     pub glyphs: Vec<(PositionedGlyph<'font>, Color, FontId)>,

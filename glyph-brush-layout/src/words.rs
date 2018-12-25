@@ -16,6 +16,7 @@ pub(crate) const ZERO_V_METRICS: VMetrics = VMetrics {
 /// Single 'word' ie a sequence of `Character`s where the last is a line-break.
 ///
 /// Glyphs are relatively positioned from (0, 0) in a left-top alignment style.
+#[derive(Debug, Clone)]
 pub(crate) struct Word<'font> {
     pub glyphs: Vec<(RelativePositionedGlyph<'font>, Color, FontId)>,
     pub bounds: Option<Rect<f32>>,
@@ -27,6 +28,7 @@ pub(crate) struct Word<'font> {
 }
 
 /// A scaled glyph that's relatively positioned.
+#[derive(Clone, Debug)]
 pub(crate) struct RelativePositionedGlyph<'font> {
     pub relative: Point<f32>,
     pub glyph: ScaledGlyph<'font>,

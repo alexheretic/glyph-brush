@@ -12,6 +12,7 @@ use std::{
 };
 
 /// Single character info
+#[derive(Clone, Debug)]
 pub(crate) struct Character<'font> {
     pub glyph: ScaledGlyph<'font>,
     pub color: Color,

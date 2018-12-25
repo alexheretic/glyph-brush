@@ -403,7 +403,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 struct LastDrawInfo {
     text_state: u64,
 }
@@ -417,7 +417,7 @@ struct LastDrawInfo {
 // (screen_width, screen_height): (f32, f32),
 
 /// Data used to generate vertex information for a single glyph
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct GlyphVertex {
     pub tex_coords: Rect<f32>,
     pub pixel_coords: Rect<i32>,
@@ -428,6 +428,7 @@ pub struct GlyphVertex {
 }
 
 /// Actions that should be taken after processing queue data
+#[derive(Debug, Clone, PartialEq)]
 pub enum BrushAction<V> {
     /// Draw new/changed vertix data.
     Draw(Vec<V>),
@@ -435,7 +436,7 @@ pub enum BrushAction<V> {
     ReDraw,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum BrushError {
     /// Texture is too small to cache queued glyphs
     ///
