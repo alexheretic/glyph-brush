@@ -82,7 +82,6 @@ pub trait GlyphCruncher<'font> {
 /// # Example
 ///
 /// ```
-/// extern crate glyph_brush;
 /// use glyph_brush::{GlyphCalculatorBuilder, GlyphCruncher, Section};
 /// # fn main() {
 ///
@@ -237,7 +236,6 @@ impl<H> Drop for GlyphCalculatorGuard<'_, '_, H> {
 /// # Example
 ///
 /// ```no_run
-/// extern crate glyph_brush;
 /// use glyph_brush::GlyphCalculatorBuilder;
 /// # fn main() {
 ///

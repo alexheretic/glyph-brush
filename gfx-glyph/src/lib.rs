@@ -11,10 +11,6 @@
 //! # Example
 //!
 //! ```no_run
-//! # extern crate gfx;
-//! # extern crate gfx_window_glutin;
-//! # extern crate glutin;
-//! extern crate gfx_glyph;
 //! use gfx_glyph::{GlyphBrushBuilder, Section};
 //! # fn main() -> Result<(), String> {
 //! # let events_loop = glutin::EventsLoop::new();
@@ -96,10 +92,6 @@ const IDENTITY_MATRIX4: [[f32; 4]; 4] = [
 /// # Example
 ///
 /// ```no_run
-/// # extern crate gfx;
-/// # extern crate gfx_window_glutin;
-/// # extern crate glutin;
-/// extern crate gfx_glyph;
 /// # use gfx_glyph::{GlyphBrushBuilder};
 /// use gfx_glyph::Section;
 /// # fn main() -> Result<(), String> {
@@ -285,10 +277,6 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     /// be provided.
     ///
     /// ```no_run
-    /// # extern crate gfx;
-    /// # extern crate gfx_window_glutin;
-    /// # extern crate glutin;
-    /// # extern crate gfx_glyph;
     /// # use gfx_glyph::{GlyphBrushBuilder};
     /// # use gfx_glyph::Section;
     /// # use gfx::format;
@@ -491,10 +479,6 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     /// # Example
     ///
     /// ```no_run
-    /// # extern crate gfx;
-    /// # extern crate gfx_window_glutin;
-    /// # extern crate glutin;
-    /// extern crate gfx_glyph;
     /// use gfx_glyph::{GlyphBrushBuilder, Section};
     /// # fn main() {
     /// # let events_loop = glutin::EventsLoop::new();

@@ -14,7 +14,6 @@ sequential frames.
 * GPU cache logic to dynamically maintain a GPU texture of rendered glyphs.
 
 ```rust
-extern crate gfx_glyph;
 use gfx_glyph::{Section, GlyphBrushBuilder};
 
 let garamond: &[u8] = include_bytes!("GaramondNo8-Reg.ttf");

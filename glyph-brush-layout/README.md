@@ -13,7 +13,6 @@ Text layout for [rusttype](https://gitlab.redox-os.org/redox-os/rusttype).
   - Bounded layouts.
 
 ```rust
-extern crate glyph_brush_layout;
 use glyph_brush_layout::*;
 
 let dejavu = Font::from_bytes(&include_bytes!("DejaVuSans.ttf")[..])?;

@@ -6,10 +6,6 @@ use glyph_brush::delegate_glyph_brush_builder_fns;
 /// # Example
 ///
 /// ```no_run
-/// # extern crate gfx;
-/// # extern crate gfx_window_glutin;
-/// # extern crate glutin;
-/// extern crate gfx_glyph;
 /// use gfx_glyph::GlyphBrushBuilder;
 /// # fn main() {
 /// # let events_loop = glutin::EventsLoop::new();
@@ -79,8 +75,6 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     /// # Example
     ///
     /// ```no_run
-    /// # extern crate gfx;
-    /// # extern crate gfx_glyph;
     /// # use gfx_glyph::GlyphBrushBuilder;
     /// # fn main() {
     /// # let some_font: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
@@ -101,8 +95,6 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     ///
     /// # Example
     /// ```no_run
-    /// # extern crate gfx;
-    /// # extern crate gfx_glyph;
     /// # use gfx_glyph::GlyphBrushBuilder;
     /// # fn main() {
     /// # let some_font: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
@@ -126,8 +118,6 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     ///
     /// # Example
     /// ```no_run
-    /// # extern crate gfx;
-    /// # extern crate gfx_glyph;
     /// # use gfx_glyph::GlyphBrushBuilder;
     /// # fn main() {
     /// # let some_font: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");

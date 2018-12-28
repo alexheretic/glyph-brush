@@ -124,6 +124,16 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     /// times to queue multiple sections for drawing.
     ///
     /// Benefits from caching, see [caching behaviour](#caching-behaviour).
+    ///
+    /// ```no_run
+    /// # use glyph_brush::*;
+    /// # let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
+    /// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
+    /// glyph_brush.queue(Section {
+    ///     text: "Hello glyph_brush",
+    ///     ..Section::default()
+    /// });
+    /// ```
     pub fn queue<'a, S>(&mut self, section: S)
     where
         S: Into<Cow<'a, VariedSection<'a>>>,
@@ -174,10 +184,18 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     /// returning a `BrushAction`.
     /// See [`queue`](struct.GlyphBrush.html#method.queue).
     ///
+    /// Two closures are required:
+    /// * `update_texture` is called when new glyph texture data has been drawn for update in the
+    ///   actual texture.
+    ///   The arguments are the rect position of the data in the texture & the byte data itself
+    ///   which is a single `u8` alpha value per pixel.
+    /// * `to_vertex` maps a single glyph's `GlyphVertex` data into a generic vertex type. The
+    ///   mapped vertices are returned in an `Ok(BrushAction::Draw(vertices))` result.
+    ///   It's recommended to use a single vertex per glyph quad for best performance.
+    ///
     /// Trims the cache, see [caching behaviour](#caching-behaviour).
     ///
     /// ```no_run
-    /// # extern crate glyph_brush;
     /// # use glyph_brush::*;
     /// # fn main() -> Result<(), BrushError> {
     /// # let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
@@ -289,7 +307,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
         Ok(result)
     }
 
-    /// Rebuilds the texture cache with new dimensions. Should be avoided if possible.
+    /// Rebuilds the logical texture cache with new dimensions. Should be avoided if possible.
     ///
     /// # Example
     ///
@@ -308,7 +326,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
         self.last_draw = LastDrawInfo::default();
     }
 
-    /// Returns the texture cache pixel dimensions `(width, height)`.
+    /// Returns the logical texture cache pixel dimensions `(width, height)`.
     pub fn texture_dimensions(&self) -> (u32, u32) {
         self.texture_cache.dimensions()
     }
@@ -344,7 +362,6 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     /// # Example
     ///
     /// ```no_run
-    /// extern crate glyph_brush;
     /// use glyph_brush::{GlyphBrushBuilder, Section};
     /// # fn main() {
     ///

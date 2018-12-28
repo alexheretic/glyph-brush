@@ -153,8 +153,6 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     ///
     /// # Example
     /// ```no_run
-    /// # extern crate glyph_brush;
-    /// # extern crate seahash;
     /// # use glyph_brush::GlyphBrushBuilder;
     /// # fn main() {
     /// # let some_font: &[u8] = include_bytes!("../../../fonts/DejaVuSans.ttf");
@@ -215,9 +213,6 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
 ///
 /// # Example
 /// ```
-/// #[macro_use]
-/// extern crate glyph_brush;
-///
 /// use glyph_brush::*;
 /// use std::hash::BuildHasher;
 ///

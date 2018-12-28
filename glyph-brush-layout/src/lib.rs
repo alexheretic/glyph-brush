@@ -3,7 +3,6 @@
 //! # Example
 //!
 //! ```
-//! extern crate glyph_brush_layout;
 //! use glyph_brush_layout::{rusttype::*, *};
 //! # fn main() -> Result<(), rusttype::Error> {
 //!

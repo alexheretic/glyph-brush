@@ -13,8 +13,6 @@ Makes use of three kinds of caching to optimise frame performance.
 The crate is designed to be easily wrapped to create a convenient render API specific version, for example [gfx-glyph](https://github.com/alexheretic/gfx-glyph/tree/master/gfx-glyph).
 
 ```rust
-extern crate glyph_brush;
-
 use glyph_brush::{BrushAction, BrushError, GlyphBrushBuilder, Section};
 
 let dejavu: &[u8] = include_bytes!("DejaVuSans.ttf");

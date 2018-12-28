@@ -1,6 +1,4 @@
 //! ```
-//! extern crate glyph_brush;
-//!
 //! use glyph_brush::{BrushAction, BrushError, GlyphBrushBuilder, Section};
 //!
 //! # fn main() -> Result<(), glyph_brush::BrushError> {
