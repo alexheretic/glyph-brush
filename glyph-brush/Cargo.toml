@@ -11,7 +11,7 @@ readme="README.md"
 
 [dependencies]
 glyph_brush_layout = { version = "0.1.1", path = "../glyph-brush-layout" }
-log = "0.4"
+log = "0.4.4"
 ordered-float = "1"
 full_rusttype = { version = "0.7", features = ["gpu_cache"], package = "rusttype" }
 seahash = "3"
