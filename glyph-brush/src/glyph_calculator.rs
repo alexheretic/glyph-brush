@@ -72,6 +72,11 @@ pub trait GlyphCruncher<'font> {
         let layout = section.layout;
         self.glyphs_custom_layout(section, &layout)
     }
+
+    /// Returns the available fonts.
+    ///
+    /// The `FontId` corresponds to the index of the font data.
+    fn fonts(&self) -> &[Font<'font>];
 }
 
 /// Cut down version of a [`GlyphBrush`](struct.GlyphBrush.html) that can calculate pixel bounds,
@@ -179,13 +184,6 @@ impl<H: BuildHasher> GlyphCalculatorGuard<'_, '_, H> {
 
         section_hash
     }
-
-    /// Returns the available fonts.
-    ///
-    /// The `FontId` corresponds to the index of the font data.
-    pub fn fonts(&self) -> &[Font<'_>] {
-        self.fonts
-    }
 }
 
 impl fmt::Debug for GlyphCalculatorGuard<'_, '_> {
@@ -221,6 +219,10 @@ impl<'font, H: BuildHasher> GlyphCruncher<'font> for GlyphCalculatorGuard<'_, 'f
         let section_hash = self.cache_glyphs(&section.into(), custom_layout);
         self.cached.insert(section_hash);
         self.glyph_cache[&section_hash].glyphs()
+    }
+
+    fn fonts(&self) -> &[Font<'font>] {
+        &self.fonts
     }
 }
 

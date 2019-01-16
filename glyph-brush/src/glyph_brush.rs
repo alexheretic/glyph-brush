@@ -93,6 +93,10 @@ impl<'font, H: BuildHasher> GlyphCruncher<'font> for GlyphBrush<'font, H> {
         self.keep_in_cache.insert(section_hash);
         self.calculate_glyph_cache[&section_hash].glyphs()
     }
+
+    fn fonts(&self) -> &[Font<'font>] {
+        &self.fonts
+    }
 }
 
 impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
@@ -329,13 +333,6 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     /// Returns the logical texture cache pixel dimensions `(width, height)`.
     pub fn texture_dimensions(&self) -> (u32, u32) {
         self.texture_cache.dimensions()
-    }
-
-    /// Returns the available fonts.
-    ///
-    /// The `FontId` corresponds to the index of the font data.
-    pub fn fonts(&self) -> &[Font<'font>] {
-        &self.fonts
     }
 
     fn clear_section_buffer(&mut self) {

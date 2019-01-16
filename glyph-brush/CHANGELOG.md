@@ -1,4 +1,6 @@
 # master
+* Require log `0.4.4` to fix compile issue with older versions.
+* Add `GlyphCruncher::fonts()` to common trait, hoisted from direct implementations.
 
 # 0.2.4
 * Add `GlyphBrush::keep_cached`.

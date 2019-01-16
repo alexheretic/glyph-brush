@@ -184,6 +184,11 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphCruncher
         self.glyph_brush
             .glyphs_custom_layout(section, custom_layout)
     }
+
+    #[inline]
+    fn fonts(&self) -> &[Font<'font>] {
+        self.glyph_brush.fonts()
+    }
 }
 
 impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'font, R, F, H> {
