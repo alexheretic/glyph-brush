@@ -3,7 +3,7 @@ gfx_glyph
 [![Documentation](https://docs.rs/gfx_glyph/badge.svg)](https://docs.rs/gfx_glyph)
 ================
 
-Fast GPU cached text rendering using [gfx-rs](https://github.com/gfx-rs/gfx/tree/pre-ll) & [glyph-brush](https://github.com/alexheretic/glyph-brush/tree/master/glyph-brush).
+Fast GPU cached text rendering using [gfx-rs v0.17](https://github.com/gfx-rs/gfx/tree/pre-ll) & [glyph-brush](https://github.com/alexheretic/glyph-brush/tree/master/glyph-brush).
 
 Makes use of three kinds of caching to optimise frame performance.
 
@@ -40,4 +40,4 @@ Have a look at
 
 
 ## Limitations
-The current implementation supports OpenGL *(3.2 or later)*. In future we'll support the upcoming gfx-rs ll releases.
+The current implementation supports OpenGL *(3.2 or later)* only. Use [glyph-brush](https://github.com/alexheretic/glyph-brush/tree/master/glyph-brush) directly if this is an issue.
