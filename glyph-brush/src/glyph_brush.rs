@@ -239,6 +239,20 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
                 }
             }
 
+            // Ensure `keep_in_cache` sections are retained in the texture cache
+            // avoiding cache thrashing if they are rendered in a 2-draw per frame style
+            for section_hash in &self.keep_in_cache {
+                for &(ref glyph, _, font_id) in self
+                    .calculate_glyph_cache
+                    .get(section_hash)
+                    .iter()
+                    .flat_map(|gs| &gs.glyphs)
+                {
+                    self.texture_cache.queue_glyph(font_id.0, glyph.clone());
+                    some_text = true;
+                }
+            }
+
             if some_text && self.texture_cache.cache_queued(update_texture).is_err() {
                 let (width, height) = self.texture_cache.dimensions();
                 return Err(BrushError::TextureTooSmall {
