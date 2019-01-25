@@ -1,4 +1,5 @@
-# master
+# Unreleased
+* Optimise vertex updating by declaring 'Dynamic' usage & using explicit update calls.
 
 # 0.13.1
 * Add `GlyphBrush::keep_cached`.

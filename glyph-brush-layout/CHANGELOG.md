@@ -1,5 +1,3 @@
-# master
-
 # 0.1.3
 * Implement `FontMap` for `AsRef<[Font]>` instead of `Index<usize, Output = Font>` to support arrays and slices. If this breaks your usage try implementing `FontMap` directly.
 
