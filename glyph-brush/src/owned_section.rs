@@ -1,7 +1,7 @@
 use super::*;
 use std::{borrow::Cow, f32};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct OwnedVariedSection {
     /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
     pub screen_position: (f32, f32),
@@ -52,7 +52,7 @@ impl<'a> From<&'a OwnedVariedSection> for Cow<'a, VariedSection<'a>> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct OwnedSectionText {
     /// Text to render
     pub text: String,

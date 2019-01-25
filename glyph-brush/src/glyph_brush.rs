@@ -456,6 +456,7 @@ pub struct GlyphVertex {
 }
 
 /// Actions that should be taken after processing queue data
+#[derive(Debug)]
 pub enum BrushAction<V> {
     /// Draw new/changed vertix data.
     Draw(Vec<V>),
@@ -463,7 +464,7 @@ pub enum BrushAction<V> {
     ReDraw,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum BrushError {
     /// Texture is too small to cache queued glyphs
     ///

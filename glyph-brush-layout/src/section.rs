@@ -4,7 +4,7 @@ use std::f32;
 /// RGBA `[0, 1]` color data.
 pub type Color = [f32; 4];
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SectionGeometry {
     /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
     pub screen_position: (f32, f32),
@@ -22,7 +22,7 @@ impl Default for SectionGeometry {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SectionText<'a> {
     /// Text to render
     pub text: &'a str,

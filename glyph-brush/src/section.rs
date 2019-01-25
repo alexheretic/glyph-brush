@@ -27,7 +27,7 @@ use std::{borrow::Cow, f32, hash::*};
 ///     ..VariedSection::default()
 /// };
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct VariedSection<'a> {
     /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
     pub screen_position: (f32, f32),
@@ -148,7 +148,7 @@ impl From<&VariedSection<'_>> for SectionGeometry {
 ///     ..Section::default()
 /// };
 /// ```
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Section<'a> {
     /// Text to render
     pub text: &'a str,
