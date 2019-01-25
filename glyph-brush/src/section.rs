@@ -148,7 +148,7 @@ impl From<&VariedSection<'_>> for SectionGeometry {
 ///     ..Section::default()
 /// };
 /// ```
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Section<'a> {
     /// Text to render
     pub text: &'a str,
