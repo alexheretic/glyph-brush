@@ -1,3 +1,6 @@
+# Unreleased
+* Implement `PartialEq` for `SectionGeometry` & `SectionText`.
+
 # 0.1.3
 * Implement `FontMap` for `AsRef<[Font]>` instead of `Index<usize, Output = Font>` to support arrays and slices. If this breaks your usage try implementing `FontMap` directly.
 

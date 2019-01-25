@@ -12,6 +12,9 @@
 * Fix 2-draw style causing texture cache thrashing. _Probably a very rare bug_.
 * Require log `0.4.4` to fix compile issue with older versions.
 * Improve documentation.
+* Implement `PartialEq` for `*Section`s
+* Implement `Clone`, `PartialEq` for `BrushError`
+* Implement `Debug`, `Clone` for other public things.
 
 # 0.2.4
 * Add `GlyphBrush::keep_cached`.
