@@ -151,6 +151,7 @@ fn main() -> Res<()> {
     let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(250.0);
     let mut running = true;
     let mut vertex_count = 0;
+    let mut vertex_max = vertex_count;
     let mut dimensions = window
         .get_inner_size()
         .ok_or("get_inner_size = None")?
@@ -305,13 +306,23 @@ fn main() -> Res<()> {
                 // Draw new vertices
                 vertex_count = vertices.len();
                 unsafe {
-                    gl::BufferData(
-                        gl::ARRAY_BUFFER,
-                        (vertex_count * mem::size_of::<Vertex>()) as GLsizeiptr,
-                        vertices.as_ptr() as _,
-                        gl::STATIC_DRAW,
-                    );
+                    if vertex_max < vertex_count {
+                        gl::BufferData(
+                            gl::ARRAY_BUFFER,
+                            (vertex_count * mem::size_of::<Vertex>()) as GLsizeiptr,
+                            vertices.as_ptr() as _,
+                            gl::DYNAMIC_DRAW,
+                        );
+                    } else {
+                        gl::BufferSubData(
+                            gl::ARRAY_BUFFER,
+                            0,
+                            (vertex_count * mem::size_of::<Vertex>()) as GLsizeiptr,
+                            vertices.as_ptr() as _,
+                        );
+                    }
                 }
+                vertex_max = vertex_max.max(vertex_count);
             }
             BrushAction::ReDraw => {}
         }

@@ -232,7 +232,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
         S: Into<Cow<'a, VariedSection<'a>>>,
         G: GlyphPositioner,
     {
-        self.glyph_brush.keep_cached_custom_layout(section, custom_layout)
+        self.glyph_brush
+            .keep_cached_custom_layout(section, custom_layout)
     }
 
     /// Retains the section in the cache as if it had been used in the last draw-frame.
@@ -381,10 +382,16 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
 
         match brush_action.unwrap() {
             BrushAction::Draw(verts) => {
-                let vbuf = self.factory.create_vertex_buffer(&verts);
-
                 let draw_cache = if let Some(mut cache) = self.draw_cache.take() {
-                    cache.pipe_data.vbuf = vbuf;
+                    if cache.pipe_data.vbuf.len() < verts.len() {
+                        cache.pipe_data.vbuf =
+                            new_vertex_buffer(&mut self.factory, encoder, &verts);
+                    } else {
+                        encoder
+                            .update_buffer(&cache.pipe_data.vbuf, &verts, 0)
+                            .unwrap();
+                    }
+
                     if &cache.pipe_data.out != target.as_raw() {
                         cache.pipe_data.out.clone_from(target.as_raw());
                     }
@@ -400,6 +407,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
                     cache.slice.instances.as_mut().unwrap().0 = verts.len() as _;
                     cache
                 } else {
+                    let vbuf = new_vertex_buffer(&mut self.factory, encoder, &verts);
+
                     DrawnGlyphBrush {
                         pipe_data: {
                             let sampler = self.factory.create_sampler(texture::SamplerInfo::new(
@@ -521,6 +530,25 @@ struct DrawnGlyphBrush<R: gfx::Resources> {
     pipe_data: glyph_pipe::Data<R>,
     pso: (gfx::format::Format, gfx::PipelineState<R, glyph_pipe::Meta>),
     slice: gfx::Slice<R>,
+}
+
+/// Allocates a vertex buffer 1 per glyph that will be updated on text changes
+#[inline]
+fn new_vertex_buffer<R: gfx::Resources, F: gfx::Factory<R>, C: gfx::CommandBuffer<R>>(
+    factory: &mut F,
+    encoder: &mut gfx::Encoder<R, C>,
+    verts: &[GlyphVertex],
+) -> gfx::handle::Buffer<R, GlyphVertex> {
+    let buf = factory
+        .create_buffer(
+            verts.len(),
+            gfx::buffer::Role::Vertex,
+            gfx::memory::Usage::Dynamic,
+            gfx::memory::Bind::empty(),
+        )
+        .unwrap();
+    encoder.update_buffer(&buf, &verts, 0).unwrap();
+    buf
 }
 
 #[inline]
