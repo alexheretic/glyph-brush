@@ -332,7 +332,7 @@ impl<'a, H: BuildHasher> GlyphCalculatorBuilder<'a, H> {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub(crate) struct GlyphedSection<'font> {
     pub bounds: Rect<f32>,
     pub glyphs: Vec<(PositionedGlyph<'font>, Color, FontId)>,

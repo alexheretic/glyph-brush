@@ -7,7 +7,6 @@ use full_rusttype::{point, vector, PositionedGlyph, VMetrics};
 use std::iter::{FusedIterator, Iterator, Peekable};
 
 /// A line of `Word`s limited to a max width bound.
-#[derive(Clone, Debug)]
 pub(crate) struct Line<'font> {
     pub glyphs: Vec<(RelativePositionedGlyph<'font>, Color, FontId)>,
     pub max_v_metrics: VMetrics,
