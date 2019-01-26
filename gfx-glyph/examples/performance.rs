@@ -30,7 +30,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     let mut events_loop = glutin::EventsLoop::new();
-    let title = "gfx_glyph rendering 100,000 glyphs - scroll to size, type to modify";
+    let title = "gfx_glyph rendering 30,000 glyphs - scroll to size, type to modify";
     let window_builder = glutin::WindowBuilder::new()
         .with_title(title)
         .with_dimensions((1024, 576).into());
