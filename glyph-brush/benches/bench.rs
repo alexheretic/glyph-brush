@@ -1,15 +1,13 @@
 #![feature(test)]
 extern crate test;
 
-use gfx_glyph::*;
+use glyph_brush::{*, rusttype::*};
 use std::f32;
 
 const TEST_FONT: &[u8] = include_bytes!("../../fonts/DejaVuSansMono.ttf");
 
 #[bench]
 fn render_3_medium_sections_fully(b: &mut test::Bencher) {
-    use gfx_glyph::*;
-
     let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
     let text = include_str!("lipsum.txt");
 
@@ -238,6 +236,7 @@ fn continually_modify_end_text_of_1_of_3(b: &mut test::Bencher) {
         text.to_owned(),
         text.to_owned() + "a",
         text.to_owned() + "ab",
+        text.to_owned() + "a",
     ];
 
     let variants: Vec<_> = string_variants
@@ -280,6 +279,7 @@ fn continually_modify_start_text_of_1_of_3(b: &mut test::Bencher) {
         text.to_owned(),
         "a".to_owned() + text,
         "ab".to_owned() + text,
+        "a".to_owned() + text,
     ];
 
     let variants: Vec<_> = string_variants
@@ -327,6 +327,7 @@ fn continually_modify_middle_text_of_1_of_3(b: &mut test::Bencher) {
         text.to_owned(),
         text[..middle_index].to_owned() + "a" + &text[middle_index..],
         text[..middle_index].to_owned() + "ab" + &text[middle_index..],
+        text[..middle_index].to_owned() + "a" + &text[middle_index..],
     ];
 
     let variants: Vec<_> = string_variants
@@ -477,175 +478,135 @@ fn continually_modify_position_of_1_of_3(b: &mut test::Bencher) {
 /// cycling through the provided `variants`
 fn bench_variants(
     b: &mut test::Bencher,
-    variants: &[Vec<gfx_glyph::Section<'_>>],
-    brush: gfx_glyph::GlyphBrushBuilder<'_>,
+    variants: &[Vec<Section<'_>>],
+    brush: GlyphBrushBuilder<'_>,
 ) {
     let _ = env_logger::try_init();
 
     let mut variants = variants.iter().cycle();
-
-    let (_context, _device, factory, main_color, main_depth) = headless_gl_init();
-    let mut encoder: gfx::Encoder<_, _> = gfx_noop::NoopCommandBuffer.into();
-
-    let mut glyph_brush = brush.build(factory.clone());
+    let mut glyph_brush = brush.build();
 
     // once before, to warm up cache benches
     for s in variants.next().unwrap() {
         glyph_brush.queue(s);
     }
-    glyph_brush
-        .draw_queued(&mut encoder, &main_color, &main_depth)
-        .expect("draw");
+    glyph_brush.process_queued(
+        (1024, 768),
+        |_rect, _tex_data| {},
+        gl_to_vertex,
+    ).unwrap();
 
     b.iter(|| {
         for s in variants.next().unwrap() {
             glyph_brush.queue(s);
         }
-        glyph_brush
-            .draw_queued(&mut encoder, &main_color, &main_depth)
-            .expect("draw");
+        glyph_brush.process_queued(
+            (1024, 768),
+            |_rect, _tex_data| {},
+            gl_to_vertex,
+        ).unwrap();
     });
 }
 
-fn bench(
-    b: &mut test::Bencher,
-    sections: &[gfx_glyph::Section<'_>],
-    brush: gfx_glyph::GlyphBrushBuilder<'_>,
-) {
-    if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "gfx_glyph=warn");
-    }
-
+fn bench(b: &mut test::Bencher, sections: &[Section<'_>], brush: GlyphBrushBuilder<'_>) {
     let _ = env_logger::try_init();
 
-    let (_context, _device, factory, main_color, main_depth) = headless_gl_init();
-    let mut encoder: gfx::Encoder<_, _> = gfx_noop::NoopCommandBuffer.into();
-
-    let mut glyph_brush = brush.build(factory.clone());
+    let mut glyph_brush = brush.build();
 
     // once before, to warm up cache benches
-    for section in sections.iter() {
+    for section in sections {
         glyph_brush.queue(*section);
     }
-    glyph_brush
-        .draw_queued(&mut encoder, &main_color, &main_depth)
-        .expect("draw");
+
+    glyph_brush.process_queued(
+        (1024, 768),
+        |_rect, _tex_data| {},
+        gl_to_vertex,
+    ).unwrap();
 
     b.iter(|| {
-        for section in sections.iter() {
+        for section in sections {
             glyph_brush.queue(*section);
         }
-        glyph_brush
-            .draw_queued(&mut encoder, &main_color, &main_depth)
-            .expect("draw");
+        glyph_brush.process_queued(
+            (1024, 768),
+            |_rect, _tex_data| {},
+            gl_to_vertex,
+        ).unwrap();
     });
 }
 
-fn headless_gl_init() -> (
-    glutin::Context,
-    gfx_device_gl::Device,
-    gfx_device_gl::Factory,
-    gfx::handle::RenderTargetView<gfx_device_gl::Resources, gfx::format::Srgba8>,
-    gfx::handle::DepthStencilView<gfx_device_gl::Resources, gfx::format::Depth>,
-) {
-    use gfx::format::{self, Formatted};
-    use gfx_core::memory::Typed;
-    use glutin::GlContext;
-
-    let (width, height) = (400, 300);
-    let events = glutin::EventsLoop::new();
-    let context = glutin::Context::new(
-        &events,
-        glutin::ContextBuilder::new()
-            .with_gl_profile(glutin::GlProfile::Core)
-            .with_gl(glutin::GlRequest::Specific(glutin::Api::OpenGl, (3, 2))),
-        false,
-    )
-    .unwrap();
-
-    unsafe { context.make_current().unwrap() };
-    let (device, factory) =
-        gfx_device_gl::create(|s| context.get_proc_address(s) as *const std::os::raw::c_void);
-
-    let (color_view, ds_view) = gfx_device_gl::create_main_targets_raw(
-        (width as _, height as _, 1, gfx::texture::AaMode::Single),
-        format::Srgba8::get_format().0,
-        format::Depth::get_format().0,
-    );
-    (
-        context,
-        device,
-        factory,
-        Typed::new(color_view),
-        Typed::new(ds_view),
-    )
-}
-
-mod gfx_noop {
-    use gfx_core::{
-        command, pso, shade, state, target, texture, IndexType, Resources, VertexCount,
+/// opengl vertex generator
+#[inline]
+fn gl_to_vertex(
+    glyph_brush::GlyphVertex {
+        mut tex_coords,
+        pixel_coords,
+        bounds,
+        screen_dimensions: (screen_w, screen_h),
+        color,
+        z,
+    }: glyph_brush::GlyphVertex,
+) -> [f32; 13] {
+    let gl_bounds = Rect {
+        min: point(
+            2.0 * (bounds.min.x / screen_w - 0.5),
+            2.0 * (0.5 - bounds.min.y / screen_h),
+        ),
+        max: point(
+            2.0 * (bounds.max.x / screen_w - 0.5),
+            2.0 * (0.5 - bounds.max.y / screen_h),
+        ),
     };
 
-    pub struct NoopCommandBuffer;
-    impl<R: Resources> command::Buffer<R> for NoopCommandBuffer {
-        fn reset(&mut self) {}
-        fn bind_pipeline_state(&mut self, _: R::PipelineStateObject) {}
-        fn bind_vertex_buffers(&mut self, _: pso::VertexBufferSet<R>) {}
-        fn bind_constant_buffers(&mut self, _: &[pso::ConstantBufferParam<R>]) {}
-        fn bind_global_constant(&mut self, _: shade::Location, _: shade::UniformValue) {}
-        fn bind_resource_views(&mut self, _: &[pso::ResourceViewParam<R>]) {}
-        fn bind_unordered_views(&mut self, _: &[pso::UnorderedViewParam<R>]) {}
-        fn bind_samplers(&mut self, _: &[pso::SamplerParam<R>]) {}
-        fn bind_pixel_targets(&mut self, _: pso::PixelTargetSet<R>) {}
-        fn bind_index(&mut self, _: R::Buffer, _: IndexType) {}
-        fn set_scissor(&mut self, _: target::Rect) {}
-        fn set_ref_values(&mut self, _: state::RefValues) {}
-        fn copy_buffer(&mut self, _: R::Buffer, _: R::Buffer, _: usize, _: usize, _: usize) {}
-        fn copy_buffer_to_texture(
-            &mut self,
-            _: R::Buffer,
-            _: usize,
-            _: texture::TextureCopyRegion<R::Texture>,
-        ) {
-        }
-        fn copy_texture_to_buffer(
-            &mut self,
-            _: texture::TextureCopyRegion<R::Texture>,
-            _: R::Buffer,
-            _: usize,
-        ) {
-        }
-        fn update_buffer(&mut self, _: R::Buffer, _: &[u8], _: usize) {}
-        fn update_texture(&mut self, _: texture::TextureCopyRegion<R::Texture>, _: &[u8]) {}
-        fn generate_mipmap(&mut self, _: R::ShaderResourceView) {}
-        fn clear_color(&mut self, _: R::RenderTargetView, _: command::ClearColor) {}
-        fn clear_depth_stencil(
-            &mut self,
-            _: R::DepthStencilView,
-            _: Option<target::Depth>,
-            _: Option<target::Stencil>,
-        ) {
-        }
-        fn call_draw(
-            &mut self,
-            _: VertexCount,
-            _: VertexCount,
-            _: Option<command::InstanceParams>,
-        ) {
-        }
-        fn call_draw_indexed(
-            &mut self,
-            _: VertexCount,
-            _: VertexCount,
-            _: VertexCount,
-            _: Option<command::InstanceParams>,
-        ) {
-        }
-        fn copy_texture_to_texture(
-            &mut self,
-            _: texture::TextureCopyRegion<R::Texture>,
-            _: texture::TextureCopyRegion<R::Texture>,
-        ) {
-        }
+    let mut gl_rect = Rect {
+        min: point(
+            2.0 * (pixel_coords.min.x as f32 / screen_w - 0.5),
+            2.0 * (0.5 - pixel_coords.min.y as f32 / screen_h),
+        ),
+        max: point(
+            2.0 * (pixel_coords.max.x as f32 / screen_w - 0.5),
+            2.0 * (0.5 - pixel_coords.max.y as f32 / screen_h),
+        ),
+    };
+
+    // handle overlapping bounds, modify uv_rect to preserve texture aspect
+    if gl_rect.max.x > gl_bounds.max.x {
+        let old_width = gl_rect.width();
+        gl_rect.max.x = gl_bounds.max.x;
+        tex_coords.max.x = tex_coords.min.x + tex_coords.width() * gl_rect.width() / old_width;
     }
+    if gl_rect.min.x < gl_bounds.min.x {
+        let old_width = gl_rect.width();
+        gl_rect.min.x = gl_bounds.min.x;
+        tex_coords.min.x = tex_coords.max.x - tex_coords.width() * gl_rect.width() / old_width;
+    }
+    // note: y access is flipped gl compared with screen,
+    // texture is not flipped (ie is a headache)
+    if gl_rect.max.y < gl_bounds.max.y {
+        let old_height = gl_rect.height();
+        gl_rect.max.y = gl_bounds.max.y;
+        tex_coords.max.y = tex_coords.min.y + tex_coords.height() * gl_rect.height() / old_height;
+    }
+    if gl_rect.min.y > gl_bounds.min.y {
+        let old_height = gl_rect.height();
+        gl_rect.min.y = gl_bounds.min.y;
+        tex_coords.min.y = tex_coords.max.y - tex_coords.height() * gl_rect.height() / old_height;
+    }
+
+    [
+        gl_rect.min.x,
+        gl_rect.max.y,
+        z,
+        gl_rect.max.x,
+        gl_rect.min.y,
+        tex_coords.min.x,
+        tex_coords.max.y,
+        tex_coords.max.x,
+        tex_coords.min.y,
+        color[0],
+        color[1],
+        color[2],
+        color[3],
+    ]
 }
