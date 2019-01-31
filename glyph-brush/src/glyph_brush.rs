@@ -57,6 +57,9 @@ pub struct GlyphBrush<'font, H = DefaultSectionHasher> {
     cache_glyph_drawing: bool,
 
     section_hasher: H,
+
+    pre_positioned: Vec<GlyphedSection<'font>>,
+    pre_positioning: bool,
 }
 
 impl<H> fmt::Debug for GlyphBrush<'_, H> {
@@ -147,6 +150,17 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
         self.queue_custom_layout(section, &layout)
     }
 
+    pub fn queue_pre_positioned(
+        &mut self,
+        glyphs: Vec<(PositionedGlyph<'font>, Color, FontId)>,
+        bounds: Rect<f32>,
+        z: f32,
+    ) {
+        self.pre_positioned
+            .push(GlyphedSection { glyphs, bounds, z });
+        self.pre_positioning = true;
+    }
+
     #[inline]
     fn hash<T: Hash>(&self, hashable: &T) -> SectionHash {
         let mut s = self.section_hasher.build_hasher();
@@ -227,7 +241,9 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     {
         let current_text_state = self.hash(&(&self.section_buffer, screen_w, screen_h));
 
-        let result = if !self.cache_glyph_drawing || self.last_draw.text_state != current_text_state
+        let result = if !self.cache_glyph_drawing
+            || self.pre_positioning
+            || self.last_draw.text_state != current_text_state
         {
             let mut some_text = false;
 
@@ -253,6 +269,11 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
                 }
             }
 
+            for &(ref glyph, _, font_id) in self.pre_positioned.iter().flat_map(|p| &p.glyphs) {
+                self.texture_cache.queue_glyph(font_id.0, glyph.clone());
+                some_text = true;
+            }
+
             if some_text && self.texture_cache.cache_queued(update_texture).is_err() {
                 let (width, height) = self.texture_cache.dimensions();
                 return Err(BrushError::TextureTooSmall {
@@ -265,6 +286,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
                     .section_buffer
                     .iter()
                     .map(|hash| &self.calculate_glyph_cache[hash])
+                    .chain(self.pre_positioned.iter())
                     .collect();
 
                 let mut verts = Vec::with_capacity(
@@ -359,10 +381,12 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
                 .collect();
             self.calculate_glyph_cache
                 .retain(|key, _| active.contains(key));
+            self.pre_positioned.clear();
         } else {
             self.section_buffer.clear();
             self.calculate_glyph_cache.clear();
             self.keep_in_cache.clear();
+            self.pre_positioned.clear();
         }
     }
 

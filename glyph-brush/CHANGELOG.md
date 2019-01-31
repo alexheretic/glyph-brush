@@ -15,6 +15,8 @@
 * Implement `PartialEq` for `*Section`s
 * Implement `Clone`, `PartialEq` for `BrushError`
 * Implement `Debug`, `Clone` for other public things.
+* Add `GlyphBrush::queue_pre_positioned` for fully custom glyph positioning.
+  This is currently not compatible with draw caching, so no `BrushAction::ReDraw`s will occur when using it.
 
 # 0.2.4
 * Add `GlyphBrush::keep_cached`.
