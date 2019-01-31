@@ -187,6 +187,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
             text: text_hash,
             text_geometry: text_geo_hash,
             full: full_hash,
+            geometry: SectionGeometry::from(section),
         }
     }
 
@@ -214,7 +215,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
                         Cow::Borrowed(&old_section.glyphs),
                         match section_hash.diff(*old_hash) {
                             SectionHashSimilarity::GeometryChange => {
-                                GlyphChange::Geometry(old_section.geometry)
+                                GlyphChange::Geometry(old_hash.geometry)
                             }
                             _ => GlyphChange::Unknown,
                         },
@@ -232,7 +233,6 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
                             layout.calculate_glyphs(&self.fonts, &geometry, &section.text)
                         }),
                         z: section.z,
-                        geometry,
                     },
                 );
             }
@@ -244,7 +244,6 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
                     bounds: layout.bounds_rect(&geometry),
                     glyphs: layout.calculate_glyphs(&self.fonts, &geometry, &section.text),
                     z: section.z,
-                    geometry,
                 },
             );
         }
@@ -567,11 +566,12 @@ impl std::error::Error for BrushError {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy)]
 struct SectionHashDetail {
     text: SectionHash,
     text_geometry: SectionHash,
     full: SectionHash,
+    geometry: SectionGeometry,
 }
 
 #[derive(Debug)]

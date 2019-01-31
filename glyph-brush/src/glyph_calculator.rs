@@ -179,7 +179,6 @@ impl<H: BuildHasher> GlyphCalculatorGuard<'_, '_, H> {
                 bounds: layout.bounds_rect(&geometry),
                 glyphs: layout.calculate_glyphs(self.fonts, &geometry, &section.text),
                 z: section.z,
-                geometry,
             });
         }
 
@@ -338,7 +337,6 @@ pub(crate) struct GlyphedSection<'font> {
     pub bounds: Rect<f32>,
     pub glyphs: Vec<(PositionedGlyph<'font>, Color, FontId)>,
     pub z: f32,
-    pub geometry: SectionGeometry,
 }
 
 impl<'a> PartialEq<GlyphedSection<'a>> for GlyphedSection<'a> {

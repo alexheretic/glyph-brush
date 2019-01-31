@@ -13,7 +13,7 @@ readme="README.md"
 glyph_brush_layout = { version = "0.1.1", path = "../glyph-brush-layout" }
 log = "0.4.4"
 ordered-float = "1"
-full_rusttype = { version = "0.7", features = ["gpu_cache"], package = "rusttype", path = "../../rusttype" }
+full_rusttype = { version = "0.7", features = ["gpu_cache"], package = "rusttype", git = "https://gitlab.redox-os.org/redox-os/rusttype" }
 seahash = "3"
 hashbrown = "0.1"
 
