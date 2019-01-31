@@ -808,10 +808,68 @@ mod layout_test {
             }],
         );
 
-        assert_glyph_order!(glyphs, "helloworld");
+        let recalc = Layout::default().recalculate_glyphs(
+            Cow::Owned(glyphs),
+            GlyphChange::Unknown,
+            &*FONT_MAP,
+            &SectionGeometry::default(),
+            &[SectionText {
+                text: "hello world",
+                scale: Scale::uniform(20.0),
+                ..SectionText::default()
+            }],
+        );
 
-        assert_relative_eq!(glyphs[0].0.position().x, 0.0);
-        let last_glyph = &glyphs.last().unwrap().0;
+        assert_glyph_order!(recalc, "helloworld");
+
+        assert_relative_eq!(recalc[0].0.position().x, 0.0);
+        let last_glyph = &recalc.last().unwrap().0;
+        assert!(
+            last_glyph.position().x > 0.0,
+            "unexpected last position {:?}",
+            last_glyph.position()
+        );
+    }
+
+    #[test]
+    fn recalculate_position() {
+        let geometry_1 = SectionGeometry {
+            screen_position: (0.0, 0.0),
+            ..<_>::default()
+        };
+
+        let glyphs = Layout::default().calculate_glyphs(
+            &*FONT_MAP,
+            &geometry_1,
+            &[SectionText {
+                text: "hello world",
+                scale: Scale::uniform(20.0),
+                ..SectionText::default()
+            }],
+        );
+
+        let original_y = glyphs[0].0.position().y;
+
+        let recalc = Layout::default().recalculate_glyphs(
+            Cow::Owned(glyphs),
+            GlyphChange::Geometry(geometry_1),
+            &*FONT_MAP,
+            &SectionGeometry {
+                screen_position: (0.0, 50.0),
+                ..geometry_1
+            },
+            &[SectionText {
+                text: "hello world",
+                scale: Scale::uniform(20.0),
+                ..SectionText::default()
+            }],
+        );
+
+        assert_glyph_order!(recalc, "helloworld");
+
+        assert_relative_eq!(recalc[0].0.position().x, 0.0);
+        assert_relative_eq!(recalc[0].0.position().y, original_y + 50.0);
+        let last_glyph = &recalc.last().unwrap().0;
         assert!(
             last_glyph.position().x > 0.0,
             "unexpected last position {:?}",
