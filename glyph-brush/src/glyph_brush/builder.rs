@@ -197,8 +197,8 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
 
             section_hasher: self.section_hasher,
 
+            last_pre_positioned: <_>::default(),
             pre_positioned: <_>::default(),
-            pre_positioning: false,
         }
     }
 }

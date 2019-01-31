@@ -10,7 +10,7 @@ use std::{
     borrow::Cow,
     fmt,
     hash::{BuildHasher, BuildHasherDefault, Hash, Hasher},
-    i32,
+    i32, mem
 };
 
 /// A hash of `Section` data
@@ -58,8 +58,8 @@ pub struct GlyphBrush<'font, H = DefaultSectionHasher> {
 
     section_hasher: H,
 
+    last_pre_positioned: Vec<GlyphedSection<'font>>,
     pre_positioned: Vec<GlyphedSection<'font>>,
-    pre_positioning: bool,
 }
 
 impl<H> fmt::Debug for GlyphBrush<'_, H> {
@@ -150,6 +150,9 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
         self.queue_custom_layout(section, &layout)
     }
 
+    /// Queues pre-positioned glyphs to be processed by the next call of
+    /// [`process_queued`](struct.GlyphBrush.html#method.process_queued). Can be called multiple
+    /// times.
     pub fn queue_pre_positioned(
         &mut self,
         glyphs: Vec<(PositionedGlyph<'font>, Color, FontId)>,
@@ -158,7 +161,6 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     ) {
         self.pre_positioned
             .push(GlyphedSection { glyphs, bounds, z });
-        self.pre_positioning = true;
     }
 
     #[inline]
@@ -242,8 +244,8 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
         let current_text_state = self.hash(&(&self.section_buffer, screen_w, screen_h));
 
         let result = if !self.cache_glyph_drawing
-            || self.pre_positioning
             || self.last_draw.text_state != current_text_state
+            || self.last_pre_positioned != self.pre_positioned
         {
             let mut some_text = false;
 
@@ -381,13 +383,14 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
                 .collect();
             self.calculate_glyph_cache
                 .retain(|key, _| active.contains(key));
-            self.pre_positioned.clear();
         } else {
             self.section_buffer.clear();
             self.calculate_glyph_cache.clear();
             self.keep_in_cache.clear();
-            self.pre_positioned.clear();
         }
+
+        mem::swap(&mut self.last_pre_positioned, &mut self.pre_positioned);
+        self.pre_positioned.clear();
     }
 
     /// Adds an additional font to the one(s) initially added on build.

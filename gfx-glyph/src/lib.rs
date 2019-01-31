@@ -223,6 +223,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
         self.glyph_brush.queue(section)
     }
 
+    /// Queues pre-positioned glyphs to be processed by the next call of
+    /// [`draw_queued`](struct.GlyphBrush.html#method.draw_queued). Can be called multiple times.
     #[inline]
     pub fn queue_pre_positioned(
         &mut self,
