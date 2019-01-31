@@ -1,4 +1,3 @@
-use super::LastDrawInfo;
 use crate::{
     DefaultSectionHasher, Font, FontId, GlyphBrush, SharedBytes,
 };
@@ -187,10 +186,14 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
                 .position_tolerance(self.gpu_cache_position_tolerance)
                 .build(),
 
-            last_draw: LastDrawInfo::default(),
-            section_buffer: Vec::new(),
-            calculate_glyph_cache: hashbrown::HashMap::default(),
-            keep_in_cache: hashbrown::HashSet::default(),
+            last_draw: <_>::default(),
+            section_buffer: <_>::default(),
+            calculate_glyph_cache: <_>::default(),
+
+            last_frame_seq_id_sections: <_>::default(),
+            frame_seq_id_sections: <_>::default(),
+
+            keep_in_cache: <_>::default(),
 
             cache_glyph_positioning: self.cache_glyph_positioning,
             cache_glyph_drawing: self.cache_glyph_drawing && self.cache_glyph_positioning,

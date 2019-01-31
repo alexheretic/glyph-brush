@@ -4,13 +4,12 @@ pub use self::builder::*;
 
 use super::*;
 use full_rusttype::gpu_cache::Cache;
-use hashbrown::hash_map::Entry;
 use log::error;
 use std::{
     borrow::Cow,
     fmt,
     hash::{BuildHasher, BuildHasherDefault, Hash, Hasher},
-    i32, mem
+    i32, mem,
 };
 
 /// A hash of `Section` data
@@ -44,6 +43,9 @@ pub struct GlyphBrush<'font, H = DefaultSectionHasher> {
     // cache of section-layout hash -> computed glyphs, this avoid repeated glyph computation
     // for identical layout/sections common to repeated frame rendering
     calculate_glyph_cache: hashbrown::HashMap<SectionHash, GlyphedSection<'font>>,
+
+    last_frame_seq_id_sections: Vec<SectionHashDetail>,
+    frame_seq_id_sections: Vec<SectionHashDetail>,
 
     // buffer of section-layout hashs (that must exist in the calculate_glyph_cache)
     // to be used on the next `process_queued` call
@@ -124,6 +126,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
         }
         let section_hash = self.cache_glyphs(&section, custom_layout);
         self.section_buffer.push(section_hash);
+        self.keep_in_cache.insert(section_hash);
     }
 
     /// Queues a section/layout to be processed by the next call of
@@ -163,11 +166,28 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
             .push(GlyphedSection { glyphs, bounds, z });
     }
 
-    #[inline]
-    fn hash<T: Hash>(&self, hashable: &T) -> SectionHash {
+    fn section_hash<L>(&self, section: &VariedSection<'_>, layout: &L) -> SectionHashDetail
+    where
+        L: GlyphPositioner,
+    {
+        let parts = section.to_hashable_parts();
+
         let mut s = self.section_hasher.build_hasher();
-        hashable.hash(&mut s);
-        s.finish()
+        layout.hash(&mut s);
+        parts.hash_text(&mut s);
+        let text_hash = s.finish();
+
+        parts.hash_geometry(&mut s);
+        let text_geo_hash = s.finish();
+
+        parts.hash_z(&mut s);
+        let full_hash = s.finish();
+
+        SectionHashDetail {
+            text: text_hash,
+            text_geometry: text_geo_hash,
+            full: full_hash,
+        }
     }
 
     /// Returns the calculate_glyph_cache key for this sections glyphs
@@ -175,29 +195,60 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     where
         L: GlyphPositioner,
     {
-        let section_hash = self.hash(&(section, layout));
+        let section_hash = self.section_hash(section, layout);
+        // section id used to find a similar calculated layout from last frame
+        let frame_seq_id = self.frame_seq_id_sections.len();
+        self.frame_seq_id_sections.push(section_hash);
 
         if self.cache_glyph_positioning {
-            if let Entry::Vacant(entry) = self.calculate_glyph_cache.entry(section_hash) {
+            if !self.calculate_glyph_cache.contains_key(&section_hash.full) {
                 let geometry = SectionGeometry::from(section);
-                entry.insert(GlyphedSection {
-                    bounds: layout.bounds_rect(&geometry),
-                    glyphs: layout.calculate_glyphs(&self.fonts, &geometry, &section.text),
-                    z: section.z,
-                });
+                let mut glyphs = None;
+
+                if let Some((old_hash, old_section)) = self
+                    .last_frame_seq_id_sections
+                    .get(frame_seq_id)
+                    .and_then(|hash| Some((hash, self.calculate_glyph_cache.get(&hash.full)?)))
+                {
+                    glyphs = Some(layout.recalculate_glyphs(
+                        Cow::Borrowed(&old_section.glyphs),
+                        match section_hash.diff(*old_hash) {
+                            SectionHashSimilarity::GeometryChange => {
+                                GlyphChange::Geometry(old_section.geometry)
+                            }
+                            _ => GlyphChange::Unknown,
+                        },
+                        &self.fonts,
+                        &geometry,
+                        &section.text,
+                    ));
+                }
+
+                self.calculate_glyph_cache.insert(
+                    section_hash.full,
+                    GlyphedSection {
+                        bounds: layout.bounds_rect(&geometry),
+                        glyphs: glyphs.unwrap_or_else(|| {
+                            layout.calculate_glyphs(&self.fonts, &geometry, &section.text)
+                        }),
+                        z: section.z,
+                        geometry,
+                    },
+                );
             }
         } else {
             let geometry = SectionGeometry::from(section);
             self.calculate_glyph_cache.insert(
-                section_hash,
+                section_hash.full,
                 GlyphedSection {
                     bounds: layout.bounds_rect(&geometry),
                     glyphs: layout.calculate_glyphs(&self.fonts, &geometry, &section.text),
                     z: section.z,
+                    geometry,
                 },
             );
         }
-        section_hash
+        section_hash.full
     }
 
     /// Processes all queued sections, calling texture update logic when necessary &
@@ -241,24 +292,22 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
         F1: FnMut(Rect<u32>, &[u8]),
         F2: Fn(GlyphVertex) -> V,
     {
-        let current_text_state = self.hash(&(&self.section_buffer, screen_w, screen_h));
+        let current_text_state = {
+            let mut s = self.section_hasher.build_hasher();
+            self.section_buffer.hash(&mut s);
+            screen_w.hash(&mut s);
+            screen_h.hash(&mut s);
+            s.finish()
+        };
 
         let result = if !self.cache_glyph_drawing
             || self.last_draw.text_state != current_text_state
             || self.last_pre_positioned != self.pre_positioned
         {
             let mut some_text = false;
-
-            for section_hash in &self.section_buffer {
-                let GlyphedSection { ref glyphs, .. } = self.calculate_glyph_cache[section_hash];
-                for &(ref glyph, _, font_id) in glyphs {
-                    self.texture_cache.queue_glyph(font_id.0, glyph.clone());
-                    some_text = true;
-                }
-            }
-
-            // Ensure `keep_in_cache` sections are retained in the texture cache
-            // avoiding cache thrashing if they are rendered in a 2-draw per frame style
+            // Everything in the section_buffer should also be here. The extras should also
+            // be retained in the texture cache avoiding cache thrashing if they are rendered
+            // in a 2-draw per frame style.
             for section_hash in &self.keep_in_cache {
                 for &(ref glyph, _, font_id) in self
                     .calculate_glyph_cache
@@ -302,6 +351,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
                     ref glyphs,
                     bounds,
                     z,
+                    ..
                 } in sections
                 {
                     verts.extend(glyphs.iter().filter_map(|(glyph, color, font_id)| {
@@ -345,7 +395,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
             BrushAction::ReDraw
         };
 
-        self.clear_section_buffer();
+        self.cleanup_frame();
         Ok(result)
     }
 
@@ -373,21 +423,27 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
         self.texture_cache.dimensions()
     }
 
-    fn clear_section_buffer(&mut self) {
+    fn cleanup_frame(&mut self) {
         if self.cache_glyph_positioning {
             // clear section_buffer & trim calculate_glyph_cache to active sections
-            let active: hashbrown::HashSet<_> = self
-                .section_buffer
-                .drain(..)
-                .chain(self.keep_in_cache.drain())
-                .collect();
-            self.calculate_glyph_cache
-                .retain(|key, _| active.contains(key));
+            let active = mem::replace(&mut self.keep_in_cache, <_>::default());
+            self.calculate_glyph_cache.retain(|key, _| active.contains(key));
+            mem::replace(&mut self.keep_in_cache, active);
+
+            self.keep_in_cache.clear();
+
+            self.section_buffer.clear();
         } else {
             self.section_buffer.clear();
             self.calculate_glyph_cache.clear();
             self.keep_in_cache.clear();
         }
+
+        mem::swap(
+            &mut self.last_frame_seq_id_sections,
+            &mut self.frame_seq_id_sections,
+        );
+        self.frame_seq_id_sections.clear();
 
         mem::swap(&mut self.last_pre_positioned, &mut self.pre_positioned);
         self.pre_positioned.clear();
@@ -442,7 +498,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
             }
         }
         self.keep_in_cache
-            .insert(self.hash(&(section, custom_layout)));
+            .insert(self.section_hash(&section, custom_layout).full);
     }
 
     /// Retains the section in the cache as if it had been used in the last draw-frame.
@@ -507,6 +563,32 @@ impl std::error::Error for BrushError {
     fn description(&self) -> &str {
         match self {
             BrushError::TextureTooSmall { .. } => "Texture is too small to cache queued glyphs",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct SectionHashDetail {
+    text: SectionHash,
+    text_geometry: SectionHash,
+    full: SectionHash,
+}
+
+#[derive(Debug)]
+enum SectionHashSimilarity {
+    ZChange,
+    GeometryChange,
+    Different,
+}
+
+impl SectionHashDetail {
+    fn diff(self, other: SectionHashDetail) -> SectionHashSimilarity {
+        if self.text_geometry == other.text_geometry {
+            SectionHashSimilarity::ZChange
+        } else if self.text == other.text {
+            SectionHashSimilarity::GeometryChange
+        } else {
+            SectionHashSimilarity::Different
         }
     }
 }
