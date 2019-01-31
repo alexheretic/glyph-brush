@@ -57,8 +57,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         )
         .unwrap();
 
-    let dejavu: &[u8] = include_bytes!("../../fonts/OpenSans-Light.ttf");
-    let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(dejavu)
+    let font: &[u8] = include_bytes!("../../fonts/OpenSans-Light.ttf");
+    let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(font)
         .initial_cache_size((1024, 1024))
         .build(factory.clone());
 

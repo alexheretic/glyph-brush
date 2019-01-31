@@ -339,6 +339,19 @@ pub(crate) struct GlyphedSection<'font> {
     pub z: f32,
 }
 
+impl<'a> PartialEq<GlyphedSection<'a>> for GlyphedSection<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.bounds == other.bounds
+            && self.z == other.z
+            && self.glyphs.len() == other.glyphs.len()
+            && self
+                .glyphs
+                .iter()
+                .zip(other.glyphs.iter())
+                .all(|(l, r)| l.2 == r.2 && l.1 == r.1 && l.0.id() == r.0.id())
+    }
+}
+
 impl<'font> GlyphedSection<'font> {
     pub(crate) fn pixel_bounds(&self) -> Option<Rect<i32>> {
         let Self {
