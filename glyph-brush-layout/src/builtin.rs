@@ -2,8 +2,9 @@ use super::{
     BuiltInLineBreaker, Color, FontId, FontMap, GlyphPositioner, LineBreaker, PositionedGlyph,
     Rect, SectionGeometry, SectionText,
 };
-use crate::{characters::Characters, rusttype::point};
-use std::mem;
+use crate::{characters::Characters, rusttype::point, GlyphChange};
+use full_rusttype::vector;
+use std::{borrow::Cow, mem};
 
 /// Built-in [`GlyphPositioner`](trait.GlyphPositioner.html) implementations.
 ///
@@ -203,11 +204,11 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                             // y-position and filter out-of-bounds glyphs
                             let shifted: Vec<_> = out
                                 .drain(..)
-                                .filter_map(|(g, color, font)| {
+                                .filter_map(|(mut g, color, font)| {
                                     let mut pos = g.position();
                                     pos.y -= shift_up;
-                                    let shifted_g = g.into_unpositioned().positioned(pos);
-                                    Some((shifted_g, color, font)).filter(|(g, ..)| {
+                                    g.set_position(pos);
+                                    Some((g, color, font)).filter(|(g, ..)| {
                                         g.pixel_bounding_box()
                                             .map(|bb| {
                                                 bb.max.y as f32 >= min_y
@@ -252,6 +253,37 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
         Rect {
             min: point(x_min, y_min),
             max: point(x_max, y_max),
+        }
+    }
+
+    fn recalculate_glyphs<'font, F>(
+        &self,
+        previous: Cow<'_, Vec<(PositionedGlyph<'font>, Color, FontId)>>,
+        change: GlyphChange,
+        fonts: &F,
+        geometry: &SectionGeometry,
+        sections: &[SectionText<'_>],
+    ) -> Vec<(PositionedGlyph<'font>, Color, FontId)>
+    where
+        F: FontMap<'font>,
+    {
+        match change {
+            GlyphChange::Geometry(old) if old.bounds == geometry.bounds => {
+                // position change
+                let adjustment = vector(
+                    geometry.screen_position.0 - old.screen_position.0,
+                    geometry.screen_position.1 - old.screen_position.1,
+                );
+
+                let mut glyphs = previous.into_owned();
+                for (glyph, ..) in &mut glyphs {
+                    let new_pos = glyph.position() + adjustment;
+                    glyph.set_position(new_pos);
+                }
+
+                glyphs
+            }
+            _ => self.calculate_glyphs(fonts, geometry, sections),
         }
     }
 }
@@ -762,5 +794,28 @@ mod layout_test {
 
         assert_relative_eq!(glyphs[0].0.position().y, first_line_y);
         assert_relative_eq!(glyphs[3].0.position().y, second_line_y);
+    }
+
+    #[test]
+    fn recalculate_identical() {
+        let glyphs = Layout::default().calculate_glyphs(
+            &*FONT_MAP,
+            &SectionGeometry::default(),
+            &[SectionText {
+                text: "hello world",
+                scale: Scale::uniform(20.0),
+                ..SectionText::default()
+            }],
+        );
+
+        assert_glyph_order!(glyphs, "helloworld");
+
+        assert_relative_eq!(glyphs[0].0.position().x, 0.0);
+        let last_glyph = &glyphs.last().unwrap().0;
+        assert!(
+            last_glyph.position().x > 0.0,
+            "unexpected last position {:?}",
+            last_glyph.position()
+        );
     }
 }

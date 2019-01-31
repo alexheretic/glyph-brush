@@ -59,6 +59,7 @@ mod section;
 mod words;
 
 pub use self::{builtin::*, font::*, linebreak::*, section::*};
+use std::borrow::Cow;
 
 /// Re-exported rusttype types.
 pub mod rusttype {
@@ -79,7 +80,7 @@ pub trait GlyphPositioner: Hash {
     /// return the same result when called with the same arguments to allow layout caching.
     fn calculate_glyphs<'font, F: FontMap<'font>>(
         &self,
-        _: &F,
+        fonts: &F,
         geometry: &SectionGeometry,
         sections: &[SectionText<'_>],
     ) -> Vec<(PositionedGlyph<'font>, Color, FontId)>;
@@ -87,4 +88,30 @@ pub trait GlyphPositioner: Hash {
     /// Return a screen rectangle according to the requested render position and bounds
     /// appropriate for the glyph layout.
     fn bounds_rect(&self, geometry: &SectionGeometry) -> Rect<f32>;
+
+    /// Recalculate a glyph sequence after a change.
+    ///
+    /// The default implementation simply calls `calculate_glyphs` so must be implemented
+    /// to provide benefits as such benefits are spefic to the internal layout logic.
+    fn recalculate_glyphs<'font, F>(
+        &self,
+        previous: Cow<'_, Vec<(PositionedGlyph<'font>, Color, FontId)>>,
+        change: GlyphChange,
+        fonts: &F,
+        geometry: &SectionGeometry,
+        sections: &[SectionText<'_>],
+    ) -> Vec<(PositionedGlyph<'font>, Color, FontId)>
+    where
+        F: FontMap<'font>,
+    {
+        let _ = (previous, change);
+        self.calculate_glyphs(fonts, geometry, sections)
+    }
+}
+
+#[derive(Debug)]
+pub enum GlyphChange {
+    /// Only the geometry has changed, contains the old geometry
+    Geometry(SectionGeometry),
+    Unknown,
 }
