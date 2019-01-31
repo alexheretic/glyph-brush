@@ -43,11 +43,12 @@ mod pipe;
 mod trace;
 
 pub use crate::builder::*;
+use glyph_brush::Color;
 pub use glyph_brush::{
     rusttype::{self, Font, Point, PositionedGlyph, Rect, Scale, SharedBytes},
     BuiltInLineBreaker, FontId, FontMap, GlyphCruncher, HorizontalAlign, Layout, LineBreak,
     LineBreaker, OwnedSectionText, OwnedVariedSection, PositionedGlyphIter, Section, SectionText,
-    VariedSection, VerticalAlign,
+    VariedSection, VerticalAlign, SectionGeometry, GlyphPositioner,
 };
 
 use crate::pipe::{glyph_pipe, GlyphVertex, RawAndFormat};
@@ -58,7 +59,7 @@ use gfx::{
     traits::FactoryExt,
 };
 use glyph_brush::{
-    rusttype::point, BrushAction, BrushError, DefaultSectionHasher, GlyphPositioner,
+    rusttype::point, BrushAction, BrushError, DefaultSectionHasher,
 };
 use log::{log_enabled, warn};
 use std::{
@@ -220,6 +221,16 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
         S: Into<Cow<'a, VariedSection<'a>>>,
     {
         self.glyph_brush.queue(section)
+    }
+
+    #[inline]
+    pub fn queue_pre_positioned(
+        &mut self,
+        glyphs: Vec<(PositionedGlyph<'font>, Color, FontId)>,
+        bounds: Rect<f32>,
+        z: f32,
+    ) {
+        self.glyph_brush.queue_pre_positioned(glyphs, bounds, z)
     }
 
     /// Retains the section in the cache as if it had been used in the last draw-frame.
