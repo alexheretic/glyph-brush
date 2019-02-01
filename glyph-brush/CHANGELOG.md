@@ -1,3 +1,15 @@
+# Unreleased
+* Use queue call counting & fine grained hashing to match up previous calls with current calls figuring out what has changed allowing optimised use of `recalculate_glyphs` for fast layouts.
+  - Compute if just geometry (ie section position) has changed -> `GlyphChange::Geometry`.
+  - Compute if just color has changed -> `GlyphChange::Color`.
+  - Compute if just alpha has changed -> `GlyphChange::Alpha`.
+  ```
+  name                                   control ns/iter  change ns/iter  diff ns/iter   diff %  speedup
+  continually_modify_alpha_of_1_of_3     858,297          561,664             -296,633  -34.56%   x 1.53
+  continually_modify_color_of_1_of_3     870,442          558,456             -311,986  -35.84%   x 1.56
+  continually_modify_position_of_1_of_3  867,278          567,991             -299,287  -34.51%   x 1.53
+  ```
+
 # 0.3
 * Add `GlyphCruncher::fonts()` to common trait, hoisted from direct implementations. Add something like the following if you implement `GlyphCruncher`.
   ```rust
