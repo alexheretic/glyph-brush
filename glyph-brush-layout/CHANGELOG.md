@@ -1,8 +1,8 @@
 # Unreleased
-* Add `GlyphPositioner::recalculate_glyphs` with a default unoptimised implementation.
-* Optimise recalculate_glyphs for screen position changes with `GlyphChange::Geometry`.
-* Optimise recalculate_glyphs for single color changes with `GlyphChange::Color`.
-* Optimise recalculate_glyphs for alpha changes with `GlyphChange::Alpha`.
+* Add `GlyphPositioner::recalculate_glyphs` with a default unoptimised implementation. Custom layouts won't be broken by this change, but _will_ need to implement the new function to provide optimised behaviour.
+* Optimise built-in layout's recalculate_glyphs for screen position changes with `GlyphChange::Geometry`.
+* Optimise built-in layout's recalculate_glyphs for single color changes with `GlyphChange::Color`.
+* Optimise built-in layout's recalculate_glyphs for alpha changes with `GlyphChange::Alpha`.
 * Optimise layout re-positioning with `PositionedGlyph::set_position` usage.
 
 # 0.1.4

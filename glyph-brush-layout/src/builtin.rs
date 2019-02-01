@@ -428,6 +428,30 @@ mod layout_test {
         }};
     }
 
+    /// Compile test for trait stability
+    #[allow(unused)]
+    #[derive(Hash)]
+    enum SimpleCustomGlyphPositioner {}
+    impl GlyphPositioner for SimpleCustomGlyphPositioner {
+        fn calculate_glyphs<'font, F: FontMap<'font>>(
+            &self,
+            _: &F,
+            _: &SectionGeometry,
+            _: &[SectionText<'_>],
+        ) -> Vec<(PositionedGlyph<'font>, Color, FontId)> {
+            vec![]
+        }
+
+        /// Return a screen rectangle according to the requested render position and bounds
+        /// appropriate for the glyph layout.
+        fn bounds_rect(&self, _: &SectionGeometry) -> Rect<f32> {
+            Rect {
+                min: point(0.0, 0.0),
+                max: point(0.0, 0.0),
+            }
+        }
+    }
+
     #[test]
     fn zero_scale_glyphs() {
         let glyphs = Layout::default_single_line()
