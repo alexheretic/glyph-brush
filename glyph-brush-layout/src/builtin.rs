@@ -283,6 +283,20 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
 
                 glyphs
             }
+            GlyphChange::Color if !sections.is_empty() && !previous.is_empty() => {
+                let new_color = sections[0].color;
+                if sections.iter().all(|s| s.color == new_color) {
+                    // if only the color changed, but the new section only use a single color
+                    // we can simply set all the olds to the new color
+                    let mut glyphs = previous.into_owned();
+                    for (_, color, ..) in &mut glyphs {
+                        *color = new_color;
+                    }
+                    glyphs
+                } else {
+                    self.calculate_glyphs(fonts, geometry, sections)
+                }
+            }
             _ => self.calculate_glyphs(fonts, geometry, sections),
         }
     }
@@ -875,5 +889,39 @@ mod layout_test {
             "unexpected last position {:?}",
             last_glyph.position()
         );
+    }
+
+    #[test]
+    fn recalculate_colors() {
+        const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
+        const BLUE: [f32; 4] = [0.0, 0.0, 1.0, 1.0];
+
+        let glyphs = Layout::default().calculate_glyphs(
+            &*FONT_MAP,
+            &SectionGeometry::default(),
+            &[SectionText {
+                text: "hello world",
+                color: RED,
+                ..<_>::default()
+            }],
+        );
+
+        assert_glyph_order!(glyphs, "helloworld");
+        assert_eq!(glyphs[2].1, RED);
+
+        let recalc = Layout::default().recalculate_glyphs(
+            Cow::Owned(glyphs),
+            GlyphChange::Color,
+            &*FONT_MAP,
+            &SectionGeometry::default(),
+            &[SectionText {
+                text: "hello world",
+                color: BLUE,
+                ..<_>::default()
+            }],
+        );
+
+        assert_glyph_order!(recalc, "helloworld");
+        assert_eq!(recalc[2].1, BLUE);
     }
 }
