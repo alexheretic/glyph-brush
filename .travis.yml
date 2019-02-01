@@ -29,4 +29,7 @@ script:
 - if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then
     cargo build --all-features --all-targets;
   fi
+- if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then
+    cargo test --benches;
+  fi
 - cargo test --all
