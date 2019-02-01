@@ -256,6 +256,7 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
         }
     }
 
+    #[allow(clippy::float_cmp)]
     fn recalculate_glyphs<'font, F>(
         &self,
         previous: Cow<'_, Vec<(PositionedGlyph<'font>, Color, FontId)>>,
@@ -291,6 +292,20 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                     let mut glyphs = previous.into_owned();
                     for (_, color, ..) in &mut glyphs {
                         *color = new_color;
+                    }
+                    glyphs
+                } else {
+                    self.calculate_glyphs(fonts, geometry, sections)
+                }
+            }
+            GlyphChange::Alpha if !sections.is_empty() && !previous.is_empty() => {
+                let new_alpha = sections[0].color[3];
+                if sections.iter().all(|s| s.color[3] == new_alpha) {
+                    // if only the alpha changed, but the new section only uses a single alpha
+                    // we can simply set all the olds to the new alpha
+                    let mut glyphs = previous.into_owned();
+                    for (_, color, ..) in &mut glyphs {
+                        color[3] = new_alpha;
                     }
                     glyphs
                 } else {
@@ -923,5 +938,52 @@ mod layout_test {
 
         assert_glyph_order!(recalc, "helloworld");
         assert_eq!(recalc[2].1, BLUE);
+    }
+
+    #[test]
+    fn recalculate_alpha() {
+        const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
+        const RED_HALF_ALPHA: [f32; 4] = [1.0, 0.0, 0.0, 0.5];
+
+        const YELLOW: [f32; 4] = [1.0, 1.0, 0.0, 1.0];
+        const YELLOW_HALF_ALPHA: [f32; 4] = [1.0, 1.0, 0.0, 0.5];
+
+        let glyphs = Layout::default().calculate_glyphs(
+            &*FONT_MAP,
+            &SectionGeometry::default(),
+            &[SectionText {
+                text: "hello",
+                color: RED,
+                ..<_>::default()
+            },
+            SectionText {
+                text: " world",
+                color: YELLOW,
+                ..<_>::default()
+            }],
+        );
+
+        assert_glyph_order!(glyphs, "helloworld");
+        assert_eq!(glyphs[2].1, RED);
+
+        let recalc = Layout::default().recalculate_glyphs(
+            Cow::Owned(glyphs),
+            GlyphChange::Alpha,
+            &*FONT_MAP,
+            &SectionGeometry::default(),
+            &[SectionText {
+                text: "hello",
+                color: RED_HALF_ALPHA,
+                ..<_>::default()
+            },
+            SectionText {
+                text: " world",
+                color: YELLOW_HALF_ALPHA,
+                ..<_>::default()
+            }],
+        );
+
+        assert_glyph_order!(recalc, "helloworld");
+        assert_eq!(recalc[2].1, RED_HALF_ALPHA);
     }
 }

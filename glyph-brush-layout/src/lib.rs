@@ -115,5 +115,7 @@ pub enum GlyphChange {
     Geometry(SectionGeometry),
     /// Only the colors have changed
     Color,
+    /// Only the alpha has changed
+    Alpha,
     Unknown,
 }
