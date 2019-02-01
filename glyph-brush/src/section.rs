@@ -302,6 +302,13 @@ impl HashableVariedSectionParts<'_> {
     }
 
     #[inline]
+    pub fn hash_alpha<H: Hasher>(&self, state: &mut H) {
+        for t in self.text {
+            OrderedFloat(t.color[3]).hash(state);
+        }
+    }
+
+    #[inline]
     pub fn hash_color<H: Hasher>(&self, state: &mut H) {
         for t in self.text {
             let color = t.color;
@@ -310,7 +317,6 @@ impl HashableVariedSectionParts<'_> {
                 color[0].into(),
                 color[1].into(),
                 color[2].into(),
-                color[3].into(),
             ];
 
             ord_floats.hash(state);

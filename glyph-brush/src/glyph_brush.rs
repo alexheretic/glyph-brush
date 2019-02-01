@@ -193,7 +193,8 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
                                 GlyphChange::Geometry(old_hash.geometry)
                             }
                             SectionHashDiff::ColorChange => GlyphChange::Color,
-                            _ => GlyphChange::Unknown,
+                            SectionHashDiff::AlphaChange => GlyphChange::Alpha,
+                            SectionHashDiff::Different => GlyphChange::Unknown,
                         },
                         &self.fonts,
                         &geometry,
@@ -547,8 +548,10 @@ impl std::error::Error for BrushError {
 #[derive(Debug, Clone, Copy)]
 struct SectionHashDetail {
     /// hash of text
+    text_no_color_alpha: SectionHash,
+    // hash of text & alpha
     text_no_color: SectionHash,
-    /// hash of text & colors
+    /// hash of text & colors including alpha
     text: SectionHash,
     /// hash of everything
     full: SectionHash,
@@ -561,6 +564,7 @@ struct SectionHashDetail {
 enum SectionHashDiff {
     GeometryChange,
     ColorChange,
+    AlphaChange,
     Different,
 }
 
@@ -576,6 +580,9 @@ impl SectionHashDetail {
         let mut s = build_hasher.build_hasher();
         layout.hash(&mut s);
         parts.hash_text_no_color(&mut s);
+        let text_no_color_alpha_hash = s.finish();
+
+        parts.hash_alpha(&mut s);
         let text_no_color_hash = s.finish();
 
         parts.hash_color(&mut s);
@@ -586,6 +593,7 @@ impl SectionHashDetail {
         let full_hash = s.finish();
 
         Self {
+            text_no_color_alpha: text_no_color_alpha_hash,
             text_no_color: text_no_color_hash,
             text: text_hash,
             // text_geometry: text_geo_hash,
@@ -600,6 +608,8 @@ impl SectionHashDetail {
             SectionHashDiff::GeometryChange
         } else if self.text_no_color == other.text_no_color {
             SectionHashDiff::ColorChange
+        } else if self.text_no_color_alpha == other.text_no_color_alpha {
+            SectionHashDiff::AlphaChange
         } else {
             SectionHashDiff::Different
         }
