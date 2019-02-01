@@ -1,4 +1,4 @@
-# Unreleased
+# 0.3
 * Add `GlyphCruncher::fonts()` to common trait, hoisted from direct implementations. Add something like the following if you implement `GlyphCruncher`.
   ```rust
   impl GlyphCruncher for Foo {
