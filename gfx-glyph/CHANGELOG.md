@@ -1,7 +1,8 @@
-# Unreleased
+# 0.13.2
 * Optimise vertex updating by declaring 'Dynamic' usage & using explicit update calls.
 * Add `GlyphBrush::queue_pre_positioned` and example *pre_positioned*.
 * Add `SectionGeometry`, `GlyphPositioner` to glyph_brush re-exported types.
+* Update glyph_brush -> `0.3`
 
 # 0.13.1
 * Add `GlyphBrush::keep_cached`.
