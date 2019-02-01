@@ -1,4 +1,4 @@
-# Unreleased
+# 0.1.4
 * Implement `PartialEq` for `SectionGeometry` & `SectionText`.
 
 # 0.1.3
