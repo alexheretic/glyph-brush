@@ -109,6 +109,7 @@ pub trait GlyphPositioner: Hash {
     }
 }
 
+// #[non_exhaustive] TODO use when stable
 #[derive(Debug)]
 pub enum GlyphChange {
     /// Only the geometry has changed, contains the old geometry
@@ -118,4 +119,6 @@ pub enum GlyphChange {
     /// Only the alpha has changed
     Alpha,
     Unknown,
+    #[doc(hidden)]
+    __Nonexhaustive,
 }

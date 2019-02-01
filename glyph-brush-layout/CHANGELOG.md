@@ -1,3 +1,10 @@
+# Unreleased
+* Add `GlyphPositioner::recalculate_glyphs` with a default unoptimised implementation.
+* Optimise recalculate_glyphs for screen position changes with `GlyphChange::Geometry`.
+* Optimise recalculate_glyphs for single color changes with `GlyphChange::Color`.
+* Optimise recalculate_glyphs for alpha changes with `GlyphChange::Alpha`.
+* Optimise layout re-positioning with `PositionedGlyph::set_position` usage.
+
 # 0.1.4
 * Implement `PartialEq` for `SectionGeometry` & `SectionText`.
 
