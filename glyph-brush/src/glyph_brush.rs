@@ -605,13 +605,14 @@ impl SectionHashDetail {
     /// They're different, but how?
     fn diff(self, other: SectionHashDetail) -> SectionHashDiff {
         if self.text == other.text {
-            SectionHashDiff::GeometryChange
-        } else if self.text_no_color == other.text_no_color {
-            SectionHashDiff::ColorChange
-        } else if self.text_no_color_alpha == other.text_no_color_alpha {
-            SectionHashDiff::AlphaChange
-        } else {
-            SectionHashDiff::Different
+            return SectionHashDiff::GeometryChange;
+        } else if self.geometry == other.geometry {
+            if self.text_no_color == other.text_no_color  {
+                return SectionHashDiff::ColorChange;
+            } else if self.text_no_color_alpha == other.text_no_color_alpha {
+                return SectionHashDiff::AlphaChange;
+            }
         }
+        SectionHashDiff::Different
     }
 }
