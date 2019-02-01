@@ -98,7 +98,6 @@ impl Hash for VariedSection<'_> {
 
 #[inline]
 fn hash_section_text<H: Hasher>(state: &mut H, text: &[SectionText]) {
-    use ordered_float::OrderedFloat;
     for t in text {
         let SectionText {
             text,
@@ -272,16 +271,49 @@ pub(crate) struct HashableVariedSectionParts<'a> {
 }
 
 impl HashableVariedSectionParts<'_> {
+
     #[inline]
     pub fn hash_geometry<H: Hasher>(&self, state: &mut H) {
         self.geometry.hash(state);
     }
+
     #[inline]
     pub fn hash_z<H: Hasher>(&self, state: &mut H) {
         self.z.hash(state);
     }
+
     #[inline]
-    pub fn hash_text<H: Hasher>(&self, state: &mut H) {
-        hash_section_text(state, self.text);
+    pub fn hash_text_no_color<H: Hasher>(&self, state: &mut H) {
+        for t in self.text {
+            let SectionText {
+                text,
+                scale,
+                font_id,
+                ..
+            } = *t;
+
+            let ord_floats: &[OrderedFloat<_>] = &[
+                scale.x.into(),
+                scale.y.into(),
+            ];
+
+            (text, font_id, ord_floats).hash(state);
+        }
+    }
+
+    #[inline]
+    pub fn hash_color<H: Hasher>(&self, state: &mut H) {
+        for t in self.text {
+            let color = t.color;
+
+            let ord_floats: &[OrderedFloat<_>] = &[
+                color[0].into(),
+                color[1].into(),
+                color[2].into(),
+                color[3].into(),
+            ];
+
+            ord_floats.hash(state);
+        }
     }
 }

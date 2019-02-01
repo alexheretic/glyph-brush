@@ -166,37 +166,12 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
             .push(GlyphedSection { glyphs, bounds, z });
     }
 
-    fn section_hash<L>(&self, section: &VariedSection<'_>, layout: &L) -> SectionHashDetail
-    where
-        L: GlyphPositioner,
-    {
-        let parts = section.to_hashable_parts();
-
-        let mut s = self.section_hasher.build_hasher();
-        layout.hash(&mut s);
-        parts.hash_text(&mut s);
-        let text_hash = s.finish();
-
-        parts.hash_geometry(&mut s);
-        let text_geo_hash = s.finish();
-
-        parts.hash_z(&mut s);
-        let full_hash = s.finish();
-
-        SectionHashDetail {
-            text: text_hash,
-            text_geometry: text_geo_hash,
-            full: full_hash,
-            geometry: SectionGeometry::from(section),
-        }
-    }
-
     /// Returns the calculate_glyph_cache key for this sections glyphs
     fn cache_glyphs<L>(&mut self, section: &VariedSection<'_>, layout: &L) -> SectionHash
     where
         L: GlyphPositioner,
     {
-        let section_hash = self.section_hash(section, layout);
+        let section_hash = SectionHashDetail::new(&self.section_hasher, section, layout);
         // section id used to find a similar calculated layout from last frame
         let frame_seq_id = self.frame_seq_id_sections.len();
         self.frame_seq_id_sections.push(section_hash);
@@ -214,9 +189,10 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
                     glyphs = Some(layout.recalculate_glyphs(
                         Cow::Borrowed(&old_section.glyphs),
                         match section_hash.diff(*old_hash) {
-                            SectionHashSimilarity::GeometryChange => {
+                            SectionHashDiff::GeometryChange => {
                                 GlyphChange::Geometry(old_hash.geometry)
                             }
+                            SectionHashDiff::ColorChange => GlyphChange::Color,
                             _ => GlyphChange::Unknown,
                         },
                         &self.fonts,
@@ -426,7 +402,8 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
         if self.cache_glyph_positioning {
             // clear section_buffer & trim calculate_glyph_cache to active sections
             let active = mem::replace(&mut self.keep_in_cache, <_>::default());
-            self.calculate_glyph_cache.retain(|key, _| active.contains(key));
+            self.calculate_glyph_cache
+                .retain(|key, _| active.contains(key));
             mem::replace(&mut self.keep_in_cache, active);
 
             self.keep_in_cache.clear();
@@ -496,8 +473,9 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
                 assert!(self.fonts.len() > text.font_id.0, "Invalid font id");
             }
         }
-        self.keep_in_cache
-            .insert(self.section_hash(&section, custom_layout).full);
+
+        let section_hash = SectionHashDetail::new(&self.section_hasher, &section, custom_layout);
+        self.keep_in_cache.insert(section_hash.full);
     }
 
     /// Retains the section in the cache as if it had been used in the last draw-frame.
@@ -568,27 +546,62 @@ impl std::error::Error for BrushError {
 
 #[derive(Debug, Clone, Copy)]
 struct SectionHashDetail {
+    /// hash of text
+    text_no_color: SectionHash,
+    /// hash of text & colors
     text: SectionHash,
-    text_geometry: SectionHash,
+    /// hash of everything
     full: SectionHash,
+
+    /// copy of geometry for later comparison
     geometry: SectionGeometry,
 }
 
 #[derive(Debug)]
-enum SectionHashSimilarity {
-    ZChange,
+enum SectionHashDiff {
     GeometryChange,
+    ColorChange,
     Different,
 }
 
 impl SectionHashDetail {
-    fn diff(self, other: SectionHashDetail) -> SectionHashSimilarity {
-        if self.text_geometry == other.text_geometry {
-            SectionHashSimilarity::ZChange
-        } else if self.text == other.text {
-            SectionHashSimilarity::GeometryChange
+    #[inline]
+    fn new<H, L>(build_hasher: &H, section: &VariedSection<'_>, layout: &L) -> Self
+    where
+        H: BuildHasher,
+        L: GlyphPositioner,
+    {
+        let parts = section.to_hashable_parts();
+
+        let mut s = build_hasher.build_hasher();
+        layout.hash(&mut s);
+        parts.hash_text_no_color(&mut s);
+        let text_no_color_hash = s.finish();
+
+        parts.hash_color(&mut s);
+        let text_hash = s.finish();
+
+        parts.hash_geometry(&mut s);
+        parts.hash_z(&mut s);
+        let full_hash = s.finish();
+
+        Self {
+            text_no_color: text_no_color_hash,
+            text: text_hash,
+            // text_geometry: text_geo_hash,
+            full: full_hash,
+            geometry: SectionGeometry::from(section),
+        }
+    }
+
+    /// They're different, but how?
+    fn diff(self, other: SectionHashDetail) -> SectionHashDiff {
+        if self.text == other.text {
+            SectionHashDiff::GeometryChange
+        } else if self.text_no_color == other.text_no_color {
+            SectionHashDiff::ColorChange
         } else {
-            SectionHashSimilarity::Different
+            SectionHashDiff::Different
         }
     }
 }
