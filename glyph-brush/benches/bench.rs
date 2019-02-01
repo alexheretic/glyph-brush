@@ -1,7 +1,7 @@
 #![feature(test)]
 extern crate test;
 
-use glyph_brush::{*, rusttype::*};
+use glyph_brush::{rusttype::*, *};
 use std::f32;
 
 const TEST_FONT: &[u8] = include_bytes!("../../fonts/DejaVuSansMono.ttf");
@@ -438,6 +438,62 @@ fn continually_modify_color_of_1_of_3(b: &mut test::Bencher) {
 }
 
 #[bench]
+/// 1 section of 3 is rendered with a different colour each frame
+fn continually_modify_alpha_of_1_of_3(b: &mut test::Bencher) {
+    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
+    let text = include_str!("lipsum.txt");
+
+    let variants: Vec<_> = vec![
+        // fade out alpha
+        1.0, 0.8, 0.6, 0.4, 0.2, 0.0,
+    ]
+    .into_iter()
+    .map(|alpha| {
+        vec![
+            VariedSection {
+                text: vec![
+                    SectionText {
+                        text: "Heading\n",
+                        color: [1.0, 1.0, 0.0, alpha],
+                        ..<_>::default()
+                    },
+                    SectionText {
+                        text,
+                        color: [1.0, 1.0, 1.0, alpha],
+                        ..<_>::default()
+                    },
+                ],
+                bounds: (600.0, f32::INFINITY),
+                ..<_>::default()
+            },
+            VariedSection {
+                text: vec![SectionText {
+                    text,
+                    ..<_>::default()
+                }],
+                screen_position: (600.0, 0.0),
+                bounds: (600.0, f32::INFINITY),
+                layout: Layout::default().h_align(HorizontalAlign::Center),
+                ..<_>::default()
+            },
+            VariedSection {
+                text: vec![SectionText {
+                    text,
+                    ..<_>::default()
+                }],
+                screen_position: (1200.0, 0.0),
+                bounds: (600.0, f32::INFINITY),
+                layout: Layout::default().h_align(HorizontalAlign::Right),
+                ..<_>::default()
+            },
+        ]
+    })
+    .collect();
+
+    bench_varied_variants(b, &variants, brush);
+}
+
+#[bench]
 /// section is rendered with the bounds redefined each run to the middle
 fn continually_modify_position_of_1_of_3(b: &mut test::Bencher) {
     let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
@@ -490,21 +546,45 @@ fn bench_variants(
     for s in variants.next().unwrap() {
         glyph_brush.queue(s);
     }
-    glyph_brush.process_queued(
-        (1024, 768),
-        |_rect, _tex_data| {},
-        gl_to_vertex,
-    ).unwrap();
+    glyph_brush
+        .process_queued((1024, 768), |_rect, _tex_data| {}, gl_to_vertex)
+        .unwrap();
 
     b.iter(|| {
         for s in variants.next().unwrap() {
             glyph_brush.queue(s);
         }
-        glyph_brush.process_queued(
-            (1024, 768),
-            |_rect, _tex_data| {},
-            gl_to_vertex,
-        ).unwrap();
+        glyph_brush
+            .process_queued((1024, 768), |_rect, _tex_data| {}, gl_to_vertex)
+            .unwrap();
+    });
+}
+
+fn bench_varied_variants(
+    b: &mut test::Bencher,
+    variants: &[Vec<VariedSection<'_>>],
+    brush: GlyphBrushBuilder<'_>,
+) {
+    let _ = env_logger::try_init();
+
+    let mut variants = variants.iter().cycle();
+    let mut glyph_brush = brush.build();
+
+    // once before, to warm up cache benches
+    for s in variants.next().unwrap() {
+        glyph_brush.queue(s);
+    }
+    glyph_brush
+        .process_queued((1024, 768), |_rect, _tex_data| {}, gl_to_vertex)
+        .unwrap();
+
+    b.iter(|| {
+        for s in variants.next().unwrap() {
+            glyph_brush.queue(s);
+        }
+        glyph_brush
+            .process_queued((1024, 768), |_rect, _tex_data| {}, gl_to_vertex)
+            .unwrap();
     });
 }
 
@@ -518,21 +598,17 @@ fn bench(b: &mut test::Bencher, sections: &[Section<'_>], brush: GlyphBrushBuild
         glyph_brush.queue(*section);
     }
 
-    glyph_brush.process_queued(
-        (1024, 768),
-        |_rect, _tex_data| {},
-        gl_to_vertex,
-    ).unwrap();
+    glyph_brush
+        .process_queued((1024, 768), |_rect, _tex_data| {}, gl_to_vertex)
+        .unwrap();
 
     b.iter(|| {
         for section in sections {
             glyph_brush.queue(*section);
         }
-        glyph_brush.process_queued(
-            (1024, 768),
-            |_rect, _tex_data| {},
-            gl_to_vertex,
-        ).unwrap();
+        glyph_brush
+            .process_queued((1024, 768), |_rect, _tex_data| {}, gl_to_vertex)
+            .unwrap();
     });
 }
 
