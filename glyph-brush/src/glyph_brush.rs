@@ -179,34 +179,35 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
         if self.cache_glyph_positioning {
             if !self.calculate_glyph_cache.contains_key(&section_hash.full) {
                 let geometry = SectionGeometry::from(section);
-                let mut glyphs = None;
 
-                if let Some((old_hash, old_section)) = self
+                let recalculated_glyphs = self
                     .last_frame_seq_id_sections
                     .get(frame_seq_id)
-                    .and_then(|hash| Some((hash, self.calculate_glyph_cache.get(&hash.full)?)))
-                {
-                    glyphs = Some(layout.recalculate_glyphs(
-                        Cow::Borrowed(&old_section.glyphs),
-                        match section_hash.diff(*old_hash) {
-                            SectionHashDiff::GeometryChange => {
-                                GlyphChange::Geometry(old_hash.geometry)
-                            }
+                    .cloned()
+                    .and_then(|hash| {
+                        let change = match section_hash.diff(hash) {
+                            SectionHashDiff::GeometryChange => GlyphChange::Geometry(hash.geometry),
                             SectionHashDiff::ColorChange => GlyphChange::Color,
                             SectionHashDiff::AlphaChange => GlyphChange::Alpha,
-                            SectionHashDiff::Different => GlyphChange::Unknown,
-                        },
-                        &self.fonts,
-                        &geometry,
-                        &section.text,
-                    ));
-                }
+                            SectionHashDiff::Different => return None,
+                        };
+
+                        let glyphs = self.calculate_glyph_cache.remove(&hash.full)?.glyphs;
+
+                        Some(layout.recalculate_glyphs(
+                            Cow::Owned(glyphs),
+                            change,
+                            &self.fonts,
+                            &geometry,
+                            &section.text,
+                        ))
+                    });
 
                 self.calculate_glyph_cache.insert(
                     section_hash.full,
                     GlyphedSection {
                         bounds: layout.bounds_rect(&geometry),
-                        glyphs: glyphs.unwrap_or_else(|| {
+                        glyphs: recalculated_glyphs.unwrap_or_else(|| {
                             layout.calculate_glyphs(&self.fonts, &geometry, &section.text)
                         }),
                         z: section.z,
@@ -607,7 +608,7 @@ impl SectionHashDetail {
         if self.text == other.text {
             return SectionHashDiff::GeometryChange;
         } else if self.geometry == other.geometry {
-            if self.text_no_color == other.text_no_color  {
+            if self.text_no_color == other.text_no_color {
                 return SectionHashDiff::ColorChange;
             } else if self.text_no_color_alpha == other.text_no_color_alpha {
                 return SectionHashDiff::AlphaChange;
