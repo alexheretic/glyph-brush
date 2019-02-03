@@ -2,8 +2,9 @@ use super::{
     BuiltInLineBreaker, Color, FontId, FontMap, GlyphPositioner, LineBreaker, PositionedGlyph,
     Rect, SectionGeometry, SectionText,
 };
-use crate::{characters::Characters, rusttype::point};
-use std::mem;
+use crate::{characters::Characters, rusttype::point, GlyphChange};
+use full_rusttype::vector;
+use std::{borrow::Cow, mem};
 
 /// Built-in [`GlyphPositioner`](trait.GlyphPositioner.html) implementations.
 ///
@@ -203,11 +204,11 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                             // y-position and filter out-of-bounds glyphs
                             let shifted: Vec<_> = out
                                 .drain(..)
-                                .filter_map(|(g, color, font)| {
+                                .filter_map(|(mut g, color, font)| {
                                     let mut pos = g.position();
                                     pos.y -= shift_up;
-                                    let shifted_g = g.into_unpositioned().positioned(pos);
-                                    Some((shifted_g, color, font)).filter(|(g, ..)| {
+                                    g.set_position(pos);
+                                    Some((g, color, font)).filter(|(g, ..)| {
                                         g.pixel_bounding_box()
                                             .map(|bb| {
                                                 bb.max.y as f32 >= min_y
@@ -252,6 +253,66 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
         Rect {
             min: point(x_min, y_min),
             max: point(x_max, y_max),
+        }
+    }
+
+    #[allow(clippy::float_cmp)]
+    fn recalculate_glyphs<'font, F>(
+        &self,
+        previous: Cow<'_, Vec<(PositionedGlyph<'font>, Color, FontId)>>,
+        change: GlyphChange,
+        fonts: &F,
+        geometry: &SectionGeometry,
+        sections: &[SectionText<'_>],
+    ) -> Vec<(PositionedGlyph<'font>, Color, FontId)>
+    where
+        F: FontMap<'font>,
+    {
+        match change {
+            GlyphChange::Geometry(old) if old.bounds == geometry.bounds => {
+                // position change
+                let adjustment = vector(
+                    geometry.screen_position.0 - old.screen_position.0,
+                    geometry.screen_position.1 - old.screen_position.1,
+                );
+
+                let mut glyphs = previous.into_owned();
+                for (glyph, ..) in &mut glyphs {
+                    let new_pos = glyph.position() + adjustment;
+                    glyph.set_position(new_pos);
+                }
+
+                glyphs
+            }
+            GlyphChange::Color if !sections.is_empty() && !previous.is_empty() => {
+                let new_color = sections[0].color;
+                if sections.iter().all(|s| s.color == new_color) {
+                    // if only the color changed, but the new section only use a single color
+                    // we can simply set all the olds to the new color
+                    let mut glyphs = previous.into_owned();
+                    for (_, color, ..) in &mut glyphs {
+                        *color = new_color;
+                    }
+                    glyphs
+                } else {
+                    self.calculate_glyphs(fonts, geometry, sections)
+                }
+            }
+            GlyphChange::Alpha if !sections.is_empty() && !previous.is_empty() => {
+                let new_alpha = sections[0].color[3];
+                if sections.iter().all(|s| s.color[3] == new_alpha) {
+                    // if only the alpha changed, but the new section only uses a single alpha
+                    // we can simply set all the olds to the new alpha
+                    let mut glyphs = previous.into_owned();
+                    for (_, color, ..) in &mut glyphs {
+                        color[3] = new_alpha;
+                    }
+                    glyphs
+                } else {
+                    self.calculate_glyphs(fonts, geometry, sections)
+                }
+            }
+            _ => self.calculate_glyphs(fonts, geometry, sections),
         }
     }
 }
@@ -365,6 +426,30 @@ mod layout_test {
                 );
             }
         }};
+    }
+
+    /// Compile test for trait stability
+    #[allow(unused)]
+    #[derive(Hash)]
+    enum SimpleCustomGlyphPositioner {}
+    impl GlyphPositioner for SimpleCustomGlyphPositioner {
+        fn calculate_glyphs<'font, F: FontMap<'font>>(
+            &self,
+            _: &F,
+            _: &SectionGeometry,
+            _: &[SectionText<'_>],
+        ) -> Vec<(PositionedGlyph<'font>, Color, FontId)> {
+            vec![]
+        }
+
+        /// Return a screen rectangle according to the requested render position and bounds
+        /// appropriate for the glyph layout.
+        fn bounds_rect(&self, _: &SectionGeometry) -> Rect<f32> {
+            Rect {
+                min: point(0.0, 0.0),
+                max: point(0.0, 0.0),
+            }
+        }
     }
 
     #[test]
@@ -762,5 +847,167 @@ mod layout_test {
 
         assert_relative_eq!(glyphs[0].0.position().y, first_line_y);
         assert_relative_eq!(glyphs[3].0.position().y, second_line_y);
+    }
+
+    #[test]
+    fn recalculate_identical() {
+        let glyphs = Layout::default().calculate_glyphs(
+            &*FONT_MAP,
+            &SectionGeometry::default(),
+            &[SectionText {
+                text: "hello world",
+                scale: Scale::uniform(20.0),
+                ..SectionText::default()
+            }],
+        );
+
+        let recalc = Layout::default().recalculate_glyphs(
+            Cow::Owned(glyphs),
+            GlyphChange::Unknown,
+            &*FONT_MAP,
+            &SectionGeometry::default(),
+            &[SectionText {
+                text: "hello world",
+                scale: Scale::uniform(20.0),
+                ..SectionText::default()
+            }],
+        );
+
+        assert_glyph_order!(recalc, "helloworld");
+
+        assert_relative_eq!(recalc[0].0.position().x, 0.0);
+        let last_glyph = &recalc.last().unwrap().0;
+        assert!(
+            last_glyph.position().x > 0.0,
+            "unexpected last position {:?}",
+            last_glyph.position()
+        );
+    }
+
+    #[test]
+    fn recalculate_position() {
+        let geometry_1 = SectionGeometry {
+            screen_position: (0.0, 0.0),
+            ..<_>::default()
+        };
+
+        let glyphs = Layout::default().calculate_glyphs(
+            &*FONT_MAP,
+            &geometry_1,
+            &[SectionText {
+                text: "hello world",
+                scale: Scale::uniform(20.0),
+                ..SectionText::default()
+            }],
+        );
+
+        let original_y = glyphs[0].0.position().y;
+
+        let recalc = Layout::default().recalculate_glyphs(
+            Cow::Owned(glyphs),
+            GlyphChange::Geometry(geometry_1),
+            &*FONT_MAP,
+            &SectionGeometry {
+                screen_position: (0.0, 50.0),
+                ..geometry_1
+            },
+            &[SectionText {
+                text: "hello world",
+                scale: Scale::uniform(20.0),
+                ..SectionText::default()
+            }],
+        );
+
+        assert_glyph_order!(recalc, "helloworld");
+
+        assert_relative_eq!(recalc[0].0.position().x, 0.0);
+        assert_relative_eq!(recalc[0].0.position().y, original_y + 50.0);
+        let last_glyph = &recalc.last().unwrap().0;
+        assert!(
+            last_glyph.position().x > 0.0,
+            "unexpected last position {:?}",
+            last_glyph.position()
+        );
+    }
+
+    #[test]
+    fn recalculate_colors() {
+        const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
+        const BLUE: [f32; 4] = [0.0, 0.0, 1.0, 1.0];
+
+        let glyphs = Layout::default().calculate_glyphs(
+            &*FONT_MAP,
+            &SectionGeometry::default(),
+            &[SectionText {
+                text: "hello world",
+                color: RED,
+                ..<_>::default()
+            }],
+        );
+
+        assert_glyph_order!(glyphs, "helloworld");
+        assert_eq!(glyphs[2].1, RED);
+
+        let recalc = Layout::default().recalculate_glyphs(
+            Cow::Owned(glyphs),
+            GlyphChange::Color,
+            &*FONT_MAP,
+            &SectionGeometry::default(),
+            &[SectionText {
+                text: "hello world",
+                color: BLUE,
+                ..<_>::default()
+            }],
+        );
+
+        assert_glyph_order!(recalc, "helloworld");
+        assert_eq!(recalc[2].1, BLUE);
+    }
+
+    #[test]
+    fn recalculate_alpha() {
+        const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
+        const RED_HALF_ALPHA: [f32; 4] = [1.0, 0.0, 0.0, 0.5];
+
+        const YELLOW: [f32; 4] = [1.0, 1.0, 0.0, 1.0];
+        const YELLOW_HALF_ALPHA: [f32; 4] = [1.0, 1.0, 0.0, 0.5];
+
+        let glyphs = Layout::default().calculate_glyphs(
+            &*FONT_MAP,
+            &SectionGeometry::default(),
+            &[SectionText {
+                text: "hello",
+                color: RED,
+                ..<_>::default()
+            },
+            SectionText {
+                text: " world",
+                color: YELLOW,
+                ..<_>::default()
+            }],
+        );
+
+        assert_glyph_order!(glyphs, "helloworld");
+        assert_eq!(glyphs[2].1, RED);
+
+        let recalc = Layout::default().recalculate_glyphs(
+            Cow::Owned(glyphs),
+            GlyphChange::Alpha,
+            &*FONT_MAP,
+            &SectionGeometry::default(),
+            &[SectionText {
+                text: "hello",
+                color: RED_HALF_ALPHA,
+                ..<_>::default()
+            },
+            SectionText {
+                text: " world",
+                color: YELLOW_HALF_ALPHA,
+                ..<_>::default()
+            }],
+        );
+
+        assert_glyph_order!(recalc, "helloworld");
+        assert_eq!(recalc[2].1, RED_HALF_ALPHA);
     }
 }

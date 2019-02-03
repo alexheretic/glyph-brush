@@ -1,4 +1,5 @@
 use super::{owned_section::*, *};
+use ordered_float::OrderedFloat;
 use std::{borrow::Cow, f32, hash::*};
 
 /// An object that contains all the info to render a varied section of text. That is one including
@@ -89,31 +90,36 @@ impl Hash for VariedSection<'_> {
 
         layout.hash(state);
 
-        for t in text {
-            let SectionText {
-                text,
-                scale,
-                color,
-                font_id,
-            } = *t;
-
-            let ord_floats: &[OrderedFloat<_>] = &[
-                scale.x.into(),
-                scale.y.into(),
-                color[0].into(),
-                color[1].into(),
-                color[2].into(),
-                color[3].into(),
-            ];
-
-            (text, font_id, ord_floats).hash(state);
-        }
+        hash_section_text(state, text);
 
         ord_floats.hash(state);
     }
 }
 
-impl VariedSection<'_> {
+#[inline]
+fn hash_section_text<H: Hasher>(state: &mut H, text: &[SectionText]) {
+    for t in text {
+        let SectionText {
+            text,
+            scale,
+            color,
+            font_id,
+        } = *t;
+
+        let ord_floats: &[OrderedFloat<_>] = &[
+            scale.x.into(),
+            scale.y.into(),
+            color[0].into(),
+            color[1].into(),
+            color[2].into(),
+            color[3].into(),
+        ];
+
+        (text, font_id, ord_floats).hash(state);
+    }
+}
+
+impl<'text> VariedSection<'text> {
     pub fn to_owned(&self) -> OwnedVariedSection {
         OwnedVariedSection {
             screen_position: self.screen_position,
@@ -121,6 +127,29 @@ impl VariedSection<'_> {
             z: self.z,
             layout: self.layout,
             text: self.text.iter().map(OwnedSectionText::from).collect(),
+        }
+    }
+
+    pub(crate) fn to_hashable_parts(&self) -> HashableVariedSectionParts<'_> {
+        let VariedSection {
+            screen_position: (screen_x, screen_y),
+            bounds: (bound_w, bound_h),
+            z,
+            ref text,
+            ..
+        } = *self;
+
+        let geometry = [
+            screen_x.into(),
+            screen_y.into(),
+            bound_w.into(),
+            bound_h.into(),
+        ];
+
+        HashableVariedSectionParts {
+            geometry,
+            z: z.into(),
+            text,
         }
     }
 }
@@ -232,5 +261,65 @@ impl<'a> From<Section<'a>> for Cow<'a, VariedSection<'a>> {
 impl<'a> From<&Section<'a>> for Cow<'a, VariedSection<'a>> {
     fn from(section: &Section<'a>) -> Self {
         Cow::Owned(VariedSection::from(section))
+    }
+}
+
+pub(crate) struct HashableVariedSectionParts<'a> {
+    geometry: [OrderedFloat<f32>; 4],
+    z: OrderedFloat<f32>,
+    text: &'a [SectionText<'a>],
+}
+
+impl HashableVariedSectionParts<'_> {
+
+    #[inline]
+    pub fn hash_geometry<H: Hasher>(&self, state: &mut H) {
+        self.geometry.hash(state);
+    }
+
+    #[inline]
+    pub fn hash_z<H: Hasher>(&self, state: &mut H) {
+        self.z.hash(state);
+    }
+
+    #[inline]
+    pub fn hash_text_no_color<H: Hasher>(&self, state: &mut H) {
+        for t in self.text {
+            let SectionText {
+                text,
+                scale,
+                font_id,
+                ..
+            } = *t;
+
+            let ord_floats: &[OrderedFloat<_>] = &[
+                scale.x.into(),
+                scale.y.into(),
+            ];
+
+            (text, font_id, ord_floats).hash(state);
+        }
+    }
+
+    #[inline]
+    pub fn hash_alpha<H: Hasher>(&self, state: &mut H) {
+        for t in self.text {
+            OrderedFloat(t.color[3]).hash(state);
+        }
+    }
+
+    #[inline]
+    pub fn hash_color<H: Hasher>(&self, state: &mut H) {
+        for t in self.text {
+            let color = t.color;
+
+            let ord_floats: &[OrderedFloat<_>] = &[
+                color[0].into(),
+                color[1].into(),
+                color[2].into(),
+            ];
+
+            ord_floats.hash(state);
+        }
     }
 }

@@ -10,7 +10,7 @@ license = "Apache-2.0"
 readme="README.md"
 
 [dependencies]
-full_rusttype = { version = "0.7", features = ["gpu_cache"], package = "rusttype" }
+full_rusttype = { version = "0.7.4", features = ["gpu_cache"], package = "rusttype" }
 xi-unicode = "0.1"
 
 [dev-dependencies]
