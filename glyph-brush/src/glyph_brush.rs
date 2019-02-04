@@ -196,10 +196,16 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
                             SectionHashDiff::Different => return None,
                         };
 
-                        let previous = self.calculate_glyph_cache.remove(&hash.full)?;
+                        let old_glyphs = if self.keep_in_cache.contains(&hash.full) {
+                            let cached = self.calculate_glyph_cache.get(&hash.full)?;
+                            Cow::Borrowed(&cached.positioned.glyphs)
+                        } else {
+                            let old = self.calculate_glyph_cache.remove(&hash.full)?;
+                            Cow::Owned(old.positioned.glyphs)
+                        };
 
                         Some(layout.recalculate_glyphs(
-                            Cow::Owned(previous.positioned.glyphs),
+                            old_glyphs,
                             change,
                             &self.fonts,
                             &geometry,
