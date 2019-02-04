@@ -3,7 +3,7 @@ mod builder;
 pub use self::builder::*;
 
 use super::*;
-use full_rusttype::gpu_cache::Cache;
+use full_rusttype::gpu_cache::{Cache, CachedBy};
 use log::error;
 use std::{
     borrow::Cow,
@@ -35,14 +35,14 @@ type DefaultSectionHasher = BuildHasherDefault<seahash::SeaHasher>;
 /// The cache for a section will be **cleared** after a
 /// [`GlyphBrush::process_queued`](#method.process_queued) call when that section has not been used
 /// since the previous call.
-pub struct GlyphBrush<'font, H = DefaultSectionHasher> {
+pub struct GlyphBrush<'font, V: Clone + 'static, H = DefaultSectionHasher> {
     fonts: Vec<Font<'font>>,
     texture_cache: Cache<'font>,
     last_draw: LastDrawInfo,
 
     // cache of section-layout hash -> computed glyphs, this avoid repeated glyph computation
     // for identical layout/sections common to repeated frame rendering
-    calculate_glyph_cache: hashbrown::HashMap<SectionHash, GlyphedSection<'font>>,
+    calculate_glyph_cache: hashbrown::HashMap<SectionHash, Glyphed<'font, V>>,
 
     last_frame_seq_id_sections: Vec<SectionHashDetail>,
     frame_seq_id_sections: Vec<SectionHashDetail>,
@@ -60,17 +60,17 @@ pub struct GlyphBrush<'font, H = DefaultSectionHasher> {
 
     section_hasher: H,
 
-    last_pre_positioned: Vec<GlyphedSection<'font>>,
-    pre_positioned: Vec<GlyphedSection<'font>>,
+    last_pre_positioned: Vec<Glyphed<'font, V>>,
+    pre_positioned: Vec<Glyphed<'font, V>>,
 }
 
-impl<H> fmt::Debug for GlyphBrush<'_, H> {
+impl<V: Clone + 'static, H> fmt::Debug for GlyphBrush<'_, V, H> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "GlyphBrush")
     }
 }
 
-impl<'font, H: BuildHasher> GlyphCruncher<'font> for GlyphBrush<'font, H> {
+impl<'font, V: Clone + 'static, H: BuildHasher> GlyphCruncher<'font> for GlyphBrush<'font, V, H> {
     fn pixel_bounds_custom_layout<'a, S, L>(
         &mut self,
         section: S,
@@ -82,7 +82,9 @@ impl<'font, H: BuildHasher> GlyphCruncher<'font> for GlyphBrush<'font, H> {
     {
         let section_hash = self.cache_glyphs(&section.into(), custom_layout);
         self.keep_in_cache.insert(section_hash);
-        self.calculate_glyph_cache[&section_hash].pixel_bounds()
+        self.calculate_glyph_cache[&section_hash]
+            .positioned
+            .pixel_bounds()
     }
 
     fn glyphs_custom_layout<'a, 'b, S, L>(
@@ -96,7 +98,9 @@ impl<'font, H: BuildHasher> GlyphCruncher<'font> for GlyphBrush<'font, H> {
     {
         let section_hash = self.cache_glyphs(&section.into(), custom_layout);
         self.keep_in_cache.insert(section_hash);
-        self.calculate_glyph_cache[&section_hash].glyphs()
+        self.calculate_glyph_cache[&section_hash]
+            .positioned
+            .glyphs()
     }
 
     fn fonts(&self) -> &[Font<'font>] {
@@ -104,7 +108,7 @@ impl<'font, H: BuildHasher> GlyphCruncher<'font> for GlyphBrush<'font, H> {
     }
 }
 
-impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
+impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
     /// Queues a section/layout to be processed by the next call of
     /// [`process_queued`](struct.GlyphBrush.html#method.process_queued). Can be called multiple
     /// times to queue multiple sections for drawing.
@@ -138,7 +142,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     /// ```no_run
     /// # use glyph_brush::*;
     /// # let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-    /// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
+    /// # let mut glyph_brush: GlyphBrush<'_, ()> = GlyphBrushBuilder::using_font_bytes(dejavu).build();
     /// glyph_brush.queue(Section {
     ///     text: "Hello glyph_brush",
     ///     ..Section::default()
@@ -163,7 +167,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
         z: f32,
     ) {
         self.pre_positioned
-            .push(GlyphedSection { glyphs, bounds, z });
+            .push(Glyphed::new(GlyphedSection { glyphs, bounds, z }));
     }
 
     /// Returns the calculate_glyph_cache key for this sections glyphs
@@ -192,10 +196,10 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
                             SectionHashDiff::Different => return None,
                         };
 
-                        let glyphs = self.calculate_glyph_cache.remove(&hash.full)?.glyphs;
+                        let previous = self.calculate_glyph_cache.remove(&hash.full)?;
 
                         Some(layout.recalculate_glyphs(
-                            Cow::Owned(glyphs),
+                            Cow::Owned(previous.positioned.glyphs),
                             change,
                             &self.fonts,
                             &geometry,
@@ -205,24 +209,24 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
 
                 self.calculate_glyph_cache.insert(
                     section_hash.full,
-                    GlyphedSection {
+                    Glyphed::new(GlyphedSection {
                         bounds: layout.bounds_rect(&geometry),
                         glyphs: recalculated_glyphs.unwrap_or_else(|| {
                             layout.calculate_glyphs(&self.fonts, &geometry, &section.text)
                         }),
                         z: section.z,
-                    },
+                    }),
                 );
             }
         } else {
             let geometry = SectionGeometry::from(section);
             self.calculate_glyph_cache.insert(
                 section_hash.full,
-                GlyphedSection {
+                Glyphed::new(GlyphedSection {
                     bounds: layout.bounds_rect(&geometry),
                     glyphs: layout.calculate_glyphs(&self.fonts, &geometry, &section.text),
                     z: section.z,
-                },
+                }),
             );
         }
         section_hash.full
@@ -259,7 +263,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn process_queued<V, F1, F2>(
+    pub fn process_queued<F1, F2>(
         &mut self,
         (screen_w, screen_h): (u32, u32),
         update_texture: F1,
@@ -267,7 +271,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     ) -> Result<BrushAction<V>, BrushError>
     where
         F1: FnMut(Rect<u32>, &[u8]),
-        F2: Fn(GlyphVertex) -> V,
+        F2: Fn(GlyphVertex) -> V + Copy,
     {
         let current_text_state = {
             let mut s = self.section_hasher.build_hasher();
@@ -290,84 +294,61 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
                     .calculate_glyph_cache
                     .get(section_hash)
                     .iter()
-                    .flat_map(|gs| &gs.glyphs)
+                    .flat_map(|gs| &gs.positioned.glyphs)
                 {
                     self.texture_cache.queue_glyph(font_id.0, glyph.clone());
                     some_text = true;
                 }
             }
 
-            for &(ref glyph, _, font_id) in self.pre_positioned.iter().flat_map(|p| &p.glyphs) {
+            for &(ref glyph, _, font_id) in self
+                .pre_positioned
+                .iter()
+                .flat_map(|p| &p.positioned.glyphs)
+            {
                 self.texture_cache.queue_glyph(font_id.0, glyph.clone());
                 some_text = true;
             }
 
-            if some_text && self.texture_cache.cache_queued(update_texture).is_err() {
-                let (width, height) = self.texture_cache.dimensions();
-                return Err(BrushError::TextureTooSmall {
-                    suggested: (width * 2, height * 2),
-                });
+            if some_text {
+                match self.texture_cache.cache_queued(update_texture) {
+                    Ok(CachedBy::Adding) => {}
+                    Ok(CachedBy::Reordering) => {
+                        for glyphed in self.calculate_glyph_cache.values_mut() {
+                            glyphed.invalidate_texture_positions();
+                        }
+                    }
+                    Err(_) => {
+                        let (width, height) = self.texture_cache.dimensions();
+                        return Err(BrushError::TextureTooSmall {
+                            suggested: (width * 2, height * 2),
+                        });
+                    }
+                }
             }
 
-            let verts: Vec<V> = if some_text {
-                let sections: Vec<_> = self
-                    .section_buffer
-                    .iter()
-                    .map(|hash| &self.calculate_glyph_cache[hash])
-                    .chain(self.pre_positioned.iter())
-                    .collect();
+            self.last_draw.text_state = current_text_state;
 
-                let mut verts = Vec::with_capacity(
-                    sections
-                        .iter()
-                        .map(|section| section.glyphs.len())
-                        .sum::<usize>(),
-                );
+            BrushAction::Draw({
+                let screen_dims = (screen_w as f32, screen_h as f32);
 
-                for &GlyphedSection {
-                    ref glyphs,
-                    bounds,
-                    z,
-                    ..
-                } in sections
-                {
-                    verts.extend(glyphs.iter().filter_map(|(glyph, color, font_id)| {
-                        match self.texture_cache.rect_for(font_id.0, glyph) {
-                            Err(err) => {
-                                error!("Cache miss?: {:?}, {:?}: {}", font_id, glyph, err);
-                                None
-                            }
-                            Ok(None) => None,
-                            Ok(Some((tex_coords, pixel_coords))) => {
-                                if pixel_coords.min.x as f32 > bounds.max.x
-                                    || pixel_coords.min.y as f32 > bounds.max.y
-                                    || bounds.min.x > pixel_coords.max.x as f32
-                                    || bounds.min.y > pixel_coords.max.y as f32
-                                {
-                                    // glyph is totally outside the bounds
-                                    None
-                                } else {
-                                    Some(to_vertex(GlyphVertex {
-                                        tex_coords,
-                                        pixel_coords,
-                                        bounds,
-                                        screen_dimensions: (screen_w as f32, screen_h as f32),
-                                        color: *color,
-                                        z,
-                                    }))
-                                }
-                            }
-                        }
-                    }));
+                let mut verts = Vec::new();
+
+                for hash in &self.section_buffer {
+                    let glyphed = self.calculate_glyph_cache.get_mut(hash).unwrap();
+                    glyphed.ensure_vertices(&self.texture_cache, screen_dims, to_vertex);
+                    verts.extend(glyphed.vertices.iter().cloned());
+                }
+
+                for glyphed in &mut self.pre_positioned {
+                    // pre-positioned glyph vertices can't be cached so
+                    // generate & move straight into draw vec
+                    glyphed.ensure_vertices(&self.texture_cache, screen_dims, to_vertex);
+                    verts.append(&mut glyphed.vertices);
                 }
 
                 verts
-            } else {
-                vec![]
-            };
-
-            self.last_draw.text_state = current_text_state;
-            BrushAction::Draw(verts)
+            })
         } else {
             BrushAction::ReDraw
         };
@@ -381,9 +362,9 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     /// # Example
     ///
     /// ```no_run
-    /// # use glyph_brush::GlyphBrushBuilder;
+    /// # use glyph_brush::*;
     /// # let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-    /// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
+    /// # let mut glyph_brush: GlyphBrush<'_, ()> = GlyphBrushBuilder::using_font_bytes(dejavu).build();
     /// glyph_brush.resize_texture(512, 512);
     /// ```
     pub fn resize_texture(&mut self, new_width: u32, new_height: u32) {
@@ -393,6 +374,11 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
             .rebuild(&mut self.texture_cache);
 
         self.last_draw = LastDrawInfo::default();
+
+        // invalidate any previous cache position data
+        for glyphed in self.calculate_glyph_cache.values_mut() {
+            glyphed.invalidate_texture_positions();
+        }
     }
 
     /// Returns the logical texture cache pixel dimensions `(width, height)`.
@@ -434,12 +420,14 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     /// # Example
     ///
     /// ```no_run
-    /// use glyph_brush::{GlyphBrushBuilder, Section};
+    /// use glyph_brush::{GlyphBrush, GlyphBrushBuilder, Section};
+    /// # type Vertex = ();
     /// # fn main() {
     ///
     /// // dejavu is built as default `FontId(0)`
     /// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-    /// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
+    /// let mut glyph_brush: GlyphBrush<'_, Vertex> =
+    ///     GlyphBrushBuilder::using_font_bytes(dejavu).build();
     ///
     /// // some time later, add another font referenced by a new `FontId`
     /// let open_sans_italic: &[u8] = include_bytes!("../../fonts/OpenSans-Italic.ttf");
@@ -615,5 +603,84 @@ impl SectionHashDetail {
             }
         }
         SectionHashDiff::Different
+    }
+}
+
+/// Container for positioned glyphs which can generate and cache vertices
+struct Glyphed<'font, V: Clone + 'static> {
+    positioned: GlyphedSection<'font>,
+    vertices: Vec<V>,
+}
+
+impl<V: Clone + 'static> PartialEq for Glyphed<'_, V> {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        self.positioned == other.positioned
+    }
+}
+
+impl<'font, V: Clone + 'static> Glyphed<'font, V> {
+    #[inline]
+    fn new(gs: GlyphedSection<'font>) -> Self {
+        Self {
+            positioned: gs,
+            vertices: Vec::new(),
+        }
+    }
+
+    /// Mark previous texture positions as no longer valid (vertices require re-generation)
+    fn invalidate_texture_positions(&mut self) {
+        self.vertices.clear();
+    }
+
+    /// Calculate vertices if not already done
+    fn ensure_vertices<F>(
+        &mut self,
+        texture_cache: &Cache<'font>,
+        screen_dimensions: (f32, f32),
+        to_vertex: F,
+    ) where
+        F: Fn(GlyphVertex) -> V,
+    {
+        if !self.vertices.is_empty() {
+            return;
+        }
+
+        let GlyphedSection {
+            bounds,
+            z,
+            ref glyphs,
+        } = self.positioned;
+
+        self.vertices.reserve(glyphs.len());
+        self.vertices
+            .extend(glyphs.iter().filter_map(|(glyph, color, font_id)| {
+                match texture_cache.rect_for(font_id.0, glyph) {
+                    Err(err) => {
+                        error!("Cache miss?: {:?}, {:?}: {}", font_id, glyph, err);
+                        None
+                    }
+                    Ok(None) => None,
+                    Ok(Some((tex_coords, pixel_coords))) => {
+                        if pixel_coords.min.x as f32 > bounds.max.x
+                            || pixel_coords.min.y as f32 > bounds.max.y
+                            || bounds.min.x > pixel_coords.max.x as f32
+                            || bounds.min.y > pixel_coords.max.y as f32
+                        {
+                            // glyph is totally outside the bounds
+                            None
+                        } else {
+                            Some(to_vertex(GlyphVertex {
+                                tex_coords,
+                                pixel_coords,
+                                bounds,
+                                screen_dimensions,
+                                color: *color,
+                                z,
+                            }))
+                        }
+                    }
+                }
+            }));
     }
 }
