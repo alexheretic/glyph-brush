@@ -1,6 +1,4 @@
-use crate::{
-    DefaultSectionHasher, Font, FontId, GlyphBrush, SharedBytes,
-};
+use crate::{DefaultSectionHasher, Font, FontId, GlyphBrush, SharedBytes};
 use full_rusttype::gpu_cache::Cache;
 use std::hash::BuildHasher;
 
@@ -9,10 +7,12 @@ use std::hash::BuildHasher;
 /// # Example
 ///
 /// ```no_run
-/// use glyph_brush::GlyphBrushBuilder;
+/// use glyph_brush::{GlyphBrush, GlyphBrushBuilder};
+/// # type Vertex = ();
 ///
 /// let dejavu: &[u8] = include_bytes!("../../../fonts/DejaVuSans.ttf");
-/// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
+/// let mut glyph_brush: GlyphBrush<'_, Vertex> =
+///     GlyphBrushBuilder::using_font_bytes(dejavu).build();
 /// ```
 pub struct GlyphBrushBuilder<'a, H = DefaultSectionHasher> {
     pub font_data: Vec<Font<'a>>,
@@ -175,7 +175,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     }
 
     /// Builds a `GlyphBrush` using the input gfx factory
-    pub fn build(self) -> GlyphBrush<'a, H> {
+    pub fn build<V: Clone + 'static>(self) -> GlyphBrush<'a, V, H> {
         let (cache_width, cache_height) = self.initial_cache_size;
 
         GlyphBrush {

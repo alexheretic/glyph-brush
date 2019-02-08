@@ -3,12 +3,18 @@
   - Compute if just geometry (ie section position) has changed -> `GlyphChange::Geometry`.
   - Compute if just color has changed -> `GlyphChange::Color`.
   - Compute if just alpha has changed -> `GlyphChange::Alpha`.
+
+  Provides much faster re-layout performance in these common change scenarios.
+* `GlyphBrush` now generates & caches vertices avoiding regeneration of individual unchanged sections, when another section change forces regeneration of the complete vertex array. The user vertex type `V` is now in the struct signature.
+  ```rust
+  pub struct DownstreamGlyphBrush<'font, H = DefaultSectionHasher> {
+      // previously: glyph_brush::GlyphBrush<'font, H>,
+      inner: glyph_brush::GlyphBrush<'font, DownstreamGlyphVertex, H>,
+      ...
+  }
   ```
-  name                                   control ns/iter  change ns/iter  diff ns/iter   diff %  speedup
-  continually_modify_alpha_of_1_of_3     858,297          561,664             -296,633  -34.56%   x 1.53
-  continually_modify_color_of_1_of_3     870,442          558,456             -311,986  -35.84%   x 1.56
-  continually_modify_position_of_1_of_3  867,278          567,991             -299,287  -34.51%   x 1.53
-  ```
+
+These changes result in a big performance improvement for changes to sections amongst other unchanging sections, which is a fairly common thing to want to do. Fully cached (everything unchanging) & worst-case (everything changing/new) are not significantly affected.
 
 # 0.3
 * Add `GlyphCruncher::fonts()` to common trait, hoisted from direct implementations. Add something like the following if you implement `GlyphCruncher`.

@@ -142,7 +142,7 @@ pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>, H = DefaultS
     factory: F,
     program: gfx::handle::Program<R>,
     draw_cache: Option<DrawnGlyphBrush<R>>,
-    glyph_brush: glyph_brush::GlyphBrush<'font, H>,
+    glyph_brush: glyph_brush::GlyphBrush<'font, GlyphVertex, H>,
 
     // config
     depth_test: gfx::state::Depth,
