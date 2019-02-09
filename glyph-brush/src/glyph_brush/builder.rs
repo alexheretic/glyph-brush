@@ -148,14 +148,14 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     ///
     /// This hasher is used to distinguish sections, rather than for hashmap internal use.
     ///
-    /// Defaults to [seahash](https://docs.rs/seahash).
+    /// Defaults to [xxHash](https://docs.rs/twox-hash).
     ///
     /// # Example
     /// ```no_run
     /// # use glyph_brush::GlyphBrushBuilder;
     /// # fn main() {
     /// # let some_font: &[u8] = include_bytes!("../../../fonts/DejaVuSans.ttf");
-    /// # type SomeOtherBuildHasher = ::std::hash::BuildHasherDefault<seahash::SeaHasher>;
+    /// # type SomeOtherBuildHasher = glyph_brush::DefaultSectionHasher;
     /// GlyphBrushBuilder::using_font_bytes(some_font)
     ///     .section_hasher(SomeOtherBuildHasher::default())
     ///     // ...

@@ -8,15 +8,12 @@ use log::error;
 use std::{
     borrow::Cow,
     fmt,
-    hash::{BuildHasher, BuildHasherDefault, Hash, Hasher},
+    hash::{BuildHasher, Hash, Hasher},
     i32, mem,
 };
 
 /// A hash of `Section` data
 type SectionHash = u64;
-
-/// A "practically collision free" `Section` hasher
-type DefaultSectionHasher = BuildHasherDefault<seahash::SeaHasher>;
 
 /// Object allowing glyph drawing, containing cache state. Manages glyph positioning cacheing,
 /// glyph draw caching & efficient GPU texture cache updating.

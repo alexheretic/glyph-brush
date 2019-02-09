@@ -1,3 +1,6 @@
+# Unreleased
+* Change default section hasher to xxHash as seahash has been shown to collide easily in 32bit environments.
+
 # 0.4
 * Use queue call counting & fine grained hashing to match up previous calls with current calls figuring out what has changed allowing optimised use of `recalculate_glyphs` for fast layouts.
   - Compute if just geometry (ie section position) has changed -> `GlyphChange::Geometry`.
