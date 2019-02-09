@@ -28,7 +28,8 @@ matrix:
     addons:
       apt:
         packages:
-        - musl-gcc
+        - gcc-multilib
+        - musl-tools
   fast_finish: true
 os:
 - linux
