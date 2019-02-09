@@ -21,15 +21,23 @@ matrix:
   allow_failures:
   - os: osx
     rust: nightly
+  include:
+  # test 32-bit
+  - name: "i686-unknown-linux-musl"
+    env: TARGET=i686-unknown-linux-musl
+    addons:
+      apt:
+        packages:
+        - musl-gcc
   fast_finish: true
 os:
 - linux
 - osx
 script:
 - if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then
-    cargo build --all-features --all-targets;
+    cargo test --all --all-targets;
+  elif [ -n "$TARGET" ]; then
+    rustup target add "$TARGET" && cargo test --all --target "$TARGET";
+  else
+    cargo test --all;
   fi
-- if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then
-    cargo test --benches;
-  fi
-- cargo test --all
