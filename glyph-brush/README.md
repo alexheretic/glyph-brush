@@ -4,11 +4,13 @@ glyph_brush
 ================
 Fast caching text render library using [rusttype](https://gitlab.redox-os.org/redox-os/rusttype). Provides render API agnostic rasterization & draw caching logic.
 
-Makes use of three kinds of caching to optimise frame performance.
+Makes extensive use of caching to optimise frame performance.
 
 * GPU texture cache logic to dynamically maintain a GPU texture of rendered glyphs.
 * Caching of glyph layout output to avoid repeated cost of identical text rendering on sequential frames.
-* Caches draw calculations to avoid repeated cost of identical text rendering on sequential frames.
+* Layouts are re-used to optimise similar layout calculation after a change.
+* Vertex generation is cached per section and re-assembled into the total vertex array on change.
+* Avoids any layout or vertex calculations when identical text is rendered on sequential frames.
 
 The crate is designed to be easily wrapped to create a convenient render API specific version, for example [gfx-glyph](https://github.com/alexheretic/gfx-glyph/tree/master/gfx-glyph).
 
