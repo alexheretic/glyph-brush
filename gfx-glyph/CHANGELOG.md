@@ -1,3 +1,6 @@
+# Unreleased
+* Update gfx -> `0.18`.
+
 # 0.13.3
 * Update glyph_brush -> `0.4`, big performance improvements for changing sections.
 

@@ -11,16 +11,16 @@ readme="README.md"
 
 [dependencies]
 backtrace = "0.3"
-gfx = "0.17"
-gfx_core = "0.8"
+gfx = "0.18"
+gfx_core = "0.9"
 glyph_brush = { version = "0.4", path = "../glyph-brush" }
 log = "0.4"
 
 [dev-dependencies]
 env_logger = { version = "0.6", default-features = false }
 approx = "0.3"
-gfx_device_gl = "0.15.3"
-gfx_window_glutin = "0.28"
+gfx_device_gl = "0.16"
+gfx_window_glutin = "0.29"
 glutin = "0.19"
 cgmath = "0.17"
 spin_sleep = "0.3"
