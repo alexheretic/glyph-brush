@@ -5,14 +5,6 @@ gfx_glyph
 
 Fast GPU cached text rendering using [gfx-rs v0.17](https://github.com/gfx-rs/gfx/tree/pre-ll) & [glyph-brush](https://github.com/alexheretic/glyph-brush/tree/master/glyph-brush).
 
-Makes use of three kinds of caching to optimise frame performance.
-
-* Caching of glyph positioning output to avoid repeated cost of identical text
-rendering on sequential frames.
-* Caches draw calculations to avoid repeated cost of identical text rendering on
-sequential frames.
-* GPU cache logic to dynamically maintain a GPU texture of rendered glyphs.
-
 ```rust
 use gfx_glyph::{Section, GlyphBrushBuilder};
 
