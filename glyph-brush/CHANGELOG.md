@@ -1,4 +1,4 @@
-# Unreleased
+# 0.4.1
 * Change default section hasher to xxHash as seahash has been shown to collide easily in 32bit environments.
 
 # 0.4
