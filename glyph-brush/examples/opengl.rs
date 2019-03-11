@@ -8,7 +8,7 @@
 //! * Resize window.
 
 use gl::types::*;
-use glutin::{Api, GlContext, GlProfile, GlRequest};
+use glutin::{Api, ContextTrait, GlProfile, GlRequest};
 use glyph_brush::{rusttype::*, *};
 use std::{
     env,
@@ -45,7 +45,7 @@ fn main() -> Res<()> {
     let mut events = glutin::EventsLoop::new();
     let title = "glyph_brush opengl example - scroll to size, type to modify";
 
-    let window = glutin::GlWindow::new(
+    let window = glutin::WindowedContext::new_windowed(
         glutin::WindowBuilder::new()
             .with_dimensions((1024, 576).into())
             .with_title(title),
