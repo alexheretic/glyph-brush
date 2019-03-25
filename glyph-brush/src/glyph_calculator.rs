@@ -51,6 +51,9 @@ pub trait GlyphCruncher<'font> {
 
     /// Returns an iterator over the `PositionedGlyph`s of the given section with a custom layout.
     ///
+    /// Generally only drawable glyphs will be returned as invisible glyphs, like spaces,
+    /// are discarded during layout.
+    ///
     /// Benefits from caching, see [caching behaviour](#caching-behaviour).
     fn glyphs_custom_layout<'a, 'b, S, L>(
         &'b mut self,
@@ -62,6 +65,9 @@ pub trait GlyphCruncher<'font> {
         S: Into<Cow<'a, VariedSection<'a>>>;
 
     /// Returns an iterator over the `PositionedGlyph`s of the given section.
+    ///
+    /// Generally only drawable glyphs will be returned as invisible glyphs, like spaces,
+    /// are discarded during layout.
     ///
     /// Benefits from caching, see [caching behaviour](#caching-behaviour).
     fn glyphs<'a, 'b, S>(&'b mut self, section: S) -> PositionedGlyphIter<'b, 'font>
