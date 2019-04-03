@@ -14,12 +14,12 @@ glyph_brush_layout = { version = "0.1.5", path = "../glyph-brush-layout" }
 log = "0.4.4"
 ordered-float = "1"
 full_rusttype = { version = "0.7.5", features = ["gpu_cache"], package = "rusttype" }
-hashbrown = "0.1"
+hashbrown = "0.2"
 twox-hash = "1"
 
 [dev-dependencies]
 env_logger = { version = "0.6", default-features = false }
 lazy_static = "1"
-gl = "0.11"
+gl = "0.12"
 glutin = "0.20"
 spin_sleep = "0.3"
