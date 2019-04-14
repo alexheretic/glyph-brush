@@ -1,3 +1,6 @@
+# 0.4.2
+* Wasm32: Avoid using random state in the default hasher.
+
 # 0.4.1
 * Change default section hasher to xxHash as seahash has been shown to collide easily in 32bit environments.
 
