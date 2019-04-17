@@ -1,3 +1,6 @@
+# master
+* Enlarge textures within `GL_MAX_TEXTURE_SIZE` if possible.
+
 # 0.14
 * Update gfx -> `0.18`.
 

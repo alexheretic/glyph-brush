@@ -46,9 +46,9 @@ pub use crate::builder::*;
 use glyph_brush::Color;
 pub use glyph_brush::{
     rusttype::{self, Font, Point, PositionedGlyph, Rect, Scale, SharedBytes},
-    BuiltInLineBreaker, FontId, FontMap, GlyphCruncher, HorizontalAlign, Layout, LineBreak,
-    LineBreaker, OwnedSectionText, OwnedVariedSection, PositionedGlyphIter, Section, SectionText,
-    VariedSection, VerticalAlign, SectionGeometry, GlyphPositioner,
+    BuiltInLineBreaker, FontId, FontMap, GlyphCruncher, GlyphPositioner, HorizontalAlign, Layout,
+    LineBreak, LineBreaker, OwnedSectionText, OwnedVariedSection, PositionedGlyphIter, Section,
+    SectionGeometry, SectionText, VariedSection, VerticalAlign,
 };
 
 use crate::pipe::{glyph_pipe, GlyphVertex, RawAndFormat};
@@ -58,9 +58,7 @@ use gfx::{
     texture,
     traits::FactoryExt,
 };
-use glyph_brush::{
-    rusttype::point, BrushAction, BrushError, DefaultSectionHasher,
-};
+use glyph_brush::{rusttype::point, BrushAction, BrushError, DefaultSectionHasher};
 use log::{log_enabled, warn};
 use std::{
     borrow::Cow,
@@ -358,7 +356,17 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
             match brush_action {
                 Ok(_) => break,
                 Err(BrushError::TextureTooSmall { suggested }) => {
-                    let (new_width, new_height) = suggested;
+                    let max_image_dimension =
+                        self.factory.get_capabilities().max_texture_size as u32;
+                    let (new_width, new_height) = if (suggested.0 > max_image_dimension
+                        || suggested.1 > max_image_dimension)
+                        && (self.glyph_brush.texture_dimensions().0 < max_image_dimension
+                            || self.glyph_brush.texture_dimensions().1 < max_image_dimension)
+                    {
+                        (max_image_dimension, max_image_dimension)
+                    } else {
+                        suggested
+                    };
 
                     if log_enabled!(log::Level::Warn) {
                         warn!(
