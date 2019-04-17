@@ -68,9 +68,15 @@ fn main() -> Res<()> {
     let fs = compile_shader(include_str!("shader/frag.glsl"), gl::FRAGMENT_SHADER)?;
     let program = link_program(vs, fs)?;
 
+    let max_image_dimension = {
+        let mut value = 0 as gl::types::GLint;
+        unsafe { gl::GetIntegerv(gl::MAX_TEXTURE_SIZE, &mut value) };
+        value as u32
+    };
+
     let mut vao = 0;
     let mut vbo = 0;
-    let mut glyph_texture = 0;
+    let mut texture = GlGlyphTexture::new(glyph_brush.texture_dimensions());
 
     unsafe {
         // Create Vertex Array Object
@@ -80,31 +86,6 @@ fn main() -> Res<()> {
         // Create a Vertex Buffer Object
         gl::GenBuffers(1, &mut vbo);
         gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-
-        {
-            // Create a texture for the glyphs
-            // The texture holds 1 byte per pixel as alpha data
-            gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1);
-            gl::GenTextures(1, &mut glyph_texture);
-            gl::BindTexture(gl::TEXTURE_2D, glyph_texture);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as _);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as _);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as _);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as _);
-            let (width, height) = glyph_brush.texture_dimensions();
-            gl::TexImage2D(
-                gl::TEXTURE_2D,
-                0,
-                gl::RED as _,
-                width as _,
-                height as _,
-                0,
-                gl::RED,
-                gl::UNSIGNED_BYTE,
-                ptr::null(),
-            );
-            gl_assert_ok!();
-        }
 
         // Use shader program
         gl::UseProgram(program);
@@ -262,6 +243,7 @@ fn main() -> Res<()> {
                 (width as _, height as _),
                 |rect, tex_data| unsafe {
                     // Update part of gpu texture with new glyph alpha values
+                    gl::BindTexture(gl::TEXTURE_2D, texture.name);
                     gl::TexSubImage2D(
                         gl::TEXTURE_2D,
                         0,
@@ -280,25 +262,24 @@ fn main() -> Res<()> {
 
             match brush_action {
                 Ok(_) => break,
-                Err(BrushError::TextureTooSmall { suggested, .. }) => unsafe {
-                    let (new_width, new_height) = suggested;
+                Err(BrushError::TextureTooSmall { suggested, .. }) => {
+                    let (new_width, new_height) = if (suggested.0 > max_image_dimension
+                        || suggested.1 > max_image_dimension)
+                        && (glyph_brush.texture_dimensions().0 < max_image_dimension
+                            || glyph_brush.texture_dimensions().1 < max_image_dimension)
+                    {
+                        (max_image_dimension, max_image_dimension)
+                    } else {
+                        suggested
+                    };
                     eprint!("\r                            \r");
                     eprintln!("Resizing glyph texture -> {}x{}", new_width, new_height);
+
                     // Recreate texture as a larger size to fit more
-                    gl::TexImage2D(
-                        gl::TEXTURE_2D,
-                        0,
-                        gl::RED as _,
-                        new_width as _,
-                        new_height as _,
-                        0,
-                        gl::RED,
-                        gl::UNSIGNED_BYTE,
-                        ptr::null(),
-                    );
-                    gl_assert_ok!();
+                    texture = GlGlyphTexture::new((new_width, new_height));
+
                     glyph_brush.resize_texture(new_width, new_height);
-                },
+                }
             }
         }
         match brush_action? {
@@ -346,7 +327,6 @@ fn main() -> Res<()> {
         gl::DeleteShader(vs);
         gl::DeleteBuffers(1, &vbo);
         gl::DeleteVertexArrays(1, &vao);
-        gl::DeleteTextures(1, &glyph_texture);
     }
     Ok(())
 }
@@ -495,4 +475,47 @@ fn to_vertex(
         color[2],
         color[3],
     ]
+}
+
+struct GlGlyphTexture {
+    name: GLuint,
+}
+
+impl GlGlyphTexture {
+    fn new((width, height): (u32, u32)) -> Self {
+        let mut name = 0;
+        unsafe {
+            // Create a texture for the glyphs
+            // The texture holds 1 byte per pixel as alpha data
+            gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1);
+            gl::GenTextures(1, &mut name);
+            gl::BindTexture(gl::TEXTURE_2D, name);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as _);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as _);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as _);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as _);
+            gl::TexImage2D(
+                gl::TEXTURE_2D,
+                0,
+                gl::RED as _,
+                width as _,
+                height as _,
+                0,
+                gl::RED,
+                gl::UNSIGNED_BYTE,
+                ptr::null(),
+            );
+            gl_assert_ok!();
+
+            Self { name }
+        }
+    }
+}
+
+impl Drop for GlGlyphTexture {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteTextures(1, &self.name);
+        }
+    }
 }
