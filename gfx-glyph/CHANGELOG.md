@@ -1,4 +1,4 @@
-# master
+# 0.14.1
 * Enlarge textures within `GL_MAX_TEXTURE_SIZE` if possible.
 
 # 0.14
