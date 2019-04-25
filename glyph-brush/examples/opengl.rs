@@ -8,7 +8,7 @@
 //! * Resize window.
 
 use gl::types::*;
-use glutin::{Api, ContextTrait, GlProfile, GlRequest};
+use glutin::{Api, GlProfile, GlRequest};
 use glyph_brush::{rusttype::*, *};
 use std::{
     env,
@@ -45,23 +45,24 @@ fn main() -> Res<()> {
     let mut events = glutin::EventsLoop::new();
     let title = "glyph_brush opengl example - scroll to size, type to modify";
 
-    let window = glutin::WindowedContext::new_windowed(
-        glutin::WindowBuilder::new()
-            .with_dimensions((1024, 576).into())
-            .with_title(title),
-        glutin::ContextBuilder::new()
-            .with_gl_profile(GlProfile::Core)
-            .with_gl(GlRequest::Specific(Api::OpenGl, (3, 2)))
-            .with_srgb(true),
-        &events,
-    )?;
-    unsafe { window.make_current()? };
+    let window_ctx = glutin::ContextBuilder::new()
+        .with_gl_profile(GlProfile::Core)
+        .with_gl(GlRequest::Specific(Api::OpenGl, (3, 2)))
+        .with_srgb(true)
+        .build_windowed(
+            glutin::WindowBuilder::new()
+                .with_dimensions((1024, 576).into())
+                .with_title(title),
+            &events,
+        )?;
+    let window_ctx = unsafe { window_ctx.make_current().unwrap() };
+    let window = window_ctx.window();
 
     let dejavu: &[u8] = include_bytes!("../../fonts/OpenSans-Light.ttf");
     let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
 
     // Load the OpenGL function pointers
-    gl::load_with(|symbol| window.get_proc_address(symbol) as _);
+    gl::load_with(|symbol| window_ctx.get_proc_address(symbol) as _);
 
     // Create GLSL shaders
     let vs = compile_shader(include_str!("shader/vert.glsl"), gl::VERTEX_SHADER)?;
@@ -148,7 +149,7 @@ fn main() -> Res<()> {
                     WindowEvent::CloseRequested => running = false,
                     WindowEvent::Resized(size) => {
                         let dpi = window.get_hidpi_factor();
-                        window.resize(size.to_physical(dpi));
+                        window_ctx.resize(size.to_physical(dpi));
                         if let Some(ls) = window.get_inner_size() {
                             dimensions = ls.to_physical(dpi);
                             unsafe {
@@ -313,7 +314,7 @@ fn main() -> Res<()> {
             gl::DrawArraysInstanced(gl::TRIANGLE_STRIP, 0, 4, vertex_count as _);
         }
 
-        window.swap_buffers()?;
+        window_ctx.swap_buffers()?;
 
         if let Some(rate) = loop_helper.report_rate() {
             window.set_title(&format!("{} {:.0} FPS", title, rate));
