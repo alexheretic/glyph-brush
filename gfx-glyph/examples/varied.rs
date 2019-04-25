@@ -37,13 +37,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_title(title)
         .with_dimensions((1024, 576).into());
     let context = glutin::ContextBuilder::new().with_vsync(false);
-    let (window, mut device, mut factory, mut main_color, mut main_depth) =
+    let (window_ctx, mut device, mut factory, mut main_color, mut main_depth) =
         gfx_window_glutin::init::<format::Srgba8, format::Depth>(
             window_builder,
             context,
             &events_loop,
         )
         .unwrap();
+    let window = window_ctx.window();
 
     let mut builder =
         GlyphBrushBuilder::using_font_bytes(include_bytes!("../../fonts/DejaVuSans.ttf") as &[u8])
@@ -80,8 +81,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                     }
                     | WindowEvent::CloseRequested => running = false,
                     WindowEvent::Resized(size) => {
-                        window.resize(size.to_physical(window.get_hidpi_factor()));
-                        gfx_window_glutin::update_views(&window, &mut main_color, &mut main_depth);
+                        window_ctx.resize(size.to_physical(window.get_hidpi_factor()));
+                        gfx_window_glutin::update_views(
+                            &window_ctx,
+                            &mut main_color,
+                            &mut main_depth,
+                        );
                     }
                     _ => {}
                 }
@@ -162,7 +167,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         glyph_brush.draw_queued(&mut encoder, &main_color, &main_depth)?;
 
         encoder.flush(&mut device);
-        window.swap_buffers()?;
+        window_ctx.swap_buffers()?;
         device.cleanup();
 
         if let Some(rate) = loop_helper.report_rate() {

@@ -33,13 +33,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_title(title)
         .with_dimensions((1024, 576).into());
     let context = glutin::ContextBuilder::new();
-    let (window, mut device, mut factory, mut main_color, mut main_depth) =
+    let (window_ctx, mut device, mut factory, mut main_color, mut main_depth) =
         gfx_window_glutin::init::<format::Srgba8, format::DepthStencil>(
             window_builder,
             context,
             &events_loop,
         )
         .unwrap();
+    let window = window_ctx.window();
 
     let font: &[u8] = include_bytes!("../../fonts/OpenSans-Light.ttf");
     let font = gfx_glyph::Font::from_bytes(font)?;
@@ -79,8 +80,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                 match event {
                     WindowEvent::CloseRequested => running = false,
                     WindowEvent::Resized(size) => {
-                        window.resize(size.to_physical(window.get_hidpi_factor()));
-                        gfx_window_glutin::update_views(&window, &mut main_color, &mut main_depth);
+                        window_ctx.resize(size.to_physical(window.get_hidpi_factor()));
+                        gfx_window_glutin::update_views(
+                            &window_ctx,
+                            &mut main_color,
+                            &mut main_depth,
+                        );
                     }
                     _ => {}
                 }
@@ -101,7 +106,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         glyph_brush.draw_queued(&mut encoder, &main_color, &main_depth)?;
 
         encoder.flush(&mut device);
-        window.swap_buffers()?;
+        window_ctx.swap_buffers()?;
         device.cleanup();
 
         if let Some(rate) = loop_helper.report_rate() {
