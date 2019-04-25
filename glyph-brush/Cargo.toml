@@ -14,7 +14,7 @@ glyph_brush_layout = { version = "0.1.5", path = "../glyph-brush-layout" }
 log = "0.4.4"
 ordered-float = "1"
 full_rusttype = { version = "0.7.5", features = ["gpu_cache"], package = "rusttype" }
-hashbrown = "0.2"
+hashbrown = "0.3"
 twox-hash = "1"
 
 [dev-dependencies]
