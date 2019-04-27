@@ -8,7 +8,7 @@ matrix:
   include:
   # test 32-bit
   - name: "i686-unknown-linux-musl"
-    env: TARGET=i686-unknown-linux-musl
+    env: TARGET=i686-unknown-linux-musl RUST_BACKTRACE=full CARGO_INCREMENTAL=0
     addons:
       apt:
         packages:
