@@ -1,5 +1,6 @@
 # 0.4.3
 * Fix cached vertices erroneously remaining valid after screen dimension change.
+* Update hashbrown -> `0.3`.
 
 # 0.4.2
 * Wasm32: Avoid using random state in the default hasher.
