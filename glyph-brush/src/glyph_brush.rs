@@ -276,16 +276,17 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
         F1: FnMut(Rect<u32>, &[u8]),
         F2: Fn(GlyphVertex) -> V + Copy,
     {
-        let current_text_state = {
-            let mut s = self.section_hasher.build_hasher();
-            self.section_buffer.hash(&mut s);
-            screen_w.hash(&mut s);
-            screen_h.hash(&mut s);
-            s.finish()
+        let draw_info = LastDrawInfo {
+            text_state: {
+                let mut s = self.section_hasher.build_hasher();
+                self.section_buffer.hash(&mut s);
+                s.finish()
+            },
+            screen_dimensions: (screen_w, screen_h),
         };
 
         let result = if !self.cache_glyph_drawing
-            || self.last_draw.text_state != current_text_state
+            || self.last_draw != draw_info
             || self.last_pre_positioned != self.pre_positioned
         {
             let mut some_text = false;
@@ -330,7 +331,14 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
                 }
             }
 
-            self.last_draw.text_state = current_text_state;
+            if self.last_draw.screen_dimensions != draw_info.screen_dimensions {
+                // screen dimension change means cached vertex coordinates are probably invalid
+                for glyphed in self.calculate_glyph_cache.values_mut() {
+                    glyphed.invalidate_texture_positions();
+                }
+            }
+
+            self.last_draw = draw_info;
 
             BrushAction::Draw({
                 let screen_dims = (screen_w as f32, screen_h as f32);
@@ -484,9 +492,10 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 struct LastDrawInfo {
     text_state: u64,
+    screen_dimensions: (u32, u32),
 }
 
 // glyph: &PositionedGlyph,
