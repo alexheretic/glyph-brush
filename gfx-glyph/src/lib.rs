@@ -43,7 +43,6 @@ mod pipe;
 mod trace;
 
 pub use crate::builder::*;
-use glyph_brush::Color;
 pub use glyph_brush::{
     rusttype::{self, Font, Point, PositionedGlyph, Rect, Scale, SharedBytes},
     BuiltInLineBreaker, FontId, FontMap, GlyphCruncher, GlyphPositioner, HorizontalAlign, Layout,
@@ -51,14 +50,14 @@ pub use glyph_brush::{
     SectionGeometry, SectionText, VariedSection, VerticalAlign,
 };
 
-use crate::pipe::{glyph_pipe, GlyphVertex, RawAndFormat};
+use crate::pipe::{glyph_pipe, GlyphVertex, IntoDimensions, RawAndFormat};
 use gfx::{
     format,
     handle::{self, RawDepthStencilView, RawRenderTargetView},
     texture,
     traits::FactoryExt,
 };
-use glyph_brush::{rusttype::point, BrushAction, BrushError, DefaultSectionHasher};
+use glyph_brush::{rusttype::point, BrushAction, BrushError, Color, DefaultSectionHasher};
 use log::{log_enabled, warn};
 use std::{
     borrow::Cow,
@@ -75,6 +74,37 @@ type TexChannel = <TexForm as format::Formatted>::Channel;
 type TexFormView = <TexForm as format::Formatted>::View;
 type TexSurfaceHandle<R> = handle::Texture<R, TexSurface>;
 type TexShaderView<R> = handle::ShaderResourceView<R, TexFormView>;
+
+/// Returns the default 4 dimensional matrix orthographic projection used in `draw_queued`.
+///
+/// # Example
+///
+/// ```
+/// # let (screen_width, screen_height) = (1f32, 2f32);
+/// let projection = gfx_glyph::default_transform((screen_width, screen_height));
+/// ```
+///
+/// # Example
+///
+/// ```no_run
+/// # let events_loop = glutin::EventsLoop::new();
+/// # let (_window, _device, _gfx_factory, gfx_color, _gfx_depth) =
+/// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
+/// #         glutin::WindowBuilder::new(),
+/// #         glutin::ContextBuilder::new(),
+/// #         &events_loop).unwrap();
+/// let projection = gfx_glyph::default_transform(&gfx_color);
+/// ```
+#[inline]
+pub fn default_transform<D: IntoDimensions>(d: D) -> [[f32; 4]; 4] {
+    let (w, h) = d.into_dimensions();
+    [
+        [2.0 / w, 0.0, 0.0, 0.0],
+        [0.0, 2.0 / h, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [-1.0, -1.0, 0.0, 1.0],
+    ]
+}
 
 /// Object allowing glyph drawing, containing cache state. Manages glyph positioning cacheing,
 /// glyph draw caching & efficient GPU texture cache updating and re-sizing on demand.
@@ -252,9 +282,9 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
         self.glyph_brush.keep_cached(section)
     }
 
-    /// Draws all queued sections onto a render target, applying a position transform (e.g.
-    /// a projection).
+    /// Draws all queued sections onto a render target, applying the default transform.
     /// See [`queue`](struct.GlyphBrush.html#method.queue).
+    /// See [`default_transform`](fn.default_transform.html)
     ///
     /// Trims the cache, see [caching behaviour](#caching-behaviour).
     ///
@@ -273,16 +303,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
         CV: RawAndFormat<Raw = RawRenderTargetView<R>>,
         DV: RawAndFormat<Raw = RawDepthStencilView<R>>,
     {
-        let (width, height, ..) = target.as_raw().get_dimensions();
-
-        let projection = [
-            [2.0 / width as f32, 0.0, 0.0, 0.0],
-            [0.0, -2.0 / height as f32, 0.0, 0.0],
-            [0.0, 0.0, 1.0, 0.0],
-            [-1.0, 1.0, 0.0, 1.0],
-        ];
-
-        self.draw_queued_with_transform(projection, encoder, target, depth_target)
+        self.draw_queued_with_transform(default_transform(target), encoder, target, depth_target)
     }
 
     /// Draws all queued sections onto a render target, applying a position transform (e.g.

@@ -124,3 +124,35 @@ impl<R> RawAndFormat for (&R, Format) {
         self.1
     }
 }
+
+pub trait IntoDimensions {
+    /// Returns (width, height)
+    fn into_dimensions(self) -> (f32, f32);
+}
+
+impl<R, CV> IntoDimensions for &CV
+where
+    R: Resources,
+    CV: RawAndFormat<Raw = RawRenderTargetView<R>>,
+{
+    #[inline]
+    fn into_dimensions(self) -> (f32, f32) {
+        let (width, height, ..) = self.as_raw().get_dimensions();
+        (f32::from(width), f32::from(height))
+    }
+}
+
+impl<T: Into<f32>> IntoDimensions for [T; 2] {
+    #[inline]
+    fn into_dimensions(self) -> (f32, f32) {
+        let [w, h] = self;
+        (w.into(), h.into())
+    }
+}
+
+impl<T: Into<f32>> IntoDimensions for (T, T) {
+    #[inline]
+    fn into_dimensions(self) -> (f32, f32) {
+        (self.0.into(), self.1.into())
+    }
+}
