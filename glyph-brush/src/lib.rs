@@ -12,11 +12,9 @@
 //! });
 //! glyph_brush.queue(some_other_section);
 //!
-//! # let screen_dimensions = (1024, 768);
 //! # let update_texture = |_, _| {};
 //! # let into_vertex = |_| ();
 //! match glyph_brush.process_queued(
-//!     screen_dimensions,
 //!     |rect, tex_data| update_texture(rect, tex_data),
 //!     |vertex_data| into_vertex(vertex_data),
 //! ) {

@@ -76,13 +76,6 @@ type TexFormView = <TexForm as format::Formatted>::View;
 type TexSurfaceHandle<R> = handle::Texture<R, TexSurface>;
 type TexShaderView<R> = handle::ShaderResourceView<R, TexFormView>;
 
-const IDENTITY_MATRIX4: [[f32; 4]; 4] = [
-    [1.0, 0.0, 0.0, 0.0],
-    [0.0, 1.0, 0.0, 0.0],
-    [0.0, 0.0, 1.0, 0.0],
-    [0.0, 0.0, 0.0, 1.0],
-];
-
 /// Object allowing glyph drawing, containing cache state. Manages glyph positioning cacheing,
 /// glyph draw caching & efficient GPU texture cache updating and re-sizing on demand.
 ///
@@ -280,7 +273,16 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
         CV: RawAndFormat<Raw = RawRenderTargetView<R>>,
         DV: RawAndFormat<Raw = RawDepthStencilView<R>>,
     {
-        self.draw_queued_with_transform(IDENTITY_MATRIX4, encoder, target, depth_target)
+        let (width, height, ..) = target.as_raw().get_dimensions();
+
+        let projection = [
+            [2.0 / width as f32, 0.0, 0.0, 0.0],
+            [0.0, 2.0 / height as f32, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [-1.0, -1.0, 0.0, 1.0],
+        ];
+
+        self.draw_queued_with_transform(projection, encoder, target, depth_target)
     }
 
     /// Draws all queued sections onto a render target, applying a position transform (e.g.
@@ -335,16 +337,12 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
         CV: RawAndFormat<Raw = RawRenderTargetView<R>>,
         DV: RawAndFormat<Raw = RawDepthStencilView<R>>,
     {
-        let (screen_width, screen_height, ..) = target.as_raw().get_dimensions();
-        let screen_dims = (u32::from(screen_width), u32::from(screen_height));
-
         let mut brush_action;
 
         loop {
             let tex = self.font_cache_tex.0.clone();
 
             brush_action = self.glyph_brush.process_queued(
-                screen_dims,
                 |rect, tex_data| {
                     let offset = [rect.min.x as u16, rect.min.y as u16];
                     let size = [rect.width() as u16, rect.height() as u16];
@@ -578,31 +576,15 @@ fn to_vertex(
         mut tex_coords,
         pixel_coords,
         bounds,
-        screen_dimensions: (screen_w, screen_h),
         color,
         z,
     }: glyph_brush::GlyphVertex,
 ) -> GlyphVertex {
-    let gl_bounds = Rect {
-        min: point(
-            2.0 * (bounds.min.x / screen_w - 0.5),
-            2.0 * (0.5 - bounds.min.y / screen_h),
-        ),
-        max: point(
-            2.0 * (bounds.max.x / screen_w - 0.5),
-            2.0 * (0.5 - bounds.max.y / screen_h),
-        ),
-    };
+    let gl_bounds = bounds;
 
     let mut gl_rect = Rect {
-        min: point(
-            2.0 * (pixel_coords.min.x as f32 / screen_w - 0.5),
-            2.0 * (0.5 - pixel_coords.min.y as f32 / screen_h),
-        ),
-        max: point(
-            2.0 * (pixel_coords.max.x as f32 / screen_w - 0.5),
-            2.0 * (0.5 - pixel_coords.max.y as f32 / screen_h),
-        ),
+        min: point(pixel_coords.min.x as f32, pixel_coords.min.y as f32),
+        max: point(pixel_coords.max.x as f32, pixel_coords.max.y as f32),
     };
 
     // handle overlapping bounds, modify uv_rect to preserve texture aspect
@@ -616,14 +598,12 @@ fn to_vertex(
         gl_rect.min.x = gl_bounds.min.x;
         tex_coords.min.x = tex_coords.max.x - tex_coords.width() * gl_rect.width() / old_width;
     }
-    // note: y access is flipped gl compared with screen,
-    // texture is not flipped (ie is a headache)
-    if gl_rect.max.y < gl_bounds.max.y {
+    if gl_rect.max.y > gl_bounds.max.y {
         let old_height = gl_rect.height();
         gl_rect.max.y = gl_bounds.max.y;
         tex_coords.max.y = tex_coords.min.y + tex_coords.height() * gl_rect.height() / old_height;
     }
-    if gl_rect.min.y > gl_bounds.min.y {
+    if gl_rect.min.y < gl_bounds.min.y {
         let old_height = gl_rect.height();
         gl_rect.min.y = gl_bounds.min.y;
         tex_coords.min.y = tex_coords.max.y - tex_coords.height() * gl_rect.height() / old_height;

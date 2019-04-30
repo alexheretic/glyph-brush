@@ -241,7 +241,6 @@ fn main() -> Res<()> {
         let mut brush_action;
         loop {
             brush_action = glyph_brush.process_queued(
-                (width as _, height as _),
                 |rect, tex_data| unsafe {
                     // Update part of gpu texture with new glyph alpha values
                     gl::BindTexture(gl::TEXTURE_2D, texture.name);
@@ -410,31 +409,15 @@ fn to_vertex(
         mut tex_coords,
         pixel_coords,
         bounds,
-        screen_dimensions: (screen_w, screen_h),
         color,
         z,
     }: glyph_brush::GlyphVertex,
 ) -> Vertex {
-    let gl_bounds = Rect {
-        min: point(
-            2.0 * (bounds.min.x / screen_w - 0.5),
-            2.0 * (0.5 - bounds.min.y / screen_h),
-        ),
-        max: point(
-            2.0 * (bounds.max.x / screen_w - 0.5),
-            2.0 * (0.5 - bounds.max.y / screen_h),
-        ),
-    };
+    let gl_bounds = bounds;
 
     let mut gl_rect = Rect {
-        min: point(
-            2.0 * (pixel_coords.min.x as f32 / screen_w - 0.5),
-            2.0 * (0.5 - pixel_coords.min.y as f32 / screen_h),
-        ),
-        max: point(
-            2.0 * (pixel_coords.max.x as f32 / screen_w - 0.5),
-            2.0 * (0.5 - pixel_coords.max.y as f32 / screen_h),
-        ),
+        min: point(pixel_coords.min.x as f32, pixel_coords.min.y as f32),
+        max: point(pixel_coords.max.x as f32, pixel_coords.max.y as f32),
     };
 
     // handle overlapping bounds, modify uv_rect to preserve texture aspect

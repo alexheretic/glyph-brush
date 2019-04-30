@@ -6,7 +6,7 @@
 //! * Type to add/remove text
 //! * Ctrl-Scroll to zoom in/out using a transform, this is cheap but notice how rusttype can't
 //!   render at full quality without the correct pixel information.
-use cgmath::{Matrix4, Rad, Transform};
+use cgmath::{Matrix4, Rad, Transform, Vector3};
 use gfx::{format, Device};
 use std::{
     env,
@@ -227,26 +227,19 @@ fn main() -> Result<(), Box<dyn Error>> {
         // Note: Can be drawn simply with the below, when transforms are not needed:
         // `glyph_brush.draw_queued(&mut encoder, &main_color, &main_depth)?;`
 
+        // Rotation
+        let offset = Matrix4::from_translation(Vector3::new(-width / 2.0, -height / 2.0, 0.0));
+        let rotation =
+            offset.inverse_transform().unwrap() * Matrix4::from_angle_z(Rad(angle)) * offset;
+;
+        // Projection
+        let projection = cgmath::ortho(0.0, width, 0.0, height, 1.0, -1.0);
+
         // Here an example transform is used as a cheap zoom out (controlled with ctrl-scroll)
-        let transform_zoom = Matrix4::from_scale(zoom);
+        let zoom = Matrix4::from_scale(zoom);
 
-        // Orthographic rotation transform
-        let transform_rotate = {
-            let aspect = width / height;
-            let zoom = 1.0;
-            let origin = (0.0, 0.0); // top-corner: `let origin = (1.0 * aspect, -1.0);`
-            let projection = cgmath::ortho(
-                origin.0 - zoom * aspect,
-                origin.0 + zoom * aspect,
-                origin.1 - zoom,
-                origin.1 + zoom,
-                1.0,
-                -1.0,
-            );
-            projection * Matrix4::from_angle_z(Rad(angle)) * projection.inverse_transform().unwrap()
-        };
-
-        let transform = transform_rotate * transform_zoom;
+        // Combined transform
+        let transform = zoom * projection * rotation;
 
         // Finally once per frame you want to actually draw all the sections you've submitted
         // with `queue` calls.
