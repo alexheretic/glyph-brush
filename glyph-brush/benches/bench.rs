@@ -547,7 +547,7 @@ fn bench_variants(
         glyph_brush.queue(s);
     }
     glyph_brush
-        .process_queued((1024, 768), |_rect, _tex_data| {}, gl_to_vertex)
+        .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
         .unwrap();
 
     b.iter(|| {
@@ -555,7 +555,7 @@ fn bench_variants(
             glyph_brush.queue(s);
         }
         glyph_brush
-            .process_queued((1024, 768), |_rect, _tex_data| {}, gl_to_vertex)
+            .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
             .unwrap();
     });
 }
@@ -575,7 +575,7 @@ fn bench_varied_variants(
         glyph_brush.queue(s);
     }
     glyph_brush
-        .process_queued((1024, 768), |_rect, _tex_data| {}, gl_to_vertex)
+        .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
         .unwrap();
 
     b.iter(|| {
@@ -583,7 +583,7 @@ fn bench_varied_variants(
             glyph_brush.queue(s);
         }
         glyph_brush
-            .process_queued((1024, 768), |_rect, _tex_data| {}, gl_to_vertex)
+            .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
             .unwrap();
     });
 }
@@ -599,7 +599,7 @@ fn bench(b: &mut test::Bencher, sections: &[Section<'_>], brush: GlyphBrushBuild
     }
 
     glyph_brush
-        .process_queued((1024, 768), |_rect, _tex_data| {}, gl_to_vertex)
+        .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
         .unwrap();
 
     b.iter(|| {
@@ -607,7 +607,7 @@ fn bench(b: &mut test::Bencher, sections: &[Section<'_>], brush: GlyphBrushBuild
             glyph_brush.queue(*section);
         }
         glyph_brush
-            .process_queued((1024, 768), |_rect, _tex_data| {}, gl_to_vertex)
+            .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
             .unwrap();
     });
 }
@@ -619,31 +619,15 @@ fn gl_to_vertex(
         mut tex_coords,
         pixel_coords,
         bounds,
-        screen_dimensions: (screen_w, screen_h),
         color,
         z,
     }: glyph_brush::GlyphVertex,
 ) -> [f32; 13] {
-    let gl_bounds = Rect {
-        min: point(
-            2.0 * (bounds.min.x / screen_w - 0.5),
-            2.0 * (0.5 - bounds.min.y / screen_h),
-        ),
-        max: point(
-            2.0 * (bounds.max.x / screen_w - 0.5),
-            2.0 * (0.5 - bounds.max.y / screen_h),
-        ),
-    };
+    let gl_bounds = bounds;
 
     let mut gl_rect = Rect {
-        min: point(
-            2.0 * (pixel_coords.min.x as f32 / screen_w - 0.5),
-            2.0 * (0.5 - pixel_coords.min.y as f32 / screen_h),
-        ),
-        max: point(
-            2.0 * (pixel_coords.max.x as f32 / screen_w - 0.5),
-            2.0 * (0.5 - pixel_coords.max.y as f32 / screen_h),
-        ),
+        min: point(pixel_coords.min.x as f32, pixel_coords.min.y as f32),
+        max: point(pixel_coords.max.x as f32, pixel_coords.max.y as f32),
     };
 
     // handle overlapping bounds, modify uv_rect to preserve texture aspect
@@ -657,14 +641,12 @@ fn gl_to_vertex(
         gl_rect.min.x = gl_bounds.min.x;
         tex_coords.min.x = tex_coords.max.x - tex_coords.width() * gl_rect.width() / old_width;
     }
-    // note: y access is flipped gl compared with screen,
-    // texture is not flipped (ie is a headache)
-    if gl_rect.max.y < gl_bounds.max.y {
+    if gl_rect.max.y > gl_bounds.max.y {
         let old_height = gl_rect.height();
         gl_rect.max.y = gl_bounds.max.y;
         tex_coords.max.y = tex_coords.min.y + tex_coords.height() * gl_rect.height() / old_height;
     }
-    if gl_rect.min.y > gl_bounds.min.y {
+    if gl_rect.min.y < gl_bounds.min.y {
         let old_height = gl_rect.height();
         gl_rect.min.y = gl_bounds.min.y;
         tex_coords.min.y = tex_coords.max.y - tex_coords.height() * gl_rect.height() / old_height;

@@ -258,7 +258,6 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
     /// # let update_texture = |_, _| {};
     /// # let into_vertex = |_| ();
     /// glyph_brush.process_queued(
-    ///     (1024, 768),
     ///     |rect, tex_data| update_texture(rect, tex_data),
     ///     |vertex_data| into_vertex(vertex_data),
     /// )?
@@ -268,7 +267,6 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
     /// ```
     pub fn process_queued<F1, F2>(
         &mut self,
-        (screen_w, screen_h): (u32, u32),
         update_texture: F1,
         to_vertex: F2,
     ) -> Result<BrushAction<V>, BrushError>
@@ -282,7 +280,6 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
                 self.section_buffer.hash(&mut s);
                 s.finish()
             },
-            screen_dimensions: (screen_w, screen_h),
         };
 
         let result = if !self.cache_glyph_drawing
@@ -331,30 +328,21 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
                 }
             }
 
-            if self.last_draw.screen_dimensions != draw_info.screen_dimensions {
-                // screen dimension change means cached vertex coordinates are probably invalid
-                for glyphed in self.calculate_glyph_cache.values_mut() {
-                    glyphed.invalidate_texture_positions();
-                }
-            }
-
             self.last_draw = draw_info;
 
             BrushAction::Draw({
-                let screen_dims = (screen_w as f32, screen_h as f32);
-
                 let mut verts = Vec::new();
 
                 for hash in &self.section_buffer {
                     let glyphed = self.calculate_glyph_cache.get_mut(hash).unwrap();
-                    glyphed.ensure_vertices(&self.texture_cache, screen_dims, to_vertex);
+                    glyphed.ensure_vertices(&self.texture_cache, to_vertex);
                     verts.extend(glyphed.vertices.iter().cloned());
                 }
 
                 for glyphed in &mut self.pre_positioned {
                     // pre-positioned glyph vertices can't be cached so
                     // generate & move straight into draw vec
-                    glyphed.ensure_vertices(&self.texture_cache, screen_dims, to_vertex);
+                    glyphed.ensure_vertices(&self.texture_cache, to_vertex);
                     verts.append(&mut glyphed.vertices);
                 }
 
@@ -495,7 +483,6 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
 #[derive(Debug, Default, PartialEq)]
 struct LastDrawInfo {
     text_state: u64,
-    screen_dimensions: (u32, u32),
 }
 
 // glyph: &PositionedGlyph,
@@ -512,7 +499,6 @@ pub struct GlyphVertex {
     pub tex_coords: Rect<f32>,
     pub pixel_coords: Rect<i32>,
     pub bounds: Rect<f32>,
-    pub screen_dimensions: (f32, f32),
     pub color: Color,
     pub z: f32,
 }
@@ -646,12 +632,8 @@ impl<'font, V: Clone + 'static> Glyphed<'font, V> {
     }
 
     /// Calculate vertices if not already done
-    fn ensure_vertices<F>(
-        &mut self,
-        texture_cache: &Cache<'font>,
-        screen_dimensions: (f32, f32),
-        to_vertex: F,
-    ) where
+    fn ensure_vertices<F>(&mut self, texture_cache: &Cache<'font>, to_vertex: F)
+    where
         F: Fn(GlyphVertex) -> V,
     {
         if !self.vertices.is_empty() {
@@ -686,7 +668,6 @@ impl<'font, V: Clone + 'static> Glyphed<'font, V> {
                                 tex_coords,
                                 pixel_coords,
                                 bounds,
-                                screen_dimensions,
                                 color: *color,
                                 z,
                             }))

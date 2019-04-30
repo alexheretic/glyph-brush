@@ -79,7 +79,12 @@ fn main() -> Res<()> {
     let mut vbo = 0;
     let mut texture = GlGlyphTexture::new(glyph_brush.texture_dimensions());
 
-    unsafe {
+    let mut dimensions = window
+        .get_inner_size()
+        .ok_or("get_inner_size = None")?
+        .to_physical(window.get_hidpi_factor());
+
+    let transform_uniform = unsafe {
         // Create Vertex Array Object
         gl::GenVertexArrays(1, &mut vao);
         gl::BindVertexArray(vao);
@@ -93,6 +98,20 @@ fn main() -> Res<()> {
         gl::BindFragDataLocation(program, 0, CString::new("out_color")?.as_ptr());
 
         // Specify the layout of the vertex data
+        let uniform = gl::GetUniformLocation(program, CString::new("transform")?.as_ptr());
+        if uniform < 0 {
+            return Err(format!("GetUniformLocation(\"transform\") -> {}", uniform).into());
+        }
+        let transform = ortho(
+            0.0,
+            dimensions.width as _,
+            0.0,
+            dimensions.height as _,
+            1.0,
+            -1.0,
+        );
+        gl::UniformMatrix4fv(uniform, 1, 0, transform.as_ptr());
+
         let mut offset = 0;
         for (v_field, float_count) in &[
             ("left_top", 3),
@@ -125,7 +144,9 @@ fn main() -> Res<()> {
         // Use srgb for consistency with other examples
         gl::Enable(gl::FRAMEBUFFER_SRGB);
         gl::ClearColor(0.02, 0.02, 0.02, 1.0);
-    }
+
+        uniform
+    };
 
     let mut text: String = include_str!("text/lipsum.txt").into();
     let mut font_size: f32 = 18.0;
@@ -134,10 +155,6 @@ fn main() -> Res<()> {
     let mut running = true;
     let mut vertex_count = 0;
     let mut vertex_max = vertex_count;
-    let mut dimensions = window
-        .get_inner_size()
-        .ok_or("get_inner_size = None")?
-        .to_physical(window.get_hidpi_factor());
 
     while running {
         loop_helper.loop_start();
@@ -154,6 +171,15 @@ fn main() -> Res<()> {
                             dimensions = ls.to_physical(dpi);
                             unsafe {
                                 gl::Viewport(0, 0, dimensions.width as _, dimensions.height as _);
+                                let transform = ortho(
+                                    0.0,
+                                    dimensions.width as _,
+                                    0.0,
+                                    dimensions.height as _,
+                                    1.0,
+                                    -1.0,
+                                );
+                                gl::UniformMatrix4fv(transform_uniform, 1, 0, transform.as_ptr());
                             }
                         }
                     }
@@ -241,7 +267,6 @@ fn main() -> Res<()> {
         let mut brush_action;
         loop {
             brush_action = glyph_brush.process_queued(
-                (width as _, height as _),
                 |rect, tex_data| unsafe {
                     // Update part of gpu texture with new glyph alpha values
                     gl::BindTexture(gl::TEXTURE_2D, texture.name);
@@ -410,31 +435,15 @@ fn to_vertex(
         mut tex_coords,
         pixel_coords,
         bounds,
-        screen_dimensions: (screen_w, screen_h),
         color,
         z,
     }: glyph_brush::GlyphVertex,
 ) -> Vertex {
-    let gl_bounds = Rect {
-        min: point(
-            2.0 * (bounds.min.x / screen_w - 0.5),
-            2.0 * (0.5 - bounds.min.y / screen_h),
-        ),
-        max: point(
-            2.0 * (bounds.max.x / screen_w - 0.5),
-            2.0 * (0.5 - bounds.max.y / screen_h),
-        ),
-    };
+    let gl_bounds = bounds;
 
     let mut gl_rect = Rect {
-        min: point(
-            2.0 * (pixel_coords.min.x as f32 / screen_w - 0.5),
-            2.0 * (0.5 - pixel_coords.min.y as f32 / screen_h),
-        ),
-        max: point(
-            2.0 * (pixel_coords.max.x as f32 / screen_w - 0.5),
-            2.0 * (0.5 - pixel_coords.max.y as f32 / screen_h),
-        ),
+        min: point(pixel_coords.min.x as f32, pixel_coords.min.y as f32),
+        max: point(pixel_coords.max.x as f32, pixel_coords.max.y as f32),
     };
 
     // handle overlapping bounds, modify uv_rect to preserve texture aspect
@@ -448,14 +457,12 @@ fn to_vertex(
         gl_rect.min.x = gl_bounds.min.x;
         tex_coords.min.x = tex_coords.max.x - tex_coords.width() * gl_rect.width() / old_width;
     }
-    // note: y access is flipped gl compared with screen,
-    // texture is not flipped (ie is a headache)
-    if gl_rect.max.y < gl_bounds.max.y {
+    if gl_rect.max.y > gl_bounds.max.y {
         let old_height = gl_rect.height();
         gl_rect.max.y = gl_bounds.max.y;
         tex_coords.max.y = tex_coords.min.y + tex_coords.height() * gl_rect.height() / old_height;
     }
-    if gl_rect.min.y > gl_bounds.min.y {
+    if gl_rect.min.y < gl_bounds.min.y {
         let old_height = gl_rect.height();
         gl_rect.min.y = gl_bounds.min.y;
         tex_coords.min.y = tex_coords.max.y - tex_coords.height() * gl_rect.height() / old_height;
@@ -475,6 +482,19 @@ fn to_vertex(
         color[1],
         color[2],
         color[3],
+    ]
+}
+
+#[rustfmt::skip]
+fn ortho(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32) -> [f32; 16] {
+    let tx = -(right + left) / (right - left);
+    let ty = -(top + bottom) / (top - bottom);
+    let tz = -(far + near) / (far - near);
+    [
+        2.0 / (right - left), 0.0, 0.0, 0.0,
+        0.0, 2.0 / (top - bottom), 0.0, 0.0,
+        0.0, 0.0, -2.0 / (far - near), 0.0,
+        tx, ty, tz, 1.0,
     ]
 }
 
