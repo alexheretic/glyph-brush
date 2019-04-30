@@ -70,8 +70,6 @@ impl<'a, 'b> From<&'b VariedSection<'a>> for Cow<'b, VariedSection<'a>> {
 
 impl Hash for VariedSection<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        use ordered_float::OrderedFloat;
-
         let VariedSection {
             screen_position: (screen_x, screen_y),
             bounds: (bound_w, bound_h),
