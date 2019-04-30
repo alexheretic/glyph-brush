@@ -105,8 +105,8 @@ fn main() -> Res<()> {
         let transform = ortho(
             0.0,
             dimensions.width as _,
-            dimensions.height as _,
             0.0,
+            dimensions.height as _,
             1.0,
             -1.0,
         );
@@ -174,8 +174,8 @@ fn main() -> Res<()> {
                                 let transform = ortho(
                                     0.0,
                                     dimensions.width as _,
-                                    dimensions.height as _,
                                     0.0,
+                                    dimensions.height as _,
                                     1.0,
                                     -1.0,
                                 );
