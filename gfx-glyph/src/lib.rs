@@ -399,6 +399,25 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
             }
         }
 
+        // refresh pipe data
+        // - pipe targets may have changed, or had resolutions changes
+        // - format may have changed
+        if let Some(mut cache) = self.draw_cache.take() {
+            if &cache.pipe_data.out != target.as_raw() {
+                cache.pipe_data.out.clone_from(target.as_raw());
+            }
+            if &cache.pipe_data.out_depth != depth_target.as_raw() {
+                cache.pipe_data.out_depth.clone_from(depth_target.as_raw());
+            }
+            if cache.pso.0 != target.format() {
+                cache.pso = (
+                    target.format(),
+                    self.pso_using(target.format(), depth_target.format()),
+                );
+            }
+            self.draw_cache = Some(cache);
+        }
+
         match brush_action.unwrap() {
             BrushAction::Draw(verts) => {
                 let draw_cache = if let Some(mut cache) = self.draw_cache.take() {
@@ -409,19 +428,6 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
                         encoder
                             .update_buffer(&cache.pipe_data.vbuf, &verts, 0)
                             .unwrap();
-                    }
-
-                    if &cache.pipe_data.out != target.as_raw() {
-                        cache.pipe_data.out.clone_from(target.as_raw());
-                    }
-                    if &cache.pipe_data.out_depth != depth_target.as_raw() {
-                        cache.pipe_data.out_depth.clone_from(depth_target.as_raw());
-                    }
-                    if cache.pso.0 != target.format() {
-                        cache.pso = (
-                            target.format(),
-                            self.pso_using(target.format(), depth_target.format()),
-                        );
                     }
                     cache.slice.instances.as_mut().unwrap().0 = verts.len() as _;
                     cache
