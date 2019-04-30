@@ -284,7 +284,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
 
     /// Draws all queued sections onto a render target, applying the default transform.
     /// See [`queue`](struct.GlyphBrush.html#method.queue).
-    /// See [`default_transform`](fn.default_transform.html)
+    /// See [`default_transform`](fn.default_transform.html).
     ///
     /// Trims the cache, see [caching behaviour](#caching-behaviour).
     ///
@@ -309,6 +309,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     /// Draws all queued sections onto a render target, applying a position transform (e.g.
     /// a projection).
     /// See [`queue`](struct.GlyphBrush.html#method.queue).
+    /// See [`default_transform`](fn.default_transform.html).
     ///
     /// Trims the cache, see [caching behaviour](#caching-behaviour).
     ///
