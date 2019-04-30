@@ -1,14 +1,14 @@
 # Unreleased
 * Update glyph_brush -> `0.5`.
 * **Breaking:** `draw_queued_with_transform` usages are now expected to provide the orthographic projection, whereas before this projection was pre-baked. The shader also now inverts the y-axis to be more in-line with other APIs. Previous usages can be technically converted with:
- ```rust
- // v0.14
- glyph_brush.draw_queued_with_transform(custom_transform, ...);
+  ```rust
+  // v0.14
+  glyph_brush.draw_queued_with_transform(custom_transform, ...);
 
- // v0.15
- glyph_brush.draw_queued_with_transform(invert_y * custom_transform * gfx_glyph::default_transform(&gfx_color), ...);
- ```
- The new style allows easier pre-projection transformations, like rotation, as before only post-projection transforms were possible. `draw_queued` usage is unchanged, it now internally uses `gfx_glyph::default_transform`.
+  // v0.15
+  glyph_brush.draw_queued_with_transform(invert_y * custom_transform * gfx_glyph::default_transform(&gfx_color), ...);
+  ```
+  The new style allows easier pre-projection transformations, like rotation, as before only post-projection transforms were possible. `draw_queued` usage is unchanged, it now internally uses `gfx_glyph::default_transform`.
 
 # 0.14.1
 * Enlarge textures within `GL_MAX_TEXTURE_SIZE` if possible.
