@@ -231,9 +231,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         let offset = Matrix4::from_translation(Vector3::new(-width / 2.0, -height / 2.0, 0.0));
         let rotation =
             offset.inverse_transform().unwrap() * Matrix4::from_angle_z(Rad(angle)) * offset;
-;
+
         // Projection
-        let projection = cgmath::ortho(0.0, width, 0.0, height, 1.0, -1.0);
+        let projection = cgmath::ortho(0.0, width, height, 0.0, 1.0, -1.0);
 
         // Here an example transform is used as a cheap zoom out (controlled with ctrl-scroll)
         let zoom = Matrix4::from_scale(zoom);

@@ -277,9 +277,9 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
 
         let projection = [
             [2.0 / width as f32, 0.0, 0.0, 0.0],
-            [0.0, 2.0 / height as f32, 0.0, 0.0],
+            [0.0, -2.0 / height as f32, 0.0, 0.0],
             [0.0, 0.0, 1.0, 0.0],
-            [-1.0, -1.0, 0.0, 1.0],
+            [-1.0, 1.0, 0.0, 1.0],
         ];
 
         self.draw_queued_with_transform(projection, encoder, target, depth_target)
