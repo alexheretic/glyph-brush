@@ -140,7 +140,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         // Note: Drawing in the case the text is unchanged from the previous frame (a common case)
         // is essentially free as the vertices are reused &  gpu cache updating interaction
         // can be skipped.
-        glyph_brush.draw_queued(&mut encoder, &main_color, &main_depth)?;
+        glyph_brush.use_queue().draw(&mut encoder, &main_color)?;
 
         encoder.flush(&mut device);
         window_ctx.swap_buffers()?;

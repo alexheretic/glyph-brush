@@ -224,9 +224,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             ..Section::default()
         });
 
-        // Note: Can be drawn simply with the below, when transforms are not needed:
-        // `glyph_brush.draw_queued(&mut encoder, &main_color, &main_depth)?;`
-
         // Rotation
         let offset = Matrix4::from_translation(Vector3::new(-width / 2.0, -height / 2.0, 0.0));
         let rotation =
@@ -247,12 +244,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         // Note: Drawing in the case the text is unchanged from the previous frame (a common case)
         // is essentially free as the vertices are reused & gpu cache updating interaction
         // can be skipped.
-        glyph_brush.draw_queued_with_transform(
-            transform.into(),
-            &mut encoder,
-            &main_color,
-            &main_depth,
-        )?;
+        glyph_brush
+            .use_queue()
+            .transform(transform)
+            .depth_target(&main_depth)
+            .draw(&mut encoder, &main_color)?;
 
         encoder.flush(&mut device);
         window_ctx.swap_buffers()?;
