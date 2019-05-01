@@ -975,16 +975,18 @@ mod layout_test {
         let glyphs = Layout::default().calculate_glyphs(
             &*FONT_MAP,
             &SectionGeometry::default(),
-            &[SectionText {
-                text: "hello",
-                color: RED,
-                ..<_>::default()
-            },
-            SectionText {
-                text: " world",
-                color: YELLOW,
-                ..<_>::default()
-            }],
+            &[
+                SectionText {
+                    text: "hello",
+                    color: RED,
+                    ..<_>::default()
+                },
+                SectionText {
+                    text: " world",
+                    color: YELLOW,
+                    ..<_>::default()
+                },
+            ],
         );
 
         assert_glyph_order!(glyphs, "helloworld");
@@ -995,16 +997,18 @@ mod layout_test {
             GlyphChange::Alpha,
             &*FONT_MAP,
             &SectionGeometry::default(),
-            &[SectionText {
-                text: "hello",
-                color: RED_HALF_ALPHA,
-                ..<_>::default()
-            },
-            SectionText {
-                text: " world",
-                color: YELLOW_HALF_ALPHA,
-                ..<_>::default()
-            }],
+            &[
+                SectionText {
+                    text: "hello",
+                    color: RED_HALF_ALPHA,
+                    ..<_>::default()
+                },
+                SectionText {
+                    text: " world",
+                    color: YELLOW_HALF_ALPHA,
+                    ..<_>::default()
+                },
+            ],
         );
 
         assert_glyph_order!(recalc, "helloworld");

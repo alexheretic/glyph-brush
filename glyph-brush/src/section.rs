@@ -269,7 +269,6 @@ pub(crate) struct HashableVariedSectionParts<'a> {
 }
 
 impl HashableVariedSectionParts<'_> {
-
     #[inline]
     pub fn hash_geometry<H: Hasher>(&self, state: &mut H) {
         self.geometry.hash(state);
@@ -290,10 +289,7 @@ impl HashableVariedSectionParts<'_> {
                 ..
             } = *t;
 
-            let ord_floats: &[OrderedFloat<_>] = &[
-                scale.x.into(),
-                scale.y.into(),
-            ];
+            let ord_floats: &[OrderedFloat<_>] = &[scale.x.into(), scale.y.into()];
 
             (text, font_id, ord_floats).hash(state);
         }
@@ -311,11 +307,8 @@ impl HashableVariedSectionParts<'_> {
         for t in self.text {
             let color = t.color;
 
-            let ord_floats: &[OrderedFloat<_>] = &[
-                color[0].into(),
-                color[1].into(),
-                color[2].into(),
-            ];
+            let ord_floats: &[OrderedFloat<_>] =
+                &[color[0].into(), color[1].into(), color[2].into()];
 
             ord_floats.hash(state);
         }

@@ -1,3 +1,11 @@
+#![allow(
+    clippy::cast_lossless,
+    clippy::too_many_arguments,
+    // clippy::cognitive_complexity,
+    clippy::cyclomatic_complexity,
+    clippy::redundant_closure,
+)]
+
 //! Fast GPU cached text rendering using gfx-rs & rusttype.
 //!
 //! Makes use of three kinds of caching to optimise frame performance.
