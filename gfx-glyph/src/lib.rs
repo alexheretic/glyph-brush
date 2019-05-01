@@ -33,7 +33,7 @@
 //! glyph_brush.queue(section);
 //! glyph_brush.queue(some_other_section);
 //!
-//! glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, Some(&gfx_depth))?;
+//! glyph_brush.use_queue().draw(&mut gfx_encoder, &gfx_color)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -41,8 +41,9 @@ mod builder;
 mod pipe;
 #[macro_use]
 mod trace;
+mod draw_builder;
 
-pub use crate::builder::*;
+pub use crate::{builder::*, draw_builder::*};
 pub use glyph_brush::{
     rusttype::{self, Font, Point, PositionedGlyph, Rect, Scale, SharedBytes},
     BuiltInLineBreaker, FontId, FontMap, GlyphCruncher, GlyphPositioner, HorizontalAlign, Layout,
@@ -137,7 +138,7 @@ pub fn default_transform<D: IntoDimensions>(d: D) -> [[f32; 4]; 4] {
 /// glyph_brush.queue(section);
 /// glyph_brush.queue(some_other_section);
 ///
-/// glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, Some(&gfx_depth))?;
+/// glyph_brush.use_queue().draw(&mut gfx_encoder, &gfx_color)?;
 /// # Ok(())
 /// # }
 /// ```
@@ -292,18 +293,21 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     /// Can also be used with gfx raw render & depth views if necessary. The `Format` must also
     /// be provided. [See example.](struct.GlyphBrush.html#raw-usage-1)
     #[inline]
+    #[deprecated = "Use `use_queue()` to build draws"]
     pub fn draw_queued<C, CV, DV>(
         &mut self,
         encoder: &mut gfx::Encoder<R, C>,
         target: &CV,
-        depth_target: Option<&DV>,
+        depth_target: &DV,
     ) -> Result<(), String>
     where
         C: gfx::CommandBuffer<R>,
         CV: RawAndFormat<Raw = RawRenderTargetView<R>>,
         DV: RawAndFormat<Raw = RawDepthStencilView<R>>,
     {
-        self.draw_queued_with_transform(default_transform(target), encoder, target, depth_target)
+        self.use_queue()
+            .depth_target(depth_target)
+            .draw(encoder, target)
     }
 
     /// Draws all queued sections onto a render target, applying a position transform (e.g.
@@ -341,13 +345,43 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     ///     transform,
     ///     &mut gfx_encoder,
     ///     &(raw_render_view, format::Srgba8::get_format()),
-    ///     Some(&(raw_depth_view, format::Depth::get_format())),
+    ///     &(raw_depth_view, format::Depth::get_format()),
     /// )?
     /// # ;
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
+    #[deprecated = "Use `use_queue()` to build draws"]
     pub fn draw_queued_with_transform<C, CV, DV>(
+        &mut self,
+        transform: [[f32; 4]; 4],
+        encoder: &mut gfx::Encoder<R, C>,
+        target: &CV,
+        depth_target: &DV,
+    ) -> Result<(), String>
+    where
+        C: gfx::CommandBuffer<R>,
+        CV: RawAndFormat<Raw = RawRenderTargetView<R>>,
+        DV: RawAndFormat<Raw = RawDepthStencilView<R>>,
+    {
+        self.use_queue()
+            .transform(transform)
+            .depth_target(depth_target)
+            .draw(encoder, target)
+    }
+
+    #[inline]
+    pub fn use_queue(&mut self) -> DrawBuilder<'_, 'font, R, F, H, ()> {
+        DrawBuilder {
+            brush: self,
+            transform: None,
+            depth_target: None,
+        }
+    }
+
+    /// Draws all queued sections
+    pub(crate) fn draw<C, CV, DV>(
         &mut self,
         transform: [[f32; 4]; 4],
         mut encoder: &mut gfx::Encoder<R, C>,
@@ -562,7 +596,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     /// // some time later, add another font referenced by a new `FontId`
     /// let open_sans_italic: &[u8] = include_bytes!("../../fonts/OpenSans-Italic.ttf");
     /// let open_sans_italic_id = glyph_brush.add_font_bytes(open_sans_italic);
-    /// # glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, Some(&gfx_depth)).unwrap();
+    /// # glyph_brush.use_queue().draw(&mut gfx_encoder, &gfx_color).unwrap();
     /// # let _ = open_sans_italic_id;
     /// # }
     /// ```
