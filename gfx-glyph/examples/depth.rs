@@ -50,8 +50,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut glyph_brush = GlyphBrushBuilder::using_fonts_bytes(fonts)
         .initial_cache_size((512, 512))
-        // Enable depth testing with less-equal drawing and update the depth buffer
-        .depth_test(gfx::preset::depth::LESS_EQUAL_WRITE)
         .build(factory.clone());
 
     let mut encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
@@ -119,6 +117,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         glyph_brush
             .use_queue()
+            // Enable depth testing with default less-equal drawing and update the depth buffer
             .depth_target(&main_depth)
             .draw(&mut encoder, &main_color)?;
 
