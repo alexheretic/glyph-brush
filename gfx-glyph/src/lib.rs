@@ -449,6 +449,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
                         .out_depth
                         .clone_from(&Some(depth_target.as_raw().clone()));
                 }
+            } else {
+                cache.pipe_data.out_depth.take();
             }
             if cache.pso.0 != target.format() {
                 cache.pso = (
