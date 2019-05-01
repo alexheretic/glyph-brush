@@ -18,9 +18,9 @@
       .transform(invert_y * custom_transform * gfx_glyph::default_transform(&gfx_color))
       .draw(..);
   ```
-  The new style allows easier pre-projection transformations, like rotation, as before only post-projection transforms were possible. Draws without custom transforms are unchanged, they now internally uses `gfx_glyph::default_transform`.
-* `GlyphBrush::draw_queued` is deprecated, in favour of `use_queue()` draw builder usage.
-* `GlyphBrush::draw_queued_with_transform` has been **removed**, in favour of `use_queue()` draw builder usage.
+  The new style allows easier pre-projection transformations, like rotation, as before only post-projection transforms were possible. Draws without custom transforms are unchanged, they now internally use `gfx_glyph::default_transform`.
+* Deprecated `GlyphBrush::draw_queued` in favour of `use_queue()` draw builder usage.
+* **Removed** `GlyphBrush::draw_queued_with_transform` in favour of `use_queue()` draw builder usage.
 * Update glyph_brush -> `0.5`.
 
 # 0.14.1
