@@ -10,23 +10,28 @@ use gfx::{
 use gfx_core::pso;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RawDepthTarget;
+pub struct RawDepthTarget {
+    active: bool,
+}
 
 impl DataLink<'_> for RawDepthTarget {
-    type Init = (format::Format, state::Depth);
+    type Init = Option<(format::Format, state::Depth)>;
     fn new() -> Self {
-        RawDepthTarget
+        RawDepthTarget { active: false }
     }
     fn is_active(&self) -> bool {
-        true
+        self.active
     }
     fn link_depth_stencil(&mut self, init: &Self::Init) -> Option<pso::DepthStencilDesc> {
-        Some((init.0, init.1.into()))
+        self.active = init.is_some();
+
+        init.map(|(format, depth)| (format, depth.into()))
     }
 }
 
 impl<R: Resources> DataBind<R> for RawDepthTarget {
-    type Data = handle::RawDepthStencilView<R>;
+    type Data = Option<handle::RawDepthStencilView<R>>;
+
     fn bind_to(
         &self,
         out: &mut RawDataSet<R>,
@@ -34,9 +39,14 @@ impl<R: Resources> DataBind<R> for RawDepthTarget {
         man: &mut handle::Manager<R>,
         _: &mut AccessInfo<R>,
     ) {
-        let dsv = data;
-        out.pixel_targets
-            .add_depth_stencil(man.ref_dsv(dsv), true, false, dsv.get_dimensions());
+        if let Some(dsv) = data {
+            out.pixel_targets.add_depth_stencil(
+                man.ref_dsv(dsv),
+                true,
+                false,
+                dsv.get_dimensions(),
+            );
+        }
     }
 }
 
@@ -64,7 +74,7 @@ gfx_pipeline_base!( glyph_pipe {
 impl glyph_pipe::Init<'_> {
     pub fn new(
         color_format: format::Format,
-        depth_format: format::Format,
+        depth_format: Option<format::Format>,
         depth_test: state::Depth,
     ) -> Self {
         glyph_pipe::Init {
@@ -77,7 +87,7 @@ impl glyph_pipe::Init<'_> {
                 state::ColorMask::all(),
                 Some(preset::blend::ALPHA),
             ),
-            out_depth: (depth_format, depth_test),
+            out_depth: depth_format.map(|d| (d, depth_test)),
         }
     }
 }

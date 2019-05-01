@@ -117,7 +117,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             ..Section::default()
         });
 
-        glyph_brush.draw_queued(&mut encoder, &main_color, &main_depth)?;
+        glyph_brush.draw_queued(&mut encoder, &main_color, Some(&main_depth))?;
 
         encoder.flush(&mut device);
         window_ctx.swap_buffers()?;

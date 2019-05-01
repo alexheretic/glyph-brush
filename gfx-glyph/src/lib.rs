@@ -33,7 +33,7 @@
 //! glyph_brush.queue(section);
 //! glyph_brush.queue(some_other_section);
 //!
-//! glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth)?;
+//! glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, Some(&gfx_depth))?;
 //! # Ok(())
 //! # }
 //! ```
@@ -137,7 +137,7 @@ pub fn default_transform<D: IntoDimensions>(d: D) -> [[f32; 4]; 4] {
 /// glyph_brush.queue(section);
 /// glyph_brush.queue(some_other_section);
 ///
-/// glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth)?;
+/// glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, Some(&gfx_depth))?;
 /// # Ok(())
 /// # }
 /// ```
@@ -296,7 +296,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
         &mut self,
         encoder: &mut gfx::Encoder<R, C>,
         target: &CV,
-        depth_target: &DV,
+        depth_target: Option<&DV>,
     ) -> Result<(), String>
     where
         C: gfx::CommandBuffer<R>,
@@ -341,7 +341,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     ///     transform,
     ///     &mut gfx_encoder,
     ///     &(raw_render_view, format::Srgba8::get_format()),
-    ///     &(raw_depth_view, format::Depth::get_format()),
+    ///     Some(&(raw_depth_view, format::Depth::get_format())),
     /// )?
     /// # ;
     /// # Ok(())
@@ -352,7 +352,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
         transform: [[f32; 4]; 4],
         mut encoder: &mut gfx::Encoder<R, C>,
         target: &CV,
-        depth_target: &DV,
+        depth_target: Option<&DV>,
     ) -> Result<(), String>
     where
         C: gfx::CommandBuffer<R>,
@@ -428,13 +428,18 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
             if &cache.pipe_data.out != target.as_raw() {
                 cache.pipe_data.out.clone_from(target.as_raw());
             }
-            if &cache.pipe_data.out_depth != depth_target.as_raw() {
-                cache.pipe_data.out_depth.clone_from(depth_target.as_raw());
+            if let Some(depth_target) = depth_target {
+                if cache.pipe_data.out_depth.as_ref() != Some(depth_target.as_raw()) {
+                    cache
+                        .pipe_data
+                        .out_depth
+                        .clone_from(&Some(depth_target.as_raw().clone()));
+                }
             }
             if cache.pso.0 != target.format() {
                 cache.pso = (
                     target.format(),
-                    self.pso_using(target.format(), depth_target.format()),
+                    self.pso_using(target.format(), depth_target.map(|d| d.format())),
                 );
             }
             self.draw_cache = Some(cache);
@@ -467,12 +472,12 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
                                 font_tex: (self.font_cache_tex.1.clone(), sampler),
                                 transform,
                                 out: target.as_raw().clone(),
-                                out_depth: depth_target.as_raw().clone(),
+                                out_depth: depth_target.map(|d| d.as_raw().clone()),
                             }
                         },
                         pso: (
                             target.format(),
-                            self.pso_using(target.format(), depth_target.format()),
+                            self.pso_using(target.format(), depth_target.map(|d| d.format())),
                         ),
                         slice: gfx::Slice {
                             instances: Some((verts.len() as _, 0)),
@@ -511,7 +516,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     fn pso_using(
         &mut self,
         color_format: gfx::format::Format,
-        depth_format: gfx::format::Format,
+        depth_format: Option<gfx::format::Format>,
     ) -> gfx::PipelineState<R, glyph_pipe::Meta> {
         self.factory
             .create_pipeline_from_program(
@@ -557,7 +562,7 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     /// // some time later, add another font referenced by a new `FontId`
     /// let open_sans_italic: &[u8] = include_bytes!("../../fonts/OpenSans-Italic.ttf");
     /// let open_sans_italic_id = glyph_brush.add_font_bytes(open_sans_italic);
-    /// # glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, &gfx_depth).unwrap();
+    /// # glyph_brush.draw_queued(&mut gfx_encoder, &gfx_color, Some(&gfx_depth)).unwrap();
     /// # let _ = open_sans_italic_id;
     /// # }
     /// ```

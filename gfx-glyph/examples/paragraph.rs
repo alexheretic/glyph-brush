@@ -251,7 +251,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             transform.into(),
             &mut encoder,
             &main_color,
-            &main_depth,
+            Some(&main_depth),
         )?;
 
         encoder.flush(&mut device);
