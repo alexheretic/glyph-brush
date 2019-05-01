@@ -339,27 +339,6 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
             .draw(encoder, target)
     }
 
-    /// Draws all queued sections onto a render target, applying a custom position transform.
-    #[inline]
-    #[deprecated = "Use `use_queue()` to build draws."]
-    pub fn draw_queued_with_transform<C, CV, DV>(
-        &mut self,
-        transform: [[f32; 4]; 4],
-        encoder: &mut gfx::Encoder<R, C>,
-        target: &CV,
-        depth_target: &DV,
-    ) -> Result<(), String>
-    where
-        C: gfx::CommandBuffer<R>,
-        CV: RawAndFormat<Raw = RawRenderTargetView<R>>,
-        DV: RawAndFormat<Raw = RawDepthStencilView<R>>,
-    {
-        self.use_queue()
-            .transform(transform)
-            .depth_target(depth_target)
-            .draw(encoder, target)
-    }
-
     /// Draws all queued sections
     pub(crate) fn draw<C, CV, DV>(
         &mut self,
