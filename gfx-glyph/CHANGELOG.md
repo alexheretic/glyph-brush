@@ -1,14 +1,27 @@
 # Unreleased
-* Update glyph_brush -> `0.5`.
-* **Breaking:** `draw_queued_with_transform` usages are now expected to provide the orthographic projection, whereas before this projection was pre-baked. The shader also now inverts the y-axis to be more in-line with other APIs. Previous usages can be technically converted with:
+* New API for drawing queued glyphs. Depth buffer usage is now optional.
   ```rust
   // v0.14
-  glyph_brush.draw_queued_with_transform(custom_transform, ...);
+  glyph_brush.draw_queued(encoder, color, depth)?;
+  // v0.15
+  glyph_brush.use_queue().depth_target(depth).draw(encoder, color)?;
+  ```
+* Depth test now defaults to _Only draw when the fragment's output depth is less than or equal to the current depth buffer value, and update the buffer_. Instead of _Always pass, never write_. This is because depth buffer interaction is now optional.
+* Custom transform usages are now expected to provide the orthographic projection, whereas before this projection was pre-baked. The shader also now inverts the y-axis to be more in-line with other APIs. Previous usages can be technically converted with:
+  ```rust
+  // v0.14
+  glyph_brush.draw_queued_with_transform(custom_transform, ..);
 
   // v0.15
-  glyph_brush.draw_queued_with_transform(invert_y * custom_transform * gfx_glyph::default_transform(&gfx_color), ...);
+  glyph_brush
+      .use_queue()
+      .transform(invert_y * custom_transform * gfx_glyph::default_transform(&gfx_color))
+      .draw(..);
   ```
-  The new style allows easier pre-projection transformations, like rotation, as before only post-projection transforms were possible. `draw_queued` usage is unchanged, it now internally uses `gfx_glyph::default_transform`.
+  The new style allows easier pre-projection transformations, like rotation, as before only post-projection transforms were possible. Draws without custom transforms are unchanged, they now internally uses `gfx_glyph::default_transform`.
+* `GlyphBrush::draw_queued` is deprecated, in favour of `use_queue()` draw builder usage.
+* `GlyphBrush::draw_queued_with_transform` has been **removed**, in favour of `use_queue()` draw builder usage.
+* Update glyph_brush -> `0.5`.
 
 # 0.14.1
 * Enlarge textures within `GL_MAX_TEXTURE_SIZE` if possible.

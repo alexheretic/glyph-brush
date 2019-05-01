@@ -59,7 +59,7 @@ impl<'a> GlyphBrushBuilder<'a> {
     pub fn using_fonts<V: Into<Vec<Font<'a>>>>(fonts: V) -> Self {
         GlyphBrushBuilder {
             inner: glyph_brush::GlyphBrushBuilder::using_fonts(fonts),
-            depth_test: gfx::preset::depth::PASS_TEST,
+            depth_test: gfx::preset::depth::LESS_EQUAL_WRITE,
             texture_filter_method: texture::FilterMethod::Bilinear,
         }
     }
@@ -70,7 +70,8 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
 
     /// Sets the depth test to use on the text section **z** values.
     ///
-    /// Defaults to: *Always pass the depth test, never write to the depth buffer write*
+    /// Defaults to: *Only draw when the fragment's output depth is less than or equal to
+    /// the current depth buffer value, and update the buffer*.
     ///
     /// # Example
     ///
@@ -79,7 +80,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     /// # fn main() {
     /// # let some_font: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
     /// GlyphBrushBuilder::using_font_bytes(some_font)
-    ///     .depth_test(gfx::preset::depth::LESS_EQUAL_WRITE)
+    ///     .depth_test(gfx::preset::depth::PASS_WRITE)
     ///     // ...
     /// # ;
     /// # }
