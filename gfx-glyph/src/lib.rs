@@ -76,7 +76,7 @@ type TexFormView = <TexForm as format::Formatted>::View;
 type TexSurfaceHandle<R> = handle::Texture<R, TexSurface>;
 type TexShaderView<R> = handle::ShaderResourceView<R, TexFormView>;
 
-/// Returns the default 4 dimensional matrix orthographic projection used in `draw_queued`.
+/// Returns the default 4 dimensional matrix orthographic projection used for drawing.
 ///
 /// # Example
 ///
@@ -153,7 +153,7 @@ pub fn default_transform<D: IntoDimensions>(d: D) -> [[f32; 4]; 4] {
 /// used for actual drawing.
 ///
 /// The cache for a section will be **cleared** after a
-/// [`GlyphBrush::draw_queued`](#method.draw_queued) call when that section has not been used since
+/// [`.use_queue().draw(..)`](struct.DrawBuilder.html#method.draw) call when that section has not been used since
 /// the previous draw call.
 pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>, H = DefaultSectionHasher> {
     font_cache_tex: (
@@ -216,7 +216,49 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphCruncher
 
 impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'font, R, F, H> {
     /// Queues a section/layout to be drawn by the next call of
-    /// [`draw_queued`](struct.GlyphBrush.html#method.draw_queued). Can be called multiple times
+    /// [`.use_queue().draw(..)`](struct.DrawBuilder.html#method.draw). Can be called multiple times
+    /// to queue multiple sections for drawing.
+    ///
+    /// Benefits from caching, see [caching behaviour](#caching-behaviour).
+    #[inline]
+    pub fn queue<'a, S>(&mut self, section: S)
+    where
+        S: Into<Cow<'a, VariedSection<'a>>>,
+    {
+        self.glyph_brush.queue(section)
+    }
+
+    /// Returns a [`DrawBuilder`](struct.DrawBuilder.html) allowing the queued glyphs to be drawn.
+    ///
+    /// Drawing will trim the cache, see [caching behaviour](#caching-behaviour).
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # fn main() -> Result<(), String> {
+    /// # let (_window, _device, mut gfx_factory, gfx_color, _gfx_depth) =
+    /// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
+    /// #         glutin::WindowBuilder::new(),
+    /// #         glutin::ContextBuilder::new(),
+    /// #         &glutin::EventsLoop::new()).unwrap();
+    /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
+    /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(&[])
+    /// #     .build(gfx_factory.clone());
+    /// glyph_brush.use_queue().draw(&mut gfx_encoder, &gfx_color)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[inline]
+    pub fn use_queue(&mut self) -> DrawBuilder<'_, 'font, R, F, H, ()> {
+        DrawBuilder {
+            brush: self,
+            transform: None,
+            depth_target: None,
+        }
+    }
+
+    /// Queues a section/layout to be drawn by the next call of
+    /// [`.use_queue().draw(..)`](struct.DrawBuilder.html#method.draw). Can be called multiple times
     /// to queue multiple sections for drawing.
     ///
     /// Used to provide custom `GlyphPositioner` logic, if using built-in
@@ -232,21 +274,8 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
         self.glyph_brush.queue_custom_layout(section, custom_layout)
     }
 
-    /// Queues a section/layout to be drawn by the next call of
-    /// [`draw_queued`](struct.GlyphBrush.html#method.draw_queued). Can be called multiple times
-    /// to queue multiple sections for drawing.
-    ///
-    /// Benefits from caching, see [caching behaviour](#caching-behaviour).
-    #[inline]
-    pub fn queue<'a, S>(&mut self, section: S)
-    where
-        S: Into<Cow<'a, VariedSection<'a>>>,
-    {
-        self.glyph_brush.queue(section)
-    }
-
     /// Queues pre-positioned glyphs to be processed by the next call of
-    /// [`draw_queued`](struct.GlyphBrush.html#method.draw_queued). Can be called multiple times.
+    /// [`.use_queue().draw(..)`](struct.DrawBuilder.html#method.draw). Can be called multiple times.
     #[inline]
     pub fn queue_pre_positioned(
         &mut self,
@@ -283,17 +312,17 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
         self.glyph_brush.keep_cached(section)
     }
 
-    /// Draws all queued sections onto a render target, applying the default transform.
-    /// See [`queue`](struct.GlyphBrush.html#method.queue).
-    /// See [`default_transform`](fn.default_transform.html).
+    /// Returns the available fonts.
     ///
-    /// Trims the cache, see [caching behaviour](#caching-behaviour).
-    ///
-    /// # Raw usage
-    /// Can also be used with gfx raw render & depth views if necessary. The `Format` must also
-    /// be provided. [See example.](struct.GlyphBrush.html#raw-usage-1)
+    /// The `FontId` corresponds to the index of the font data.
     #[inline]
-    #[deprecated = "Use `use_queue()` to build draws"]
+    pub fn fonts(&self) -> &[Font<'_>] {
+        self.glyph_brush.fonts()
+    }
+
+    /// Draws all queued sections onto a render target, applying the default transform.
+    #[inline]
+    #[deprecated = "Use `use_queue()` to build draws."]
     pub fn draw_queued<C, CV, DV>(
         &mut self,
         encoder: &mut gfx::Encoder<R, C>,
@@ -310,49 +339,9 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
             .draw(encoder, target)
     }
 
-    /// Draws all queued sections onto a render target, applying a position transform (e.g.
-    /// a projection).
-    /// See [`queue`](struct.GlyphBrush.html#method.queue).
-    /// See [`default_transform`](fn.default_transform.html).
-    ///
-    /// Trims the cache, see [caching behaviour](#caching-behaviour).
-    ///
-    /// # Raw usage
-    /// Can also be used with gfx raw render & depth views if necessary. The `Format` must also
-    /// be provided.
-    ///
-    /// ```no_run
-    /// # use gfx_glyph::{GlyphBrushBuilder};
-    /// # use gfx_glyph::Section;
-    /// # use gfx::format;
-    /// # use gfx::format::Formatted;
-    /// # use gfx::memory::Typed;
-    /// # fn main() -> Result<(), String> {
-    /// # let events_loop = glutin::EventsLoop::new();
-    /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
-    /// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
-    /// #         glutin::WindowBuilder::new(),
-    /// #         glutin::ContextBuilder::new(),
-    /// #         &events_loop).unwrap();
-    /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
-    /// # let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-    /// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu)
-    /// #     .build(gfx_factory.clone());
-    /// # let raw_render_view = gfx_color.raw();
-    /// # let raw_depth_view = gfx_depth.raw();
-    /// # let transform = [[0.0; 4]; 4];
-    /// glyph_brush.draw_queued_with_transform(
-    ///     transform,
-    ///     &mut gfx_encoder,
-    ///     &(raw_render_view, format::Srgba8::get_format()),
-    ///     &(raw_depth_view, format::Depth::get_format()),
-    /// )?
-    /// # ;
-    /// # Ok(())
-    /// # }
-    /// ```
+    /// Draws all queued sections onto a render target, applying a custom position transform.
     #[inline]
-    #[deprecated = "Use `use_queue()` to build draws"]
+    #[deprecated = "Use `use_queue()` to build draws."]
     pub fn draw_queued_with_transform<C, CV, DV>(
         &mut self,
         transform: [[f32; 4]; 4],
@@ -369,15 +358,6 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
             .transform(transform)
             .depth_target(depth_target)
             .draw(encoder, target)
-    }
-
-    #[inline]
-    pub fn use_queue(&mut self) -> DrawBuilder<'_, 'font, R, F, H, ()> {
-        DrawBuilder {
-            brush: self,
-            transform: None,
-            depth_target: None,
-        }
     }
 
     /// Draws all queued sections
@@ -537,14 +517,6 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
         }
 
         Ok(())
-    }
-
-    /// Returns the available fonts.
-    ///
-    /// The `FontId` corresponds to the index of the font data.
-    #[inline]
-    pub fn fonts(&self) -> &[Font<'_>] {
-        self.glyph_brush.fonts()
     }
 
     fn pso_using(

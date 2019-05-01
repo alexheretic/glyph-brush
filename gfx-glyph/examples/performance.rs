@@ -128,7 +128,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             ..Section::default()
         };
 
-        // Adds a section & layout to the queue for the next call to `draw_queued`, this
+        // Adds a section & layout to the queue for the next call to `use_queue().draw(..)`, this
         // can be called multiple times for different sections that want to use the same
         // font and gpu cache
         // This step computes the glyph positions, this is cached to avoid unnecessary recalculation
