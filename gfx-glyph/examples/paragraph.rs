@@ -247,7 +247,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         glyph_brush
             .use_queue()
             .transform(transform)
-            .depth_target(&main_depth)
             .draw(&mut encoder, &main_color)?;
 
         encoder.flush(&mut device);

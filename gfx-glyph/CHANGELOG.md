@@ -1,4 +1,4 @@
-# Unreleased
+# 0.15
 * New API for drawing queued glyphs. Depth buffer usage is now optional.
   ```rust
   // v0.14
