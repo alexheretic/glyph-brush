@@ -27,7 +27,6 @@ glyph_brush.queue(Section {
 glyph_brush.queue(some_other_section);
 
 match glyph_brush.process_queued(
-    screen_dimensions,
     |rect, tex_data| update_texture(rect, tex_data),
     |vertex_data| into_vertex(vertex_data),
 ) {
