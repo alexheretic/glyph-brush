@@ -1,3 +1,6 @@
+# 0.1.6
+* Fix missing line breaks for multi-byte breaking chars like Chinese characters.
+
 # 0.1.5
 * Add `GlyphPositioner::recalculate_glyphs` with a default unoptimised implementation. Custom layouts won't be broken by this change, but _will_ need to implement the new function to provide optimised behaviour.
 * Optimise built-in layout's recalculate_glyphs for screen position changes with `GlyphChange::Geometry`.
