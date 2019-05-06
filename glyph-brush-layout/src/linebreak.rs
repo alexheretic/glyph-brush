@@ -62,20 +62,21 @@ impl Iterator for AnyCharLineBreakerIter<'_> {
 
     #[inline]
     fn next(&mut self) -> Option<LineBreak> {
-        let (b_index, _) = self.chars.next()?;
+        let (b_index, c) = self.chars.next()?;
+        let c_len = c.len_utf8();
         while self.current_break.is_some() {
-            if self.current_break.as_ref().unwrap().0 < b_index + 1 {
+            if self.current_break.as_ref().unwrap().0 < b_index + c_len {
                 self.current_break = self.breaks.next();
             } else {
                 break;
             }
         }
         if let Some((break_index, true)) = self.current_break {
-            if break_index == b_index + 1 {
+            if break_index == b_index + c_len {
                 return Some(LineBreak::Hard(break_index));
             }
         }
-        Some(LineBreak::Soft(b_index + 1))
+        Some(LineBreak::Soft(b_index + c_len))
     }
 }
 

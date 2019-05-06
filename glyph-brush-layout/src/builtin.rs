@@ -406,21 +406,27 @@ mod layout_test {
         static ref A_FONT: Font<'static> =
             Font::from_bytes(include_bytes!("../../fonts/DejaVuSansMono.ttf") as &[u8])
                 .expect("Could not create rusttype::Font");
-        static ref FONT_MAP: Vec<Font<'static>> = vec![A_FONT.clone()];
+        static ref CJK_FONT: Font<'static> =
+            Font::from_bytes(include_bytes!("../../fonts/WenQuanYiMicroHei.ttf") as &[u8])
+                .expect("Could not create rusttype::Font");
+        static ref FONT_MAP: Vec<Font<'static>> = vec![A_FONT.clone(), CJK_FONT.clone()];
     }
 
     /// Checks the order of glyphs in the first arg iterable matches the
     /// second arg string characters
     /// $glyphs: Vec<(PositionedGlyph<'font>, Color, FontId)>
     macro_rules! assert_glyph_order {
-        ($glyphs:expr, $string:expr) => {{
+        ($glyphs:expr, $string:expr) => {
+            assert_glyph_order!($glyphs, $string, font = A_FONT)
+        };
+        ($glyphs:expr, $string:expr, font = $font:expr) => {{
             let expected_len = $string.chars().count();
             assert_eq!($glyphs.len(), expected_len, "Unexpected number of glyphs");
             let mut glyphs = $glyphs.iter();
             for c in $string.chars() {
                 assert_eq!(
                     glyphs.next().unwrap().0.id(),
-                    A_FONT.glyph(c).id(),
+                    $font.glyph(c).id(),
                     "Unexpected glyph id, expecting id for char `{}`",
                     c
                 );
@@ -1013,5 +1019,39 @@ mod layout_test {
 
         assert_glyph_order!(recalc, "helloworld");
         assert_eq!(recalc[2].1, RED_HALF_ALPHA);
+    }
+
+    /// Chinese sentance squeezed into a vertical pipe meaning each character is on
+    /// a seperate line.
+    #[test]
+    fn wrap_word_chinese() {
+        let glyphs = Layout::default().calculate_glyphs(
+            &*FONT_MAP,
+            &SectionGeometry {
+                bounds: (25.0, f32::INFINITY),
+                ..<_>::default()
+            },
+            &[SectionText {
+                text: "提高代碼執行率",
+                scale: Scale::uniform(20.0),
+                font_id: FontId(1),
+                ..<_>::default()
+            }],
+        );
+
+        assert_glyph_order!(glyphs, "提高代碼執行率", font = CJK_FONT);
+
+        let x_positions: HashSet<_> = glyphs
+            .iter()
+            .map(|g| OrderedFloat(g.0.position().x))
+            .collect();
+        assert_eq!(x_positions, std::iter::once(OrderedFloat(0.0)).collect());
+
+        let y_positions: HashSet<_> = glyphs
+            .iter()
+            .map(|g| OrderedFloat(g.0.position().y))
+            .collect();
+
+        assert_eq!(y_positions.len(), 7, "{:?}", y_positions);
     }
 }

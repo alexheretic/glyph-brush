@@ -122,8 +122,9 @@ where
 
                 let glyph = self.font_map.font(*font_id).glyph(c).scaled(*scale);
 
-                let mut line_break = next_break.filter(|b| b.offset() == byte_index + 1);
-                if line_break.is_some() && byte_index + 1 == text.len() {
+                let c_len = c.len_utf8();
+                let mut line_break = next_break.filter(|b| b.offset() == byte_index + c_len);
+                if line_break.is_some() && byte_index + c_len == text.len() {
                     // handle inherent end-of-str hard breaks
                     line_break = line_break.and(c.eol_line_break(&self.line_breaker));
                 }
