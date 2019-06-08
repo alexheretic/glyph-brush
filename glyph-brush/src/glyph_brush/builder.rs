@@ -19,6 +19,7 @@ pub struct GlyphBrushBuilder<'a, H = DefaultSectionHasher> {
     pub initial_cache_size: (u32, u32),
     pub gpu_cache_scale_tolerance: f32,
     pub gpu_cache_position_tolerance: f32,
+    pub gpu_cache_align_4x4: bool,
     pub cache_glyph_positioning: bool,
     pub cache_glyph_drawing: bool,
     pub section_hasher: H,
@@ -60,6 +61,7 @@ impl<'a> GlyphBrushBuilder<'a> {
             initial_cache_size: (256, 256),
             gpu_cache_scale_tolerance: 0.5,
             gpu_cache_position_tolerance: 0.1,
+            gpu_cache_align_4x4: false,
             cache_glyph_positioning: true,
             cache_glyph_drawing: true,
             section_hasher: DefaultSectionHasher::default(),
@@ -118,6 +120,19 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
         self
     }
 
+    /// Align glyphs in texture cache to 4x4 texel boundaries.
+    ///
+    /// If your backend requires texture updates to be aligned to 4x4 texel
+    /// boundaries (e.g. WebGL), this should be set to `true`.
+    ///
+    /// Defaults to `false`
+    ///
+    /// See rusttype docs for `rusttype::gpu_cache::Cache`
+    pub fn gpu_cache_align_4x4(mut self, b: bool) -> Self {
+        self.gpu_cache_align_4x4 = b;
+        self
+    }
+
     /// Sets whether perform the calculation of glyph positioning according to the layout
     /// every time, or use a cached result if the input `Section` and `GlyphPositioner` are the
     /// same hash as a previous call.
@@ -169,6 +184,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
             initial_cache_size: self.initial_cache_size,
             gpu_cache_scale_tolerance: self.gpu_cache_scale_tolerance,
             gpu_cache_position_tolerance: self.gpu_cache_position_tolerance,
+            gpu_cache_align_4x4: self.gpu_cache_align_4x4,
             cache_glyph_positioning: self.cache_glyph_positioning,
             cache_glyph_drawing: self.cache_glyph_drawing,
         }
@@ -184,6 +200,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
                 .dimensions(cache_width, cache_height)
                 .scale_tolerance(self.gpu_cache_scale_tolerance)
                 .position_tolerance(self.gpu_cache_position_tolerance)
+                .align_4x4(self.gpu_cache_align_4x4)
                 .build(),
 
             last_draw: <_>::default(),
