@@ -1,3 +1,6 @@
+# Unreleased
+* Update hashbrown -> `0.4`.
+
 # 0.5
 * Removed screen dimensions from `process_queued` arguments. `to_vertex` function arguments also no longer include screen dimensions. Vertices should now be given pixel coordinates and use an appropriate projection matrix as a transform.
 

@@ -115,7 +115,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     ///
     /// This hasher is used to distinguish sections, rather than for hashmap internal use.
     ///
-    /// Defaults to [seahash](https://docs.rs/seahash).
+    /// Defaults to [xxHash](https://docs.rs/twox-hash).
     ///
     /// # Example
     /// ```no_run

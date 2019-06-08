@@ -317,7 +317,7 @@ impl<'a, H: BuildHasher> GlyphCalculatorBuilder<'a, H> {
     ///
     /// This hasher is used to distinguish sections, rather than for hashmap internal use.
     ///
-    /// Defaults to [seahash](https://docs.rs/seahash).
+    /// Defaults to [xxHash](https://docs.rs/twox-hash).
     pub fn section_hasher<T: BuildHasher>(
         self,
         section_hasher: T,
