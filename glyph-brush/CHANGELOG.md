@@ -1,5 +1,6 @@
 # Unreleased
-* Update hashbrown -> `0.4`.
+* Add `GlyphCruncher::glyph_bounds` & `glyph_bounds_custom_layout` functions. These return section bounding boxes in terms of the font & glyph's size metrics, which can be more useful than the pixel rendering bounds provided by `pixel_bounds`.
+* Update hashbrown -> `0.5`.
 
 # 0.5
 * Removed screen dimensions from `process_queued` arguments. `to_vertex` function arguments also no longer include screen dimensions. Vertices should now be given pixel coordinates and use an appropriate projection matrix as a transform.

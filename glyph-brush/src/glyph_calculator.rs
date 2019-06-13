@@ -22,7 +22,10 @@ pub trait GlyphCruncher<'font> {
     /// Returns the pixel bounding box for the input section using a custom layout.
     /// The box is a conservative whole number pixel rectangle that can contain the section.
     ///
-    /// If the section is empty or would result in no drawn glyphs will return `None`
+    /// If the section is empty or would result in no drawn glyphs will return `None`.
+    ///
+    /// [`glyphs_custom_layout`](#method.glyphs_custom_layout) should be preferred if the
+    /// bounds are to be used to inform further layout logic.
     ///
     /// Benefits from caching, see [caching behaviour](#caching-behaviour).
     fn pixel_bounds_custom_layout<'a, S, L>(
@@ -37,9 +40,13 @@ pub trait GlyphCruncher<'font> {
     /// Returns the pixel bounding box for the input section. The box is a conservative
     /// whole number pixel rectangle that can contain the section.
     ///
-    /// If the section is empty or would result in no drawn glyphs will return `None`
+    /// If the section is empty or would result in no drawn glyphs will return `None`.
+    ///
+    /// [`glyph_bounds`](#method.glyph_bounds) should be preferred if the bounds are to be
+    /// used to inform further layout logic.
     ///
     /// Benefits from caching, see [caching behaviour](#caching-behaviour).
+    #[inline]
     fn pixel_bounds<'a, S>(&mut self, section: S) -> Option<Rect<i32>>
     where
         S: Into<Cow<'a, VariedSection<'a>>>,
@@ -70,6 +77,7 @@ pub trait GlyphCruncher<'font> {
     /// are discarded during layout.
     ///
     /// Benefits from caching, see [caching behaviour](#caching-behaviour).
+    #[inline]
     fn glyphs<'a, 'b, S>(&'b mut self, section: S) -> PositionedGlyphIter<'b, 'font>
     where
         S: Into<Cow<'a, VariedSection<'a>>>,
@@ -83,6 +91,86 @@ pub trait GlyphCruncher<'font> {
     ///
     /// The `FontId` corresponds to the index of the font data.
     fn fonts(&self) -> &[Font<'font>];
+
+    /// Returns a bounding box for the section glyphs calculated using each glyph's
+    /// vertical & horizontal metrics.
+    ///
+    /// If the section is empty or would result in no drawn glyphs will return `None`.
+    ///
+    /// Invisible glyphs, like spaces, are discarded during layout so trailing ones will
+    /// not affect the bounds.
+    ///
+    /// The bounds will always lay within the specified layout bounds, ie that returned
+    /// by the layout's `bounds_rect` function.
+    ///
+    /// Benefits from caching, see [caching behaviour](#caching-behaviour).
+    fn glyph_bounds_custom_layout<'a, S, L>(
+        &mut self,
+        section: S,
+        custom_layout: &L,
+    ) -> Option<Rect<f32>>
+    where
+        L: GlyphPositioner + Hash,
+        S: Into<Cow<'a, VariedSection<'a>>>,
+    {
+        let section = section.into();
+        let geometry = SectionGeometry::from(section.as_ref());
+
+        self.glyphs_custom_layout(section, custom_layout)
+            .filter_map(|glyph| glyph.font().map(|f| (f, glyph)))
+            .fold(None, |b: Option<Rect<f32>>, (font, glyph)| {
+                let hm = glyph.unpositioned().h_metrics();
+                let vm = font.v_metrics(glyph.scale());
+                let pos = glyph.position();
+                let lbound = Rect {
+                    min: point(pos.x - hm.left_side_bearing, pos.y - vm.ascent),
+                    max: point(pos.x + hm.advance_width, pos.y - vm.descent),
+                };
+
+                b.map(|b| {
+                    let min_x = b.min.x.min(lbound.min.x);
+                    let max_x = b.max.x.max(lbound.max.x);
+                    let min_y = b.min.y.min(lbound.min.y);
+                    let max_y = b.max.y.max(lbound.max.y);
+                    Rect {
+                        min: point(min_x, min_y),
+                        max: point(max_x, max_y),
+                    }
+                })
+                .or_else(|| Some(lbound))
+            })
+            .map(|mut b| {
+                // cap the glyph bounds to the layout specified max bounds
+                let Rect { min, max } = custom_layout.bounds_rect(&geometry);
+                b.min.x = b.min.x.max(min.x);
+                b.min.y = b.min.y.max(min.y);
+                b.max.x = b.max.x.min(max.x);
+                b.max.y = b.max.y.min(max.y);
+                b
+            })
+    }
+
+    /// Returns a bounding box for the section glyphs calculated using each glyph's
+    /// vertical & horizontal metrics.
+    ///
+    /// If the section is empty or would result in no drawn glyphs will return `None`.
+    ///
+    /// Invisible glyphs, like spaces, are discarded during layout so trailing ones will
+    /// not affect the bounds.
+    ///
+    /// The bounds will always lay within the specified layout bounds, ie that returned
+    /// by the layout's `bounds_rect` function.
+    ///
+    /// Benefits from caching, see [caching behaviour](#caching-behaviour).
+    #[inline]
+    fn glyph_bounds<'a, S>(&mut self, section: S) -> Option<Rect<f32>>
+    where
+        S: Into<Cow<'a, VariedSection<'a>>>,
+    {
+        let section = section.into();
+        let layout = section.layout;
+        self.glyph_bounds_custom_layout(section, &layout)
+    }
 }
 
 /// Cut down version of a [`GlyphBrush`](struct.GlyphBrush.html) that can calculate pixel bounds,
@@ -227,6 +315,7 @@ impl<'font, H: BuildHasher> GlyphCruncher<'font> for GlyphCalculatorGuard<'_, 'f
         self.glyph_cache[&section_hash].glyphs()
     }
 
+    #[inline]
     fn fonts(&self) -> &[Font<'font>] {
         &self.fonts
     }
@@ -374,27 +463,27 @@ impl<'font> GlyphedSection<'font> {
             }
         };
 
-        let layout_bounds = Rect {
+        let section_bounds = Rect {
             min: point(to_i32(bounds.min.x.floor()), to_i32(bounds.min.y.floor())),
             max: point(to_i32(bounds.max.x.ceil()), to_i32(bounds.max.y.ceil())),
         };
 
         let inside_layout = |rect: Rect<i32>| {
-            if rect.max.x < layout_bounds.min.x
-                || rect.max.y < layout_bounds.min.y
-                || rect.min.x > layout_bounds.max.x
-                || rect.min.y > layout_bounds.max.y
+            if rect.max.x < section_bounds.min.x
+                || rect.max.y < section_bounds.min.y
+                || rect.min.x > section_bounds.max.x
+                || rect.min.y > section_bounds.max.y
             {
                 return None;
             }
             Some(Rect {
                 min: Point {
-                    x: rect.min.x.max(layout_bounds.min.x),
-                    y: rect.min.y.max(layout_bounds.min.y),
+                    x: rect.min.x.max(section_bounds.min.x),
+                    y: rect.min.y.max(section_bounds.min.y),
                 },
                 max: Point {
-                    x: rect.max.x.min(layout_bounds.max.x),
-                    y: rect.max.y.min(layout_bounds.max.y),
+                    x: rect.max.x.min(section_bounds.max.x),
+                    y: rect.max.y.min(section_bounds.max.y),
                 },
             })
         };
@@ -438,17 +527,19 @@ impl<'font> GlyphedSection<'font> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::f32;
 
+    use approx::*;
+    use std::f32;
     lazy_static::lazy_static! {
-        static ref A_FONT: Font<'static> =
+        static ref MONO_FONT: Font<'static> =
             Font::from_bytes(include_bytes!("../../fonts/DejaVuSansMono.ttf") as &[u8])
                 .expect("Could not create rusttype::Font");
+
     }
 
     #[test]
     fn pixel_bounds_respect_layout_bounds() {
-        let glyphs = GlyphCalculatorBuilder::using_font(A_FONT.clone()).build();
+        let glyphs = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build();
         let mut glyphs = glyphs.cache_scope();
 
         let section = Section {
@@ -483,7 +574,7 @@ mod test {
 
     #[test]
     fn pixel_bounds_handle_infinity() {
-        let glyphs = GlyphCalculatorBuilder::using_font(A_FONT.clone()).build();
+        let glyphs = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build();
         let mut glyphs = glyphs.cache_scope();
 
         for h_align in &[
@@ -519,5 +610,69 @@ mod test {
                 );
             }
         }
+    }
+
+    #[test]
+    fn glyph_bounds() {
+        let glyphs = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build();
+        let mut glyphs = glyphs.cache_scope();
+
+        let scale = Scale::uniform(16.0);
+        let section = Section {
+            text: "Hello World",
+            screen_position: (0.0, 0.0),
+            scale,
+            ..<_>::default()
+        };
+
+        let g_bounds = glyphs.glyph_bounds(&section).expect("None bounds");
+
+        for g in glyphs.glyphs(&section) {
+            eprintln!("{:?}", g.position());
+        }
+
+        let vm = MONO_FONT.v_metrics(scale);
+        assert_relative_eq!(g_bounds.min.y, 0.0);
+        assert_relative_eq!(g_bounds.max.y, vm.ascent - vm.descent);
+
+        // no left-side bearing expected
+        assert_relative_eq!(g_bounds.min.x, 0.0);
+
+        // the width should be to 11 * any glyph advance width as this font is monospaced
+        let g_width = MONO_FONT.glyph('W').scaled(scale).h_metrics().advance_width;
+        assert_relative_eq!(g_bounds.max.x, g_width * 11.0, epsilon = f32::EPSILON);
+    }
+
+    #[test]
+    fn glyph_bounds_respect_layout_bounds() {
+        let glyphs = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build();
+        let mut glyphs = glyphs.cache_scope();
+
+        let section = Section {
+            text: "Hello\n\
+                   World",
+            screen_position: (0.0, 20.0),
+            bounds: (f32::INFINITY, 20.0),
+            scale: Scale::uniform(16.0),
+            ..<_>::default()
+        };
+
+        let g_bounds = glyphs.glyph_bounds(&section).expect("None bounds");
+        let bounds_rect =
+            Layout::default().bounds_rect(&SectionGeometry::from(&VariedSection::from(section)));
+
+        assert!(
+            bounds_rect.min.y <= g_bounds.min.y as f32,
+            "expected {} <= {}",
+            bounds_rect.min.y,
+            g_bounds.min.y
+        );
+
+        assert!(
+            bounds_rect.max.y >= g_bounds.max.y as f32,
+            "expected {} >= {}",
+            bounds_rect.max.y,
+            g_bounds.max.y
+        );
     }
 }
