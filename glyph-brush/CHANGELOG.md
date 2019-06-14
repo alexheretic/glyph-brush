@@ -1,5 +1,6 @@
 # Unreleased
 * Add `GlyphCruncher::glyph_bounds` & `glyph_bounds_custom_layout` functions. These return section bounding boxes in terms of the font & glyph's size metrics, which can be more useful than the pixel rendering bounds provided by `pixel_bounds`.
+* Add `GlyphBrushBuilder::gpu_cache_align_4x4` for rusttype gpu_cache `align_4x4` option. `delegate_glyph_brush_builder_fns!` includes this for downstream builders.
 * Update hashbrown -> `0.5`.
 
 # 0.5

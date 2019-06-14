@@ -231,6 +231,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
 /// * `initial_cache_size`
 /// * `gpu_cache_scale_tolerance`
 /// * `gpu_cache_position_tolerance`
+/// * `gpu_cache_align_4x4`
 /// * `cache_glyph_positioning`
 /// * `cache_glyph_drawing`
 ///
@@ -319,6 +320,19 @@ macro_rules! delegate_glyph_brush_builder_fns {
         /// See rusttype docs for `rusttype::gpu_cache::Cache`
         pub fn gpu_cache_position_tolerance(mut self, tolerance: f32) -> Self {
             self.$inner = self.$inner.gpu_cache_position_tolerance(tolerance);
+            self
+        }
+
+        /// Align glyphs in texture cache to 4x4 texel boundaries.
+        ///
+        /// If your backend requires texture updates to be aligned to 4x4 texel
+        /// boundaries (e.g. WebGL), this should be set to `true`.
+        ///
+        /// Defaults to `false`
+        ///
+        /// See rusttype docs for `rusttype::gpu_cache::Cache`
+        pub fn gpu_cache_align_4x4(mut self, b: bool) -> Self {
+            self.$inner = self.$inner.gpu_cache_align_4x4(b);
             self
         }
 
