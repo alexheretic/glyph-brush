@@ -23,6 +23,7 @@ pub struct GlyphBrushBuilder<'a, H = DefaultSectionHasher> {
     pub cache_glyph_positioning: bool,
     pub cache_glyph_drawing: bool,
     pub section_hasher: H,
+    _private_construction: (),
 }
 
 impl<'a> GlyphBrushBuilder<'a> {
@@ -65,6 +66,7 @@ impl<'a> GlyphBrushBuilder<'a> {
             cache_glyph_positioning: true,
             cache_glyph_drawing: true,
             section_hasher: DefaultSectionHasher::default(),
+            _private_construction: (),
         }
     }
 }
@@ -187,6 +189,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
             gpu_cache_align_4x4: self.gpu_cache_align_4x4,
             cache_glyph_positioning: self.cache_glyph_positioning,
             cache_glyph_drawing: self.cache_glyph_drawing,
+            _private_construction: (),
         }
     }
 

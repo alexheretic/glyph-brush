@@ -1,12 +1,13 @@
-# 0.5.1
+# 0.5.2
+* Removed screen dimensions from `process_queued` arguments. `to_vertex` function arguments also no longer include screen dimensions. Vertices should now be given pixel coordinates and use an appropriate projection matrix as a transform.
+  <br/><br/>This approach simplifies glyph_brush code & allows the vertex cache to survive screen resolution changes. It also makes pre-projection custom transforms much easier to use. See usage changes in the opengl example & gfx_glyph.
 * Add `GlyphCruncher::glyph_bounds` & `glyph_bounds_custom_layout` functions. These return section bounding boxes in terms of the font & glyph's size metrics, which can be more useful than the pixel rendering bounds provided by `pixel_bounds`.
 * Add `GlyphBrushBuilder::gpu_cache_align_4x4` for rusttype gpu_cache `align_4x4` option. `delegate_glyph_brush_builder_fns!` includes this for downstream builders.
+* Disallow `GlyphBrushBuilder` direct construction.
 * Update hashbrown -> `0.5`.
 
-# 0.5
-* Removed screen dimensions from `process_queued` arguments. `to_vertex` function arguments also no longer include screen dimensions. Vertices should now be given pixel coordinates and use an appropriate projection matrix as a transform.
-
-  This approach simplifies glyph_brush code & allows the vertex cache to survive screen resolution changes. It also makes pre-projection custom transforms much easier to use. See usage changes in the opengl example & gfx_glyph.
+# 0.5, 0.5.1
+_yanked_
 
 # 0.4.3
 * Fix cached vertices erroneously remaining valid after screen dimension change.
