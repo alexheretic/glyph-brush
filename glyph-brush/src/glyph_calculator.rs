@@ -427,7 +427,7 @@ impl<'a, H: BuildHasher> GlyphCalculatorBuilder<'a, H> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub(crate) struct GlyphedSection<'font> {
     pub bounds: Rect<f32>,
     pub glyphs: Vec<(PositionedGlyph<'font>, Color, FontId)>,
@@ -439,11 +439,13 @@ impl<'a> PartialEq<GlyphedSection<'a>> for GlyphedSection<'a> {
         self.bounds == other.bounds
             && self.z == other.z
             && self.glyphs.len() == other.glyphs.len()
-            && self
-                .glyphs
-                .iter()
-                .zip(other.glyphs.iter())
-                .all(|(l, r)| l.2 == r.2 && l.1 == r.1 && l.0.id() == r.0.id() && l.0.position() == r.0.position() && l.0.scale() == r.0.scale())
+            && self.glyphs.iter().zip(other.glyphs.iter()).all(|(l, r)| {
+                l.2 == r.2
+                    && l.1 == r.1
+                    && l.0.id() == r.0.id()
+                    && l.0.position() == r.0.position()
+                    && l.0.scale() == r.0.scale()
+            })
     }
 }
 
@@ -674,5 +676,37 @@ mod test {
             bounds_rect.max.y,
             g_bounds.max.y
         );
+    }
+
+    #[test]
+    fn glyphed_section_eq() {
+        let glyph = MONO_FONT
+            .glyph('a')
+            .scaled(Scale::uniform(16.0))
+            .positioned(point(50.0, 60.0));
+        let color = [1.0, 0.9, 0.8, 0.7];
+
+        let a = GlyphedSection {
+            bounds: Rect {
+                min: point(1.0, 2.0),
+                max: point(300.0, 400.0),
+            },
+            z: 0.5,
+            glyphs: vec![(glyph.clone(), color, FontId(0))],
+        };
+        let mut b = GlyphedSection {
+            bounds: Rect {
+                min: point(1.0, 2.0),
+                max: point(300.0, 400.0),
+            },
+            z: 0.5,
+            glyphs: vec![(glyph.clone(), color, FontId(0))],
+        };
+
+        assert_eq!(a, b);
+
+        b.glyphs[0].0.set_position(point(50.0, 61.0));
+
+        assert_ne!(a, b);
     }
 }
