@@ -1,3 +1,6 @@
+# Unreleased
+* Fix `queue_pre_positioned` equality check.
+
 # 0.5.2
 * Removed screen dimensions from `process_queued` arguments. `to_vertex` function arguments also no longer include screen dimensions. Vertices should now be given pixel coordinates and use an appropriate projection matrix as a transform.
   <br/><br/>This approach simplifies glyph_brush code & allows the vertex cache to survive screen resolution changes. It also makes pre-projection custom transforms much easier to use. See usage changes in the opengl example & gfx_glyph.
