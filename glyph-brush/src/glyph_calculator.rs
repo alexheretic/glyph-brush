@@ -443,7 +443,7 @@ impl<'a> PartialEq<GlyphedSection<'a>> for GlyphedSection<'a> {
                 .glyphs
                 .iter()
                 .zip(other.glyphs.iter())
-                .all(|(l, r)| l.2 == r.2 && l.1 == r.1 && l.0.id() == r.0.id())
+                .all(|(l, r)| l.2 == r.2 && l.1 == r.1 && l.0.id() == r.0.id() && l.0.position() == r.0.position() && l.0.scale() == r.0.scale())
     }
 }
 
