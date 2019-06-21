@@ -1,5 +1,5 @@
-# Unreleased
-* Fix `queue_pre_positioned` equality check.
+# 0.5.3
+* Fix `queue_pre_positioned` cache check for position & scale changes.
 
 # 0.5.2
 * Removed screen dimensions from `process_queued` arguments. `to_vertex` function arguments also no longer include screen dimensions. Vertices should now be given pixel coordinates and use an appropriate projection matrix as a transform.
