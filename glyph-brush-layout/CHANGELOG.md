@@ -1,3 +1,6 @@
+# Unreleased
+* Update xi-unicode -> `0.2`.
+
 # 0.1.6
 * Fix missing line breaks for multi-byte breaking chars like Chinese characters.
 

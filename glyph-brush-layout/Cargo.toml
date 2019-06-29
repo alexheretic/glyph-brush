@@ -11,7 +11,7 @@ readme="README.md"
 
 [dependencies]
 full_rusttype = { version = "0.7.4", features = ["gpu_cache"], package = "rusttype" }
-xi-unicode = "0.1"
+xi-unicode = "0.2"
 
 [dev-dependencies]
 approx = "0.3.1"
