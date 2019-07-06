@@ -1,3 +1,6 @@
+# Unreleased
+* Replace `hashbrown` with `rustc-hash` + `std::collections` these are the same in 1.36.
+
 # 0.5.3
 * Fix `queue_pre_positioned` cache check for position & scale changes.
 

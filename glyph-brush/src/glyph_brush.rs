@@ -5,6 +5,7 @@ pub use self::builder::*;
 use super::*;
 use full_rusttype::gpu_cache::{Cache, CachedBy};
 use log::error;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::{
     borrow::Cow,
     fmt,
@@ -39,7 +40,7 @@ pub struct GlyphBrush<'font, V: Clone + 'static, H = DefaultSectionHasher> {
 
     // cache of section-layout hash -> computed glyphs, this avoid repeated glyph computation
     // for identical layout/sections common to repeated frame rendering
-    calculate_glyph_cache: hashbrown::HashMap<SectionHash, Glyphed<'font, V>>,
+    calculate_glyph_cache: FxHashMap<SectionHash, Glyphed<'font, V>>,
 
     last_frame_seq_id_sections: Vec<SectionHashDetail>,
     frame_seq_id_sections: Vec<SectionHashDetail>,
@@ -49,7 +50,7 @@ pub struct GlyphBrush<'font, V: Clone + 'static, H = DefaultSectionHasher> {
     section_buffer: Vec<SectionHash>,
 
     // Set of section hashs to keep in the glyph cache this frame even if they haven't been drawn
-    keep_in_cache: hashbrown::HashSet<SectionHash>,
+    keep_in_cache: FxHashSet<SectionHash>,
 
     // config
     cache_glyph_positioning: bool,

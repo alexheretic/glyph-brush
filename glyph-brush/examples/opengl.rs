@@ -17,7 +17,7 @@ use std::{
     mem, ptr, str,
 };
 
-type Res<T> = Result<T, Box<std::error::Error>>;
+type Res<T> = Result<T, Box<dyn std::error::Error>>;
 /// `[left_top * 3, right_bottom * 2, tex_left_top * 2, tex_right_bottom * 2, color * 4]`
 type Vertex = [GLfloat; 13];
 
