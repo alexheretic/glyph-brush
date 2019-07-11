@@ -33,7 +33,7 @@ type SectionHash = u64;
 /// The cache for a section will be **cleared** after a
 /// [`GlyphBrush::process_queued`](#method.process_queued) call when that section has not been used
 /// since the previous call.
-pub struct GlyphBrush<'font, V: Clone + 'static, H = DefaultSectionHasher> {
+pub struct GlyphBrush<'font, V, H = DefaultSectionHasher> {
     fonts: Vec<Font<'font>>,
     texture_cache: Cache<'font>,
     last_draw: LastDrawInfo,
@@ -62,7 +62,7 @@ pub struct GlyphBrush<'font, V: Clone + 'static, H = DefaultSectionHasher> {
     pre_positioned: Vec<Glyphed<'font, V>>,
 }
 
-impl<V: Clone + 'static, H> fmt::Debug for GlyphBrush<'_, V, H> {
+impl<V, H> fmt::Debug for GlyphBrush<'_, V, H> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "GlyphBrush")
     }
@@ -420,7 +420,7 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
     ///
     /// # Example
     ///
-    /// ```no_run
+    /// ```
     /// use glyph_brush::{GlyphBrush, GlyphBrushBuilder, Section};
     /// # type Vertex = ();
     /// # fn main() {
@@ -482,18 +482,37 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
     }
 }
 
+impl<'font, V, H: BuildHasher + Clone> GlyphBrush<'font, V, H> {
+    /// Return a [`GlyphBrushBuilder`](struct.GlyphBrushBuilder.html) prefilled with the
+    /// properties of this `GlyphBrush`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use glyph_brush::{*, rusttype::*};
+    /// # type Vertex = ();
+    /// # let sans = Font::from_bytes(&include_bytes!("../../fonts/DejaVuSans.ttf")[..]).unwrap();
+    /// let glyph_brush: GlyphBrush<'_, Vertex> = GlyphBrushBuilder::using_font(sans)
+    ///     .initial_cache_size((128, 128))
+    ///     .build();
+    ///
+    /// let new_brush: GlyphBrush<'_, Vertex> = glyph_brush.to_builder().build();
+    /// assert_eq!(new_brush.texture_dimensions(), (128, 128));
+    /// ```
+    pub fn to_builder(&self) -> GlyphBrushBuilder<'font, H> {
+        let mut builder = GlyphBrushBuilder::using_fonts(self.fonts.clone())
+            .cache_glyph_positioning(self.cache_glyph_positioning)
+            .cache_glyph_drawing(self.cache_glyph_drawing)
+            .section_hasher(self.section_hasher.clone());
+        builder.gpu_cache_builder = self.texture_cache.to_builder();
+        builder
+    }
+}
+
 #[derive(Debug, Default, PartialEq)]
 struct LastDrawInfo {
     text_state: u64,
 }
-
-// glyph: &PositionedGlyph,
-// color: Color,
-// font_id: FontId,
-// cache: &Cache,
-// bounds: Rect<f32>,
-// z: f32,
-// (screen_width, screen_height): (f32, f32),
 
 /// Data used to generate vertex information for a single glyph
 #[derive(Debug)]
@@ -607,19 +626,19 @@ impl SectionHashDetail {
 }
 
 /// Container for positioned glyphs which can generate and cache vertices
-struct Glyphed<'font, V: Clone + 'static> {
+struct Glyphed<'font, V> {
     positioned: GlyphedSection<'font>,
     vertices: Vec<V>,
 }
 
-impl<V: Clone + 'static> PartialEq for Glyphed<'_, V> {
+impl<V> PartialEq for Glyphed<'_, V> {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.positioned == other.positioned
     }
 }
 
-impl<'font, V: Clone + 'static> Glyphed<'font, V> {
+impl<'font, V> Glyphed<'font, V> {
     #[inline]
     fn new(gs: GlyphedSection<'font>) -> Self {
         Self {

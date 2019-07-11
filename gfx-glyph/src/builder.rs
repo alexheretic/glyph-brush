@@ -143,7 +143,8 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
         R: gfx::Resources,
         F: gfx::Factory<R>,
     {
-        let (cache_width, cache_height) = self.inner.initial_cache_size;
+        let inner = self.inner.build();
+        let (cache_width, cache_height) = inner.texture_dimensions();
         let font_cache_tex = create_texture(&mut factory, cache_width, cache_height).unwrap();
         let program = factory
             .link_program(
@@ -155,7 +156,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
         GlyphBrush {
             font_cache_tex,
             texture_filter_method: self.texture_filter_method,
-            glyph_brush: self.inner.build(),
+            glyph_brush: inner,
 
             factory,
             program,
