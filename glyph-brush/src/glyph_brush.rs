@@ -169,6 +169,7 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
     }
 
     /// Returns the calculate_glyph_cache key for this sections glyphs
+    #[allow(clippy::map_entry)] // further borrows are required after the contains_key check
     fn cache_glyphs<L>(&mut self, section: &VariedSection<'_>, layout: &L) -> SectionHash
     where
         L: GlyphPositioner,
