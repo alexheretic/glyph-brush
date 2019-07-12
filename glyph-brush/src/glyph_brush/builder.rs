@@ -247,7 +247,8 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
         }
     }
 
-    /// Rebuilds an existing `GlyphBrush` with this builder's properties.
+    /// Rebuilds an existing `GlyphBrush` with this builder's properties. This will clear all
+    /// caches and queues.
     ///
     /// # Example
     /// ```
