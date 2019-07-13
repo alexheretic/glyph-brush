@@ -1,4 +1,7 @@
 # Unreleased
+* `GlyphBrushBuilder` removed `initial_cache_size`, `gpu_cache_scale_tolerance`, `gpu_cache_position_tolerance`, `gpu_cache_align_4x4` public fields replaced by `gpu_cache_builder` field. This change allows the following changes.
+* Add `GlyphBrush::to_builder` method to construct `GlyphBrushBuilder`s from `GlyphBrush`.
+* Add `GlyphBrushBuilder::replace_fonts`, `GlyphBrushBuilder::rebuild` methods. Along with `to_builder` these may be used to rebuild a `GlyphBrush` with different fonts more conveniently.
 * Replace `hashbrown` with `rustc-hash` + `std::collections` these are the same in 1.36.
 
 # 0.5.3
