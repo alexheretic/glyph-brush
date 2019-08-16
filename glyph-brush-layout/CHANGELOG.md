@@ -1,4 +1,4 @@
-# Unreleased
+# 0.1.7
 * Update xi-unicode -> `0.2`.
 
 # 0.1.6
