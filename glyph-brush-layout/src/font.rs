@@ -22,17 +22,17 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
+    use once_cell::sync::Lazy;
 
-    lazy_static::lazy_static! {
-        static ref DEJA_VU: Font<'static> =
-            Font::from_bytes(include_bytes!("../../fonts/DejaVuSans.ttf") as &[u8]).unwrap();
-        static ref GARAMOND: Font<'static> = {
-            let font = Font::from_bytes(include_bytes!("../../fonts/GaramondNo8-Reg.ttf") as &[u8])
-                .unwrap();
-            assert_ne!(font.glyph_count(), DEJA_VU.glyph_count());
-            font
-        };
-    }
+    static DEJA_VU: Lazy<Font<'static>> = Lazy::new(|| {
+        Font::from_bytes(include_bytes!("../../fonts/DejaVuSans.ttf") as &[u8]).unwrap()
+    });
+    static GARAMOND: Lazy<Font<'static>> = Lazy::new(|| {
+        let font =
+            Font::from_bytes(include_bytes!("../../fonts/GaramondNo8-Reg.ttf") as &[u8]).unwrap();
+        assert_ne!(font.glyph_count(), DEJA_VU.glyph_count());
+        font
+    });
 
     macro_rules! assert_eq_font {
         ($fa:expr, $fb:expr) => {

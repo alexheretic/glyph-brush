@@ -397,20 +397,21 @@ mod layout_test {
         BuiltInLineBreaker::*,
     };
     use approx::assert_relative_eq;
-    use lazy_static::lazy_static;
+    use once_cell::sync::Lazy;
     use ordered_float::OrderedFloat;
     use std::{collections::*, f32};
     use xi_unicode;
 
-    lazy_static! {
-        static ref A_FONT: Font<'static> =
-            Font::from_bytes(include_bytes!("../../fonts/DejaVuSansMono.ttf") as &[u8])
-                .expect("Could not create rusttype::Font");
-        static ref CJK_FONT: Font<'static> =
-            Font::from_bytes(include_bytes!("../../fonts/WenQuanYiMicroHei.ttf") as &[u8])
-                .expect("Could not create rusttype::Font");
-        static ref FONT_MAP: Vec<Font<'static>> = vec![A_FONT.clone(), CJK_FONT.clone()];
-    }
+    static A_FONT: Lazy<Font<'static>> = Lazy::new(|| {
+        Font::from_bytes(include_bytes!("../../fonts/DejaVuSansMono.ttf") as &[u8])
+            .expect("Could not create rusttype::Font")
+    });
+    static CJK_FONT: Lazy<Font<'static>> = Lazy::new(|| {
+        Font::from_bytes(include_bytes!("../../fonts/WenQuanYiMicroHei.ttf") as &[u8])
+            .expect("Could not create rusttype::Font")
+    });
+    static FONT_MAP: Lazy<Vec<Font<'static>>> =
+        Lazy::new(|| vec![A_FONT.clone(), CJK_FONT.clone()]);
 
     /// Checks the order of glyphs in the first arg iterable matches the
     /// second arg string characters

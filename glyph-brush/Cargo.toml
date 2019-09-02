@@ -19,7 +19,7 @@ twox-hash = "1"
 
 [dev-dependencies]
 env_logger = { version = "0.6", default-features = false }
-lazy_static = "1"
+once_cell = "1"
 gl = "0.13"
 glutin = "0.21"
 spin_sleep = "0.3"

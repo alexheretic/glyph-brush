@@ -530,15 +530,14 @@ impl<'font> GlyphedSection<'font> {
 #[cfg(test)]
 mod test {
     use super::*;
-
     use approx::*;
+    use once_cell::sync::Lazy;
     use std::f32;
-    lazy_static::lazy_static! {
-        static ref MONO_FONT: Font<'static> =
-            Font::from_bytes(include_bytes!("../../fonts/DejaVuSansMono.ttf") as &[u8])
-                .expect("Could not create rusttype::Font");
 
-    }
+    static MONO_FONT: Lazy<Font<'static>> = Lazy::new(|| {
+        Font::from_bytes(include_bytes!("../../fonts/DejaVuSansMono.ttf") as &[u8])
+            .expect("Could not create rusttype::Font")
+    });
 
     #[test]
     fn pixel_bounds_respect_layout_bounds() {
