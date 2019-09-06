@@ -13,7 +13,7 @@ readme="README.md"
 glyph_brush_layout = { version = "0.1.5", path = "../glyph-brush-layout" }
 log = "0.4.4"
 ordered-float = "1"
-full_rusttype = { version = "0.7.7", features = ["gpu_cache"], package = "rusttype" }
+full_rusttype = { version = "0.8", features = ["gpu_cache"], package = "rusttype" }
 rustc-hash = "1"
 twox-hash = "1"
 

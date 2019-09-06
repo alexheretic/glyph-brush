@@ -1,3 +1,6 @@
+# Unreleased
+* Update rusttype -> `0.8`.
+
 # 0.1.7
 * Update xi-unicode -> `0.2`.
 
