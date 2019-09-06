@@ -3,7 +3,7 @@
 * Add `GlyphBrush::to_builder` method to construct `GlyphBrushBuilder`s from `GlyphBrush`.
 * Add `GlyphBrushBuilder::replace_fonts`, `GlyphBrushBuilder::rebuild` methods. Along with `to_builder` these may be used to rebuild a `GlyphBrush` with different fonts more conveniently.
 * Replace `hashbrown` with `rustc-hash` + `std::collections` these are the same in 1.36.
-* Update rusttype -> `0.8`.
+* Update rusttype -> `0.8`. _Semver compatible with rusttype `0.6.5` & `0.7.9`._
 
 # 0.5.3
 * Fix `queue_pre_positioned` cache check for position & scale changes.
