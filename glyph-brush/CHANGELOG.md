@@ -5,6 +5,10 @@
 * Replace `hashbrown` with `rustc-hash` + `std::collections` these are the same in 1.36.
 * Update rusttype -> `0.8`. _Compatible with rusttype `0.6.5` & `0.7.9`._
 
+# 0.5.4
+* Semver trick re-export glyph_brush `0.6` without `GlyphBrushBuilder`.
+* Export `GlyphBrushBuilderNext` returned by `GlyphBrush::to_builder`.
+
 # 0.5.3
 * Fix `queue_pre_positioned` cache check for position & scale changes.
 
