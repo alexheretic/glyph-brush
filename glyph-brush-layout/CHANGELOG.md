@@ -1,4 +1,4 @@
-# Unreleased
+# 0.1.8
 * Update rusttype -> `0.8`. _Semver compatible with rusttype `0.6.5` & `0.7.9`._
 
 # 0.1.7
