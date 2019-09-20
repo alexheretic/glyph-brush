@@ -1,6 +1,6 @@
-# Unreleased
+# 0.5.4
 * Semver trick re-export glyph_brush `0.6` without `GlyphBrushBuilder`.
-* Export `GlyphBrushBuilderNext` as this is returned by `GlyphBrush::to_builder`.
+* Export `GlyphBrushBuilderNext` returned by `GlyphBrush::to_builder`.
 
 # 0.5.3
 * Fix `queue_pre_positioned` cache check for position & scale changes.
