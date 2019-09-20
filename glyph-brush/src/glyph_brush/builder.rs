@@ -1,8 +1,10 @@
-use crate::{DefaultSectionHasher, Font, FontId, GlyphBrush, SharedBytes};
-use full_rusttype::gpu_cache::Cache;
+use crate::{
+    rusttype::{Font, SharedBytes},
+    DefaultSectionHasher, FontId, GlyphBrush,
+};
 use std::hash::BuildHasher;
 
-/// Builder for a [`GlyphBrush`](struct.GlyphBrush.html).
+/// Builder for a [`GlyphBrush`](struct.GlyphBrush.html) (v0.5).
 ///
 /// # Example
 ///
@@ -193,36 +195,20 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
         }
     }
 
+    fn to_next(self) -> glyph_brush_next::GlyphBrushBuilder<'a, H> {
+        glyph_brush_next::GlyphBrushBuilder::using_fonts(self.font_data)
+            .initial_cache_size(self.initial_cache_size)
+            .gpu_cache_scale_tolerance(self.gpu_cache_scale_tolerance)
+            .gpu_cache_position_tolerance(self.gpu_cache_position_tolerance)
+            .gpu_cache_align_4x4(self.gpu_cache_align_4x4)
+            .cache_glyph_positioning(self.cache_glyph_positioning)
+            .cache_glyph_drawing(self.cache_glyph_drawing)
+            .section_hasher(self.section_hasher)
+    }
+
     /// Builds a `GlyphBrush` using the input gfx factory
     pub fn build<V: Clone + 'static>(self) -> GlyphBrush<'a, V, H> {
-        let (cache_width, cache_height) = self.initial_cache_size;
-
-        GlyphBrush {
-            fonts: self.font_data,
-            texture_cache: Cache::builder()
-                .dimensions(cache_width, cache_height)
-                .scale_tolerance(self.gpu_cache_scale_tolerance)
-                .position_tolerance(self.gpu_cache_position_tolerance)
-                .align_4x4(self.gpu_cache_align_4x4)
-                .build(),
-
-            last_draw: <_>::default(),
-            section_buffer: <_>::default(),
-            calculate_glyph_cache: <_>::default(),
-
-            last_frame_seq_id_sections: <_>::default(),
-            frame_seq_id_sections: <_>::default(),
-
-            keep_in_cache: <_>::default(),
-
-            cache_glyph_positioning: self.cache_glyph_positioning,
-            cache_glyph_drawing: self.cache_glyph_drawing && self.cache_glyph_positioning,
-
-            section_hasher: self.section_hasher,
-
-            last_pre_positioned: <_>::default(),
-            pre_positioned: <_>::default(),
-        }
+        self.to_next().build()
     }
 }
 
