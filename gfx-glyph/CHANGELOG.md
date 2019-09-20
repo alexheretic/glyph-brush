@@ -1,3 +1,7 @@
+# 0.16
+* Remove deprecated `GlyphBrush::draw_queued` (use `use_queue()`).
+* Update glyph_brush -> `0.6`.
+
 # 0.15
 * New API for drawing queued glyphs. Depth buffer usage is now optional.
   ```rust

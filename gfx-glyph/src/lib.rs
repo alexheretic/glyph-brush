@@ -327,25 +327,6 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
         self.glyph_brush.fonts()
     }
 
-    /// Draws all queued sections onto a render target, applying the default transform.
-    #[inline]
-    #[deprecated = "Use `use_queue()` to build draws."]
-    pub fn draw_queued<C, CV, DV>(
-        &mut self,
-        encoder: &mut gfx::Encoder<R, C>,
-        target: &CV,
-        depth_target: &DV,
-    ) -> Result<(), String>
-    where
-        C: gfx::CommandBuffer<R>,
-        CV: RawAndFormat<Raw = RawRenderTargetView<R>>,
-        DV: RawAndFormat<Raw = RawDepthStencilView<R>>,
-    {
-        self.use_queue()
-            .depth_target(depth_target)
-            .draw(encoder, target)
-    }
-
     /// Draws all queued sections
     pub(crate) fn draw<C, CV, DV>(
         &mut self,
