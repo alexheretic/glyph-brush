@@ -12,7 +12,7 @@
 //! });
 //! glyph_brush.queue(some_other_section);
 //!
-//! # let update_texture = |_, _| {};
+//! # fn update_texture(_: glyph_brush::rusttype::Rect<u32>, _: &[u8]) {}
 //! # let into_vertex = |_| ();
 //! match glyph_brush.process_queued(
 //!     |rect, tex_data| update_texture(rect, tex_data),

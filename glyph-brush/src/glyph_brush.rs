@@ -257,7 +257,7 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
     /// # fn main() -> Result<(), BrushError> {
     /// # let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
     /// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
-    /// # let update_texture = |_, _| {};
+    /// # fn update_texture(_: glyph_brush::rusttype::Rect<u32>, _: &[u8]) {}
     /// # let into_vertex = |_| ();
     /// glyph_brush.process_queued(
     ///     |rect, tex_data| update_texture(rect, tex_data),
