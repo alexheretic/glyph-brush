@@ -1,3 +1,6 @@
+# 0.6.1
+* Require `glyph_brush_layout` `0.1.8` to help ensure `rusttype` dependency convergence.
+
 # 0.6
 * `GlyphBrushBuilder` removed `initial_cache_size`, `gpu_cache_scale_tolerance`, `gpu_cache_position_tolerance`, `gpu_cache_align_4x4` public fields replaced by `gpu_cache_builder` field. This change allows the following changes.
 * Add `GlyphBrush::to_builder` method to construct `GlyphBrushBuilder`s from `GlyphBrush`.
