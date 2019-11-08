@@ -358,6 +358,90 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
         Ok(result)
     }
 
+    pub fn process_queued_tagged<F1, F2>(
+        &mut self,
+        update_texture: F1,
+        to_vertex: F2,
+    ) -> Result<BrushActionTagged<V>, BrushError>
+    where
+        F1: FnMut(Rect<u32>, &[u8]),
+        F2: Fn(GlyphVertex) -> V + Copy,
+    {
+        let draw_info = LastDrawInfo {
+            text_state: {
+                let mut s = self.section_hasher.build_hasher();
+                self.section_buffer.hash(&mut s);
+                s.finish()
+            },
+        };
+
+        let result = if !self.cache_glyph_drawing
+            || self.last_draw != draw_info
+            || self.last_pre_positioned != self.pre_positioned
+        {
+            let mut some_text = false;
+            // Everything in the section_buffer should also be here. The extras should also
+            // be retained in the texture cache avoiding cache thrashing if they are rendered
+            // in a 2-draw per frame style.
+            for section_hash in &self.keep_in_cache {
+                for &(ref glyph, _, font_id) in self
+                    .calculate_glyph_cache
+                    .get(section_hash)
+                    .iter()
+                    .flat_map(|gs| &gs.positioned.glyphs)
+                {
+                    self.texture_cache.queue_glyph(font_id.0, glyph.clone());
+                    some_text = true;
+                }
+            }
+
+            for &(ref glyph, _, font_id) in self
+                .pre_positioned
+                .iter()
+                .flat_map(|p| &p.positioned.glyphs)
+            {
+                self.texture_cache.queue_glyph(font_id.0, glyph.clone());
+                some_text = true;
+            }
+
+            if some_text {
+                match self.texture_cache.cache_queued(update_texture) {
+                    Ok(CachedBy::Adding) => {}
+                    Ok(CachedBy::Reordering) => {
+                        for glyphed in self.calculate_glyph_cache.values_mut() {
+                            glyphed.invalidate_texture_positions();
+                        }
+                    }
+                    Err(_) => {
+                        let (width, height) = self.texture_cache.dimensions();
+                        return Err(BrushError::TextureTooSmall {
+                            suggested: (width * 2, height * 2),
+                        });
+                    }
+                }
+            }
+
+            self.last_draw = draw_info;
+
+            BrushActionTagged::Draw({
+                let mut verts = Vec::new();
+
+                for (idx, hash) in self.section_buffer.iter().enumerate() {
+                    let glyphed = self.calculate_glyph_cache.get_mut(hash).unwrap();
+                    glyphed.ensure_vertices(&self.texture_cache, to_vertex);
+                    verts.push(glyphed.vertices.to_vec());
+                }
+
+                verts
+            })
+        } else {
+            BrushActionTagged::ReDraw
+        };
+
+        self.cleanup_frame();
+        Ok(result)
+    }
+
     /// Rebuilds the logical texture cache with new dimensions. Should be avoided if possible.
     ///
     /// # Example
@@ -529,6 +613,15 @@ pub struct GlyphVertex {
 pub enum BrushAction<V> {
     /// Draw new/changed vertix data.
     Draw(Vec<V>),
+    /// Re-draw last frame's vertices unmodified.
+    ReDraw,
+}
+
+/// Actions that should be taken after processing queue data
+#[derive(Debug)]
+pub enum BrushActionTagged<V> {
+    /// Draw new/changed vertix data.
+    Draw(Vec<Vec<V>>),
     /// Re-draw last frame's vertices unmodified.
     ReDraw,
 }
