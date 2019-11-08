@@ -32,12 +32,16 @@
 //! # }
 //! ```
 mod glyph_brush;
+mod glyph_brush_indexed;
 mod glyph_calculator;
 mod owned_section;
 mod section;
 
-pub use crate::{glyph_brush::*, glyph_calculator::*, owned_section::*, section::*};
+pub use crate::{
+    glyph_brush::*, glyph_brush_indexed::*, glyph_calculator::*, owned_section::*, section::*,
+};
 pub use glyph_brush_layout::*;
+use std::fmt;
 
 use glyph_brush_layout::rusttype::*;
 
@@ -74,3 +78,22 @@ fn default_section_hasher() {
     };
     assert_ne!(hash(&section_a), hash(&section_b));
 }
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum BrushError {
+    /// Texture is too small to cache queued glyphs
+    ///
+    /// A larger suggested size is included.
+    TextureTooSmall { suggested: (u32, u32) },
+}
+impl fmt::Display for BrushError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            BrushError::TextureTooSmall { .. } => {
+                write!(f, "Texture is too small to cache queued glyphs")?
+            }
+        }
+        Ok(())
+    }
+}
+impl std::error::Error for BrushError {}

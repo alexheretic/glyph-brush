@@ -550,26 +550,6 @@ pub enum BrushAction<V> {
     ReDraw,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum BrushError {
-    /// Texture is too small to cache queued glyphs
-    ///
-    /// A larger suggested size is included.
-    TextureTooSmall { suggested: (u32, u32) },
-}
-impl fmt::Display for BrushError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", std::error::Error::description(self))
-    }
-}
-impl std::error::Error for BrushError {
-    fn description(&self) -> &str {
-        match self {
-            BrushError::TextureTooSmall { .. } => "Texture is too small to cache queued glyphs",
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 struct SectionHashDetail {
     /// hash of text (- color - alpha - geo - z)
@@ -707,7 +687,6 @@ impl<'font, V> Glyphed<'font, V> {
             }));
     }
 }
-
 
 #[cfg(test)]
 mod hash_diff_test {
