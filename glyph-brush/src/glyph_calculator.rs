@@ -223,6 +223,13 @@ pub struct GlyphCalculator<'font, H = DefaultSectionHasher> {
     section_hasher: H,
 }
 
+impl<'font, H> FontMap<'font> for GlyphCalculator<'font, H> {
+    #[inline]
+    fn font(&self, id: FontId) -> &Font<'font> {
+        self.fonts.font(id)
+    }
+}
+
 impl<H> fmt::Debug for GlyphCalculator<'_, H> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "GlyphCalculator")

@@ -509,6 +509,13 @@ impl<'font, V, H: BuildHasher + Clone> GlyphBrush<'font, V, H> {
     }
 }
 
+impl<'font, V, H> FontMap<'font> for GlyphBrush<'font, V, H> {
+    #[inline]
+    fn font(&self, id: FontId) -> &Font<'font> {
+        self.fonts.font(id)
+    }
+}
+
 #[derive(Debug, Default, PartialEq)]
 struct LastDrawInfo {
     text_state: u64,
