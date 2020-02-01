@@ -8,12 +8,14 @@ use glyph_brush::delegate_glyph_brush_builder_fns;
 /// ```no_run
 /// use gfx_glyph::GlyphBrushBuilder;
 /// # fn main() {
-/// # let events_loop = glutin::EventsLoop::new();
-/// # let (_window, _device, gfx_factory, _gfx_target, _main_depth) =
-/// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
-/// #         glutin::WindowBuilder::new(),
-/// #         glutin::ContextBuilder::new(),
-/// #         &events_loop).unwrap();
+/// # use old_school_gfx_glutin_ext::*;
+/// # let event_loop = glutin::event_loop::EventLoop::new();
+/// # let window_builder = glutin::window::WindowBuilder::new();
+/// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
+/// #     glutin::ContextBuilder::new()
+/// #         .build_windowed(window_builder, &event_loop)
+/// #         .unwrap()
+/// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
 ///
 /// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
 /// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build(gfx_factory.clone());

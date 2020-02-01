@@ -19,8 +19,7 @@ log = "0.4"
 [dev-dependencies]
 env_logger = { version = "0.7", default-features = false }
 approx = "0.3"
-gfx_device_gl = "0.16"
-gfx_window_glutin = "0.31"
-glutin = "0.21"
+glutin = "0.22"
+old_school_gfx_glutin_ext = "0.22"
 cgmath = "0.17"
 spin_sleep = "0.3"
