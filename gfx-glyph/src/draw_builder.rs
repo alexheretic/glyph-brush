@@ -9,11 +9,14 @@ use std::{hash::BuildHasher, marker::PhantomData};
 ///
 /// ```no_run
 /// # fn main() -> Result<(), String> {
+/// # use old_school_gfx_glutin_ext::*;
+/// # let event_loop = glutin::event_loop::EventLoop::new();
+/// # let window_builder = glutin::window::WindowBuilder::new();
 /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
-/// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
-/// #         glutin::WindowBuilder::new(),
-/// #         glutin::ContextBuilder::new(),
-/// #         &glutin::EventsLoop::new()).unwrap();
+/// #     glutin::ContextBuilder::new()
+/// #         .build_windowed(window_builder, &event_loop)
+/// #         .unwrap()
+/// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
 /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
 /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(&[])
 /// #     .build(gfx_factory.clone());
@@ -40,11 +43,14 @@ impl<'a, 'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher, DV>
     ///
     /// ```no_run
     /// # fn main() -> Result<(), String> {
+    /// # use old_school_gfx_glutin_ext::*;
+    /// # let event_loop = glutin::event_loop::EventLoop::new();
+    /// # let window_builder = glutin::window::WindowBuilder::new();
     /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
-    /// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
-    /// #         glutin::WindowBuilder::new(),
-    /// #         glutin::ContextBuilder::new(),
-    /// #         &glutin::EventsLoop::new()).unwrap();
+    /// #     glutin::ContextBuilder::new()
+    /// #         .build_windowed(window_builder, &event_loop)
+    /// #         .unwrap()
+    /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
     /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(&[])
     /// #     .build(gfx_factory.clone());
     /// let projection = gfx_glyph::default_transform(&gfx_color);
@@ -66,11 +72,14 @@ impl<'a, 'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher, DV>
     ///
     /// ```no_run
     /// # fn main() -> Result<(), String> {
+    /// # use old_school_gfx_glutin_ext::*;
+    /// # let event_loop = glutin::event_loop::EventLoop::new();
+    /// # let window_builder = glutin::window::WindowBuilder::new();
     /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
-    /// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
-    /// #         glutin::WindowBuilder::new(),
-    /// #         glutin::ContextBuilder::new(),
-    /// #         &glutin::EventsLoop::new()).unwrap();
+    /// #     glutin::ContextBuilder::new()
+    /// #         .build_windowed(window_builder, &event_loop)
+    /// #         .unwrap()
+    /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
     /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(&[])
     /// #     .build(gfx_factory.clone());
     /// glyph_brush.use_queue().depth_target(&gfx_depth)
@@ -86,11 +95,14 @@ impl<'a, 'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher, DV>
     /// # use gfx::format::{self, Formatted};
     /// # use gfx::memory::Typed;
     /// # fn main() -> Result<(), String> {
+    /// # use old_school_gfx_glutin_ext::*;
+    /// # let event_loop = glutin::event_loop::EventLoop::new();
+    /// # let window_builder = glutin::window::WindowBuilder::new();
     /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
-    /// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
-    /// #         glutin::WindowBuilder::new(),
-    /// #         glutin::ContextBuilder::new(),
-    /// #         &glutin::EventsLoop::new()).unwrap();
+    /// #     glutin::ContextBuilder::new()
+    /// #         .build_windowed(window_builder, &event_loop)
+    /// #         .unwrap()
+    /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
     /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(&[])
     /// #     .build(gfx_factory.clone());
     /// # let raw_depth_view = gfx_depth.raw();
@@ -131,11 +143,14 @@ impl<
     ///
     /// ```no_run
     /// # fn main() -> Result<(), String> {
+    /// # use old_school_gfx_glutin_ext::*;
+    /// # let event_loop = glutin::event_loop::EventLoop::new();
+    /// # let window_builder = glutin::window::WindowBuilder::new();
     /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
-    /// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
-    /// #         glutin::WindowBuilder::new(),
-    /// #         glutin::ContextBuilder::new(),
-    /// #         &glutin::EventsLoop::new()).unwrap();
+    /// #     glutin::ContextBuilder::new()
+    /// #         .build_windowed(window_builder, &event_loop)
+    /// #         .unwrap()
+    /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
     /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
     /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(&[])
     /// #     .build(gfx_factory.clone());
@@ -153,11 +168,14 @@ impl<
     /// # use gfx::format::{self, Formatted};
     /// # use gfx::memory::Typed;
     /// # fn main() -> Result<(), String> {
+    /// # use old_school_gfx_glutin_ext::*;
+    /// # let event_loop = glutin::event_loop::EventLoop::new();
+    /// # let window_builder = glutin::window::WindowBuilder::new();
     /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
-    /// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
-    /// #         glutin::WindowBuilder::new(),
-    /// #         glutin::ContextBuilder::new(),
-    /// #         &glutin::EventsLoop::new()).unwrap();
+    /// #     glutin::ContextBuilder::new()
+    /// #         .build_windowed(window_builder, &event_loop)
+    /// #         .unwrap()
+    /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
     /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
     /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(&[])
     /// #     .build(gfx_factory.clone());

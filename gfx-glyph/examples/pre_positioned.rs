@@ -1,7 +1,16 @@
-//!
-use gfx::{format, Device};
+//! `queue_pre_positioned` example
+use gfx::{
+    format::{Depth, Srgba8},
+    Device,
+};
 use gfx_glyph::{rusttype, GlyphPositioner};
+use glutin::{
+    event::{Event, KeyboardInput, VirtualKeyCode, WindowEvent},
+    event_loop::ControlFlow,
+};
+use old_school_gfx_glutin_ext::*;
 use std::{env, error::Error};
+
 fn main() -> Result<(), Box<dyn Error>> {
     if env::var("RUST_LOG").is_err() {
         env::set_var("RUST_LOG", "gfx_glyph=warn");
@@ -27,20 +36,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         );
     }
 
-    let mut events_loop = glutin::EventsLoop::new();
+    let event_loop = glutin::event_loop::EventLoop::new();
     let title = "gfx_glyph example";
-    let window_builder = glutin::WindowBuilder::new()
+    let window_builder = glutin::window::WindowBuilder::new()
         .with_title(title)
-        .with_dimensions((1024, 576).into());
-    let context = glutin::ContextBuilder::new();
+        .with_inner_size(glutin::dpi::PhysicalSize::new(1024, 576));
+
     let (window_ctx, mut device, mut factory, mut main_color, mut main_depth) =
-        gfx_window_glutin::init::<format::Srgba8, format::DepthStencil>(
-            window_builder,
-            context,
-            &events_loop,
-        )
-        .unwrap();
-    let window = window_ctx.window();
+        glutin::ContextBuilder::new()
+            .with_gfx_color_depth::<Srgba8, Depth>()
+            .build_windowed(window_builder, &event_loop)?
+            .init_gfx::<Srgba8, Depth>();
 
     let font: &[u8] = include_bytes!("../../fonts/OpenSans-Light.ttf");
     let font = gfx_glyph::Font::from_bytes(font)?;
@@ -50,7 +56,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
 
-    let mut running = true;
     let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(250.0);
 
     let (width, height, ..) = main_color.get_dimensions();
@@ -70,51 +75,58 @@ fn main() -> Result<(), Box<dyn Error>> {
         }],
     );
 
-    while running {
-        loop_helper.loop_start();
+    event_loop.run(move |event, _, control_flow| {
+        *control_flow = ControlFlow::Poll;
 
-        events_loop.poll_events(|event| {
-            use glutin::*;
-
-            if let Event::WindowEvent { event, .. } = event {
-                match event {
-                    WindowEvent::CloseRequested => running = false,
-                    WindowEvent::Resized(size) => {
-                        window_ctx.resize(size.to_physical(window.get_hidpi_factor()));
-                        gfx_window_glutin::update_views(
-                            &window_ctx,
-                            &mut main_color,
-                            &mut main_depth,
-                        );
-                    }
-                    _ => {}
+        match event {
+            Event::MainEventsCleared => window_ctx.window().request_redraw(),
+            Event::WindowEvent { event, .. } => match event {
+                WindowEvent::KeyboardInput {
+                    input:
+                        KeyboardInput {
+                            virtual_keycode: Some(VirtualKeyCode::Escape),
+                            ..
+                        },
+                    ..
                 }
-            }
-        });
-
-        encoder.clear(&main_color, [0.02, 0.02, 0.02, 1.0]);
-
-        glyph_brush.queue_pre_positioned(
-            glyphs.clone(),
-            rusttype::Rect {
-                min: rusttype::point(0.0, 0.0),
-                max: rusttype::point(width, height),
+                | WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                WindowEvent::Resized(size) => {
+                    window_ctx.resize(size);
+                    window_ctx.update_gfx(&mut main_color, &mut main_depth);
+                }
+                _ => (),
             },
-            0.0,
-        );
+            Event::RedrawRequested(_) => {
+                encoder.clear(&main_color, [0.02, 0.02, 0.02, 1.0]);
 
-        glyph_brush.use_queue().draw(&mut encoder, &main_color)?;
+                glyph_brush.queue_pre_positioned(
+                    glyphs.clone(),
+                    rusttype::Rect {
+                        min: rusttype::point(0.0, 0.0),
+                        max: rusttype::point(width, height),
+                    },
+                    0.0,
+                );
 
-        encoder.flush(&mut device);
-        window_ctx.swap_buffers()?;
-        device.cleanup();
+                glyph_brush
+                    .use_queue()
+                    .draw(&mut encoder, &main_color)
+                    .unwrap();
 
-        if let Some(rate) = loop_helper.report_rate() {
-            window.set_title(&format!("{} - {:.0} FPS", title, rate));
+                encoder.flush(&mut device);
+                window_ctx.swap_buffers().unwrap();
+                device.cleanup();
+
+                if let Some(rate) = loop_helper.report_rate() {
+                    window_ctx
+                        .window()
+                        .set_title(&format!("{} - {:.0} FPS", title, rate));
+                }
+
+                loop_helper.loop_sleep();
+                loop_helper.loop_start();
+            }
+            _ => (),
         }
-
-        loop_helper.loop_sleep();
-    }
-    println!();
-    Ok(())
+    });
 }

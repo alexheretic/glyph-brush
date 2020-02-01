@@ -19,13 +19,15 @@
 //!
 //! ```no_run
 //! use gfx_glyph::{GlyphBrushBuilder, Section};
+//! # use old_school_gfx_glutin_ext::*;
 //! # fn main() -> Result<(), String> {
-//! # let events_loop = glutin::EventsLoop::new();
+//! # let event_loop = glutin::event_loop::EventLoop::new();
+//! # let window_builder = glutin::window::WindowBuilder::new();
 //! # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
-//! #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
-//! #         glutin::WindowBuilder::new(),
-//! #         glutin::ContextBuilder::new(),
-//! #         &events_loop).unwrap();
+//! #     glutin::ContextBuilder::new()
+//! #         .build_windowed(window_builder, &event_loop)
+//! #         .unwrap()
+//! #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
 //! # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
 //!
 //! let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
@@ -95,12 +97,14 @@ type TexShaderView<R> = handle::ShaderResourceView<R, TexFormView>;
 /// # Example
 ///
 /// ```no_run
-/// # let events_loop = glutin::EventsLoop::new();
-/// # let (_window, _device, _gfx_factory, gfx_color, _gfx_depth) =
-/// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
-/// #         glutin::WindowBuilder::new(),
-/// #         glutin::ContextBuilder::new(),
-/// #         &events_loop).unwrap();
+/// # use old_school_gfx_glutin_ext::*;
+/// # let event_loop = glutin::event_loop::EventLoop::new();
+/// # let window_builder = glutin::window::WindowBuilder::new();
+/// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
+/// #     glutin::ContextBuilder::new()
+/// #         .build_windowed(window_builder, &event_loop)
+/// #         .unwrap()
+/// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
 /// let projection = gfx_glyph::default_transform(&gfx_color);
 /// ```
 #[inline]
@@ -124,13 +128,15 @@ pub fn default_transform<D: IntoDimensions>(d: D) -> [[f32; 4]; 4] {
 /// ```no_run
 /// # use gfx_glyph::{GlyphBrushBuilder};
 /// use gfx_glyph::Section;
+/// # use old_school_gfx_glutin_ext::*;
 /// # fn main() -> Result<(), String> {
-/// # let events_loop = glutin::EventsLoop::new();
+/// # let event_loop = glutin::event_loop::EventLoop::new();
+/// # let window_builder = glutin::window::WindowBuilder::new();
 /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
-/// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
-/// #         glutin::WindowBuilder::new(),
-/// #         glutin::ContextBuilder::new(),
-/// #         &events_loop).unwrap();
+/// #     glutin::ContextBuilder::new()
+/// #         .build_windowed(window_builder, &event_loop)
+/// #         .unwrap()
+/// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
 /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
 /// # let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
 /// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu)
@@ -243,11 +249,14 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     ///
     /// ```no_run
     /// # fn main() -> Result<(), String> {
-    /// # let (_window, _device, mut gfx_factory, gfx_color, _gfx_depth) =
-    /// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
-    /// #         glutin::WindowBuilder::new(),
-    /// #         glutin::ContextBuilder::new(),
-    /// #         &glutin::EventsLoop::new()).unwrap();
+    /// # use old_school_gfx_glutin_ext::*;
+    /// # let event_loop = glutin::event_loop::EventLoop::new();
+    /// # let window_builder = glutin::window::WindowBuilder::new();
+    /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
+    /// #     glutin::ContextBuilder::new()
+    /// #         .build_windowed(window_builder, &event_loop)
+    /// #         .unwrap()
+    /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
     /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
     /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(&[])
     /// #     .build(gfx_factory.clone());
@@ -522,12 +531,14 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'f
     /// ```no_run
     /// use gfx_glyph::{GlyphBrushBuilder, Section};
     /// # fn main() {
-    /// # let events_loop = glutin::EventsLoop::new();
+    /// # use old_school_gfx_glutin_ext::*;
+    /// # let event_loop = glutin::event_loop::EventLoop::new();
+    /// # let window_builder = glutin::window::WindowBuilder::new();
     /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
-    /// #     gfx_window_glutin::init::<gfx::format::Srgba8, gfx::format::Depth>(
-    /// #         glutin::WindowBuilder::new(),
-    /// #         glutin::ContextBuilder::new(),
-    /// #         &events_loop).unwrap();
+    /// #     glutin::ContextBuilder::new()
+    /// #         .build_windowed(window_builder, &event_loop)
+    /// #         .unwrap()
+    /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
     /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
     ///
     /// // dejavu is built as default `FontId(0)`

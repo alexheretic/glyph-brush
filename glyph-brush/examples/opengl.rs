@@ -8,10 +8,10 @@
 //! * Resize window.
 
 use gl::types::*;
-use glutin::{Api, GlProfile, GlRequest};
 use glutin::{
-    event::{Event, KeyboardInput, VirtualKeyCode, WindowEvent, MouseScrollDelta, ElementState},
+    event::{ElementState, Event, KeyboardInput, MouseScrollDelta, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
+    Api, GlProfile, GlRequest,
 };
 use glyph_brush::{rusttype::*, *};
 use std::{
@@ -159,15 +159,13 @@ fn main() -> Res<()> {
         *control_flow = ControlFlow::Poll;
 
         match event {
-            Event::LoopDestroyed => {
-                unsafe {
-                    gl::DeleteProgram(program);
-                    gl::DeleteShader(fs);
-                    gl::DeleteShader(vs);
-                    gl::DeleteBuffers(1, &vbo);
-                    gl::DeleteVertexArrays(1, &vao);
-                }
-            }
+            Event::LoopDestroyed => unsafe {
+                gl::DeleteProgram(program);
+                gl::DeleteShader(fs);
+                gl::DeleteShader(vs);
+                gl::DeleteBuffers(1, &vbo);
+                gl::DeleteVertexArrays(1, &vao);
+            },
             Event::MainEventsCleared => window_ctx.window().request_redraw(),
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
@@ -231,7 +229,8 @@ fn main() -> Res<()> {
             Event::RedrawRequested(_) => {
                 let width = dimensions.width as f32;
                 let height = dimensions.height as _;
-                let scale = Scale::uniform((font_size * window_ctx.window().scale_factor() as f32).round());
+                let scale =
+                    Scale::uniform((font_size * window_ctx.window().scale_factor() as f32).round());
 
                 glyph_brush.queue(Section {
                     text: &text,
@@ -344,7 +343,9 @@ fn main() -> Res<()> {
                 window_ctx.swap_buffers().unwrap();
 
                 if let Some(rate) = loop_helper.report_rate() {
-                    window_ctx.window().set_title(&format!("{} {:.0} FPS", title, rate));
+                    window_ctx
+                        .window()
+                        .set_title(&format!("{} {:.0} FPS", title, rate));
                 }
                 loop_helper.loop_sleep();
                 loop_helper.loop_start();
