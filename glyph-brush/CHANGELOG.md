@@ -1,6 +1,5 @@
-# 0.6.2
-
-* Add `GlyphBrushBuilder::new()` for creating a brush without any fonts. [(#83)]
+# Unreleased
+* Add `GlyphBrushBuilder::without_fonts()` for creating a brush without any fonts. [(#83)]
 
 [(#83)]: https://github.com/alexheretic/glyph-brush/pull/83
 

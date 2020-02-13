@@ -21,6 +21,9 @@ type SectionHash = u64;
 ///
 /// Build using a [`GlyphBrushBuilder`](struct.GlyphBrushBuilder.html).
 ///
+/// Also see [`GlyphCruncher`](trait.GlyphCruncher.html) trait which providers extra functionality,
+/// such as [`glyph_bounds`](trait.GlyphCruncher.html#method.glyph_bounds).
+///
 /// # Caching behaviour
 ///
 /// Calls to [`GlyphBrush::queue`](#method.queue),
@@ -34,13 +37,15 @@ type SectionHash = u64;
 /// [`GlyphBrush::process_queued`](#method.process_queued) call when that section has not been used
 /// since the previous call.
 ///
-/// Note that the gpu/draw cache may contain multiple versions of the same glyph at different
+/// # Texture caching behaviour
+/// Note the gpu/draw cache may contain multiple versions of the same glyph at different
 /// subpixel positions.
-/// This is required for high quality text so that glyph positioning is always exactly as drawn.
+/// This is required for high quality text as a glyph's positioning is always exactly aligned
+/// to it's draw positioning.
 ///
-/// You can adjust this by setting the position tolerance.
-/// So if you have high position tolerance it means you only draw a single glyph (at a given scale)
-/// but it will potentially be drawn in the wrong subpixel position.
+/// This behaviour can be adjusted with
+/// [`GlyphBrushBuilder::gpu_cache_position_tolerance`]
+/// (struct.GlyphBrushBuilder.html#method.gpu_cache_position_tolerance).
 pub struct GlyphBrush<'font, V, H = DefaultSectionHasher> {
     fonts: Vec<Font<'font>>,
     texture_cache: Cache<'font>,
@@ -123,10 +128,6 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
     /// [`Layout`](enum.Layout.html) simply use [`queue`](struct.GlyphBrush.html#method.queue)
     ///
     /// Benefits from caching, see [caching behaviour](#caching-behaviour).
-    ///
-    /// # Panics
-    ///
-    /// Panics if the `GlyphBrush` does not contain any fonts.
     pub fn queue_custom_layout<'a, S, G>(&mut self, section: S, custom_layout: &G)
     where
         G: GlyphPositioner,
@@ -158,10 +159,6 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
     ///     ..Section::default()
     /// });
     /// ```
-    ///
-    /// # Panics
-    ///
-    /// Panics if the `GlyphBrush` does not contain any fonts.
     pub fn queue<'a, S>(&mut self, section: S)
     where
         S: Into<Cow<'a, VariedSection<'a>>>,
@@ -174,10 +171,6 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
     /// Queues pre-positioned glyphs to be processed by the next call of
     /// [`process_queued`](struct.GlyphBrush.html#method.process_queued). Can be called multiple
     /// times.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the `GlyphBrush` does not contain any fonts.
     pub fn queue_pre_positioned(
         &mut self,
         glyphs: Vec<(PositionedGlyph<'font>, Color, FontId)>,
@@ -189,10 +182,6 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
     }
 
     /// Returns the calculate_glyph_cache key for this sections glyphs
-    ///
-    /// # Panics
-    ///
-    /// Panics if the `GlyphBrush` does not contain any fonts.
     #[allow(clippy::map_entry)] // further borrows are required after the contains_key check
     fn cache_glyphs<L>(&mut self, section: &VariedSection<'_>, layout: &L) -> SectionHash
     where
@@ -447,7 +436,6 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
     /// ```
     /// use glyph_brush::{GlyphBrush, GlyphBrushBuilder, Section};
     /// # type Vertex = ();
-    /// # fn main() {
     ///
     /// // dejavu is built as default `FontId(0)`
     /// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
@@ -457,7 +445,6 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
     /// // some time later, add another font referenced by a new `FontId`
     /// let open_sans_italic: &[u8] = include_bytes!("../../fonts/OpenSans-Italic.ttf");
     /// let open_sans_italic_id = glyph_brush.add_font_bytes(open_sans_italic);
-    /// # }
     /// ```
     pub fn add_font_bytes<'a: 'font, B: Into<SharedBytes<'a>>>(&mut self, font_data: B) -> FontId {
         self.add_font(Font::from_bytes(font_data.into()).unwrap())
