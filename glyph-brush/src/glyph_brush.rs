@@ -115,6 +115,10 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
     /// [`Layout`](enum.Layout.html) simply use [`queue`](struct.GlyphBrush.html#method.queue)
     ///
     /// Benefits from caching, see [caching behaviour](#caching-behaviour).
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `GlyphBrush` does not contain any fonts.
     pub fn queue_custom_layout<'a, S, G>(&mut self, section: S, custom_layout: &G)
     where
         G: GlyphPositioner,
@@ -146,6 +150,10 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
     ///     ..Section::default()
     /// });
     /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `GlyphBrush` does not contain any fonts.
     pub fn queue<'a, S>(&mut self, section: S)
     where
         S: Into<Cow<'a, VariedSection<'a>>>,
@@ -158,6 +166,10 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
     /// Queues pre-positioned glyphs to be processed by the next call of
     /// [`process_queued`](struct.GlyphBrush.html#method.process_queued). Can be called multiple
     /// times.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `GlyphBrush` does not contain any fonts.
     pub fn queue_pre_positioned(
         &mut self,
         glyphs: Vec<(PositionedGlyph<'font>, Color, FontId)>,
@@ -169,6 +181,10 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
     }
 
     /// Returns the calculate_glyph_cache key for this sections glyphs
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `GlyphBrush` does not contain any fonts.
     #[allow(clippy::map_entry)] // further borrows are required after the contains_key check
     fn cache_glyphs<L>(&mut self, section: &VariedSection<'_>, layout: &L) -> SectionHash
     where

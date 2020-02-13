@@ -53,7 +53,7 @@ impl<'a> GlyphBrushBuilder<'a> {
 
     #[inline]
     pub fn using_fonts<V: Into<Vec<Font<'a>>>>(fonts: V) -> Self {
-        let mut builder = Self::new();
+        let mut builder = Self::without_fonts();
 
         let mut fonts: Vec<Font<'a>> = fonts.into();
         builder.font_data.append(&mut fonts);
@@ -61,8 +61,15 @@ impl<'a> GlyphBrushBuilder<'a> {
         builder
     }
 
+    /// Create a new builder without any fonts.
+    ///
+    /// If you [`build`] before adding any fonts you'll want to eventually use a method such as
+    /// [`GlyphBrush.add_font`] before queueing any text sections in order to avoid panicking.
+    ///
+    /// [`build`]: struct.GlyphBrush.html#method.build
+    /// [`GlyphBrush.add_font`]: ../glyph_brush/struct.GlyphBrush.html#method.add_font
     #[inline]
-    pub fn new() -> Self {
+    pub fn without_fonts() -> Self {
         GlyphBrushBuilder {
             font_data: Vec::new(),
             cache_glyph_positioning: true,
