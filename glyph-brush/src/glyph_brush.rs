@@ -33,6 +33,14 @@ type SectionHash = u64;
 /// The cache for a section will be **cleared** after a
 /// [`GlyphBrush::process_queued`](#method.process_queued) call when that section has not been used
 /// since the previous call.
+///
+/// Note that the gpu/draw cache may contain multiple versions of the same glyph at different
+/// subpixel positions.
+/// This is required for high quality text so that glyph positioning is always exactly as drawn.
+///
+/// You can adjust this by setting the position tolerance.
+/// So if you have high position tolerance it means you only draw a single glyph (at a given scale)
+/// but it will potentially be drawn in the wrong subpixel position.
 pub struct GlyphBrush<'font, V, H = DefaultSectionHasher> {
     fonts: Vec<Font<'font>>,
     texture_cache: Cache<'font>,
