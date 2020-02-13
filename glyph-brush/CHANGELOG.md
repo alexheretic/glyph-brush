@@ -1,3 +1,9 @@
+# 0.6.2
+
+* Add `GlyphBrushBuilder::new()` for creating a brush without any fonts. [(#83)]
+
+[(#83)]: https://github.com/alexheretic/glyph-brush/pull/83
+
 # 0.6.1
 * Require `glyph_brush_layout` `0.1.8` to help ensure `rusttype` dependency convergence.
 

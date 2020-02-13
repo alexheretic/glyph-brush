@@ -53,8 +53,18 @@ impl<'a> GlyphBrushBuilder<'a> {
 
     #[inline]
     pub fn using_fonts<V: Into<Vec<Font<'a>>>>(fonts: V) -> Self {
+        let mut builder = Self::new();
+
+        let mut fonts: Vec<Font<'a>> = fonts.into();
+        builder.font_data.append(&mut fonts);
+
+        builder
+    }
+
+    #[inline]
+    pub fn new() -> Self {
         GlyphBrushBuilder {
-            font_data: fonts.into(),
+            font_data: Vec::new(),
             cache_glyph_positioning: true,
             cache_glyph_drawing: true,
             section_hasher: DefaultSectionHasher::default(),
