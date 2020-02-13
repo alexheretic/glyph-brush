@@ -1,3 +1,9 @@
+# 0.6.2
+
+* Add `section_pixel_bounds` method [(#86)]
+
+[(#86)]: https://github.com/alexheretic/glyph-brush/pull/86
+
 # 0.6.1
 * Require `glyph_brush_layout` `0.1.8` to help ensure `rusttype` dependency convergence.
 

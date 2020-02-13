@@ -480,6 +480,24 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
         let layout = section.layout;
         self.keep_cached_custom_layout(section, &layout);
     }
+
+    /// Read the pixel bounds of a laid out section of text from the cache.
+    ///
+    /// Note that this is different from a [`VariedSection.bounds`] in that the bounds of a varied
+    /// section is a maximum, while these `pixel_bounds` are the actually observed bounds after
+    /// the section has been processed.
+    ///
+    /// [`VariedSection.bounds`]: ../section/struct.VariedSection.html#field.bounds
+    pub fn section_pixel_bounds<'a, S> (&self, section: S)
+        -> Option<Rect<i32>>
+        where
+            S: Into<Cow<'a, VariedSection<'a>>>,
+    {
+        let section = section.into();
+        let section_hash = SectionHashDetail::new(&self.section_hasher, &section, &section.layout);
+
+        self.calculate_glyph_cache.get(&section_hash.full)?.positioned.pixel_bounds()
+    }
 }
 
 impl<'font, V, H: BuildHasher + Clone> GlyphBrush<'font, V, H> {
