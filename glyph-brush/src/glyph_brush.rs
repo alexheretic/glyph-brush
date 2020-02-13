@@ -21,6 +21,9 @@ type SectionHash = u64;
 ///
 /// Build using a [`GlyphBrushBuilder`](struct.GlyphBrushBuilder.html).
 ///
+/// Also see [`GlyphCruncher`](trait.GlyphCruncher.html) trait which providers extra functionality,
+/// such as [`glyph_bounds`](trait.GlyphCruncher.html#method.glyph_bounds).
+///
 /// # Caching behaviour
 ///
 /// Calls to [`GlyphBrush::queue`](#method.queue),
@@ -33,6 +36,16 @@ type SectionHash = u64;
 /// The cache for a section will be **cleared** after a
 /// [`GlyphBrush::process_queued`](#method.process_queued) call when that section has not been used
 /// since the previous call.
+///
+/// # Texture caching behaviour
+/// Note the gpu/draw cache may contain multiple versions of the same glyph at different
+/// subpixel positions.
+/// This is required for high quality text as a glyph's positioning is always exactly aligned
+/// to it's draw positioning.
+///
+/// This behaviour can be adjusted with
+/// [`GlyphBrushBuilder::gpu_cache_position_tolerance`]
+/// (struct.GlyphBrushBuilder.html#method.gpu_cache_position_tolerance).
 pub struct GlyphBrush<'font, V, H = DefaultSectionHasher> {
     fonts: Vec<Font<'font>>,
     texture_cache: Cache<'font>,
@@ -423,7 +436,6 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
     /// ```
     /// use glyph_brush::{GlyphBrush, GlyphBrushBuilder, Section};
     /// # type Vertex = ();
-    /// # fn main() {
     ///
     /// // dejavu is built as default `FontId(0)`
     /// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
@@ -433,7 +445,6 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
     /// // some time later, add another font referenced by a new `FontId`
     /// let open_sans_italic: &[u8] = include_bytes!("../../fonts/OpenSans-Italic.ttf");
     /// let open_sans_italic_id = glyph_brush.add_font_bytes(open_sans_italic);
-    /// # }
     /// ```
     pub fn add_font_bytes<'a: 'font, B: Into<SharedBytes<'a>>>(&mut self, font_data: B) -> FontId {
         self.add_font(Font::from_bytes(font_data.into()).unwrap())

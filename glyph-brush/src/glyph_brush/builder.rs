@@ -24,13 +24,13 @@ pub struct GlyphBrushBuilder<'a, H = DefaultSectionHasher> {
 }
 
 impl<'a> GlyphBrushBuilder<'a> {
-    /// Specifies the default font data used to render glyphs.
+    /// Create a new builder with a single font's data that will be used to render glyphs.
     /// Referenced with `FontId(0)`, which is default.
-    #[inline]
     pub fn using_font_bytes<B: Into<SharedBytes<'a>>>(font_0_data: B) -> Self {
         Self::using_font(Font::from_bytes(font_0_data).unwrap())
     }
 
+    /// Create a new builder with multiple fonts' data.
     pub fn using_fonts_bytes<B, V>(font_data: V) -> Self
     where
         B: Into<SharedBytes<'a>>,
@@ -44,17 +44,30 @@ impl<'a> GlyphBrushBuilder<'a> {
         )
     }
 
-    /// Specifies the default font used to render glyphs.
+    /// Create a new builder with a single font that will be used to render glyphs.
     /// Referenced with `FontId(0)`, which is default.
-    #[inline]
     pub fn using_font(font_0: Font<'a>) -> Self {
         Self::using_fonts(vec![font_0])
     }
 
-    #[inline]
+    /// Create a new builder with multiple fonts.
     pub fn using_fonts<V: Into<Vec<Font<'a>>>>(fonts: V) -> Self {
+        let mut builder = Self::without_fonts();
+        builder.font_data = fonts.into();
+        builder
+    }
+
+    /// Create a new builder without any fonts.
+    ///
+    /// **Warning:** A [`GlyphBrush`] built without fonts will panic if you try to use it as it
+    /// will have no default `FontId(0)` to use.
+    /// Use [`GlyphBrush.add_font`] before queueing any text sections in order to avoid panicking.
+    ///
+    /// [`GlyphBrush`]: struct.GlyphBrush.html
+    /// [`GlyphBrush.add_font`]: ../glyph_brush/struct.GlyphBrush.html#method.add_font
+    pub fn without_fonts() -> Self {
         GlyphBrushBuilder {
-            font_data: fonts.into(),
+            font_data: Vec::new(),
             cache_glyph_positioning: true,
             cache_glyph_drawing: true,
             section_hasher: DefaultSectionHasher::default(),
@@ -202,14 +215,12 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     /// # Example
     /// ```
     /// # use glyph_brush::GlyphBrushBuilder;
-    /// # fn main() {
     /// # let some_font: &[u8] = include_bytes!("../../../fonts/DejaVuSans.ttf");
     /// # type SomeOtherBuildHasher = glyph_brush::DefaultSectionHasher;
     /// GlyphBrushBuilder::using_font_bytes(some_font)
     ///     .section_hasher(SomeOtherBuildHasher::default())
     ///     // ...
     /// # ;
-    /// # }
     /// ```
     pub fn section_hasher<T: BuildHasher>(self, section_hasher: T) -> GlyphBrushBuilder<'a, T> {
         GlyphBrushBuilder {
@@ -253,7 +264,6 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     /// # Example
     /// ```
     /// # use glyph_brush::{*, rusttype::*};
-    /// # fn main() {
     /// # let sans = Font::from_bytes(&include_bytes!("../../../fonts/DejaVuSans.ttf")[..]).unwrap();
     /// # type Vertex = ();
     /// let mut glyph_brush: GlyphBrush<'_, Vertex> = GlyphBrushBuilder::using_font(sans).build();
@@ -262,7 +272,6 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     /// // Use a new builder to rebuild the brush with a smaller initial cache size
     /// glyph_brush.to_builder().initial_cache_size((64, 64)).rebuild(&mut glyph_brush);
     /// assert_eq!(glyph_brush.texture_dimensions(), (64, 64));
-    /// # }
     /// ```
     pub fn rebuild<V>(self, brush: &mut GlyphBrush<'a, V, H>) {
         std::mem::replace(brush, self.build());

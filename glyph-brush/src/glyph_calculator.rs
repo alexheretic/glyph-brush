@@ -19,6 +19,15 @@ pub type PositionedGlyphIter<'a, 'font> = std::iter::Map<
 >;
 
 /// Common glyph layout logic.
+///
+/// # Example
+/// ```no_run
+/// # use glyph_brush::GlyphBrush;
+/// use glyph_brush::GlyphCruncher;
+///
+/// # let glyph_brush: GlyphBrush<'_, ()> = unimplemented!();
+/// let default_font = glyph_brush.fonts()[0];
+/// ```
 pub trait GlyphCruncher<'font> {
     /// Returns the pixel bounding box for the input section using a custom layout.
     /// The box is a conservative whole number pixel rectangle that can contain the section.
