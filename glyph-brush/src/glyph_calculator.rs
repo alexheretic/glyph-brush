@@ -782,4 +782,35 @@ mod test {
             assert_relative_eq!(glyph.position().y, bounded_glyph.position().y);
         }
     }
+
+    /// Similar to `glyph_bound_section_bound_consistency` but produces a floating point
+    /// error between the calculated glyph_bounds bounds & those used during layout.
+    #[test]
+    fn glyph_bound_section_bound_consistency_floating_point() {
+        let calc = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build();
+        let mut calc = calc.cache_scope();
+
+        let section = Section {
+            text: "Eins Zwei Drei Vier Funf",
+            ..<_>::default()
+        };
+
+        let glyph_bounds = calc.glyph_bounds(&section).expect("None bounds");
+
+        // identical section with bounds that should be wide enough
+        let bounded_section = Section {
+            bounds: (glyph_bounds.width(), glyph_bounds.height()),
+            ..section
+        };
+
+        let glyphs: Vec<_> = calc.glyphs(&section).cloned().collect();
+        let bounded_glyphs: Vec<_> = calc.glyphs(&bounded_section).collect();
+
+        assert_eq!(glyphs.len(), bounded_glyphs.len());
+
+        for (glyph, bounded_glyph) in glyphs.iter().zip(bounded_glyphs.into_iter()) {
+            assert_relative_eq!(glyph.position().x, bounded_glyph.position().x);
+            assert_relative_eq!(glyph.position().y, bounded_glyph.position().y);
+        }
+    }
 }
