@@ -104,7 +104,7 @@ impl<'font, L: LineBreaker, F: FontMap<'font>> Iterator for Lines<'_, '_, 'font,
         while let Some(word) = self.words.peek() {
             let word_max_x = word.bounds.map(|b| b.max.x).unwrap_or(word.layout_width);
             // only if `progressed` means the first word is allowed to overlap the bounds
-            if progressed && (caret.x + word_max_x).ceil() > self.width_bound {
+            if progressed && caret.x + word_max_x > self.width_bound {
                 break;
             }
 

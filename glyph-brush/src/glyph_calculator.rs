@@ -132,9 +132,17 @@ pub trait GlyphCruncher<'font> {
                 let hm = glyph.unpositioned().h_metrics();
                 let vm = font.v_metrics(glyph.scale());
                 let pos = glyph.position();
+
+                let advance_width = if let Some(bounds) = glyph.unpositioned().exact_bounding_box()
+                {
+                    hm.advance_width.max(bounds.width())
+                } else {
+                    hm.advance_width
+                };
+
                 let lbound = Rect {
                     min: point(pos.x - hm.left_side_bearing, pos.y - vm.ascent),
-                    max: point(pos.x + hm.advance_width, pos.y - vm.descent),
+                    max: point(pos.x + advance_width, pos.y - vm.descent),
                 };
 
                 b.map(|b| {
@@ -152,10 +160,20 @@ pub trait GlyphCruncher<'font> {
             .map(|mut b| {
                 // cap the glyph bounds to the layout specified max bounds
                 let Rect { min, max } = custom_layout.bounds_rect(&geometry);
-                b.min.x = b.min.x.max(min.x);
-                b.min.y = b.min.y.max(min.y);
+
+                if b.min.x < min.x {
+                    b.max.x += min.x - b.min.x;
+                    b.min.x = min.x;
+                }
+
+                if b.min.y < min.y {
+                    b.max.y += min.y - b.min.y;
+                    b.min.y = min.y;
+                }
+
                 b.max.x = b.max.x.min(max.x);
                 b.max.y = b.max.y.min(max.y);
+
                 b
             })
     }
