@@ -344,11 +344,9 @@ impl<H> Drop for GlyphCalculatorGuard<'_, '_, H> {
 ///
 /// ```no_run
 /// use glyph_brush::GlyphCalculatorBuilder;
-/// # fn main() {
 ///
 /// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
 /// let mut glyphs = GlyphCalculatorBuilder::using_font_bytes(dejavu).build();
-/// # }
 /// ```
 #[derive(Debug, Clone)]
 pub struct GlyphCalculatorBuilder<'a, H = DefaultSectionHasher> {

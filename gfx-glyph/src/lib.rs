@@ -538,7 +538,6 @@ where
     ///
     /// ```no_run
     /// use gfx_glyph::{GlyphBrushBuilder, Section};
-    /// # fn main() {
     /// # use old_school_gfx_glutin_ext::*;
     /// # let event_loop = glutin::event_loop::EventLoop::new();
     /// # let window_builder = glutin::window::WindowBuilder::new();
@@ -558,7 +557,6 @@ where
     /// let open_sans_italic_id = glyph_brush.add_font_bytes(open_sans_italic);
     /// # glyph_brush.use_queue().draw(&mut gfx_encoder, &gfx_color).unwrap();
     /// # let _ = open_sans_italic_id;
-    /// # }
     /// ```
     pub fn add_font_bytes<'a: 'font, B: Into<SharedBytes<'a>>>(&mut self, font_data: B) -> FontId {
         self.glyph_brush.add_font_bytes(font_data)
