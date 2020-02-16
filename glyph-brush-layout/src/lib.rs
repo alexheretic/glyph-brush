@@ -114,7 +114,7 @@ pub trait GlyphPositioner: Hash {
 pub enum GlyphChange {
     /// Only the geometry has changed, contains the old geometry
     Geometry(SectionGeometry),
-    /// Only the colors have changed
+    /// Only the colors have changed (including alpha)
     Color,
     /// Only the alpha has changed
     Alpha,

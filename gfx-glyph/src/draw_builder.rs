@@ -34,8 +34,11 @@ pub struct DrawBuilder<'a, 'font, R: gfx::Resources, F: gfx::Factory<R>, H, DV> 
     pub(crate) depth_target: Option<&'a DV>,
 }
 
-impl<'a, 'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher, DV>
-    DrawBuilder<'a, 'font, R, F, H, DV>
+impl<'a, 'font, R, F, H, DV> DrawBuilder<'a, 'font, R, F, H, DV>
+where
+    R: gfx::Resources,
+    F: gfx::Factory<R>,
+    H: BuildHasher,
 {
     /// Use a custom position transform (e.g. a projection) replacing the [`default_transform`](fn.default_transform.html).
     ///
@@ -126,13 +129,12 @@ impl<'a, 'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher, DV>
     }
 }
 
-impl<
-        'a,
-        R: gfx::Resources,
-        F: gfx::Factory<R>,
-        H: BuildHasher,
-        DV: RawAndFormat<Raw = RawDepthStencilView<R>>,
-    > DrawBuilder<'a, '_, R, F, H, DV>
+impl<'a, R, F, H, DV> DrawBuilder<'a, '_, R, F, H, DV>
+where
+    R: gfx::Resources,
+    F: gfx::Factory<R>,
+    H: BuildHasher,
+    DV: RawAndFormat<Raw = RawDepthStencilView<R>>,
 {
     /// Draws all queued sections onto a render target.
     /// See [`queue`](struct.GlyphBrush.html#method.queue).
@@ -213,7 +215,12 @@ impl<R: gfx::Resources> RawAndFormat for NoDepth<R> {
     }
 }
 
-impl<'a, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> DrawBuilder<'a, '_, R, F, H, ()> {
+impl<'a, R, F, H> DrawBuilder<'a, '_, R, F, H, ()>
+where
+    R: gfx::Resources,
+    F: gfx::Factory<R>,
+    H: BuildHasher,
+{
     #[inline]
     pub fn draw<C, CV>(self, encoder: &mut gfx::Encoder<R, C>, target: &CV) -> Result<(), String>
     where

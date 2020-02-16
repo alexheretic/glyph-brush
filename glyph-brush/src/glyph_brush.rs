@@ -81,7 +81,11 @@ impl<V, H> fmt::Debug for GlyphBrush<'_, V, H> {
     }
 }
 
-impl<'font, V: Clone + 'static, H: BuildHasher> GlyphCruncher<'font> for GlyphBrush<'font, V, H> {
+impl<'font, V, H> GlyphCruncher<'font> for GlyphBrush<'font, V, H>
+where
+    V: Clone + 'static,
+    H: BuildHasher,
+{
     fn pixel_bounds_custom_layout<'a, S, L>(
         &mut self,
         section: S,
@@ -119,7 +123,11 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphCruncher<'font> for GlyphBr
     }
 }
 
-impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
+impl<'font, V, H> GlyphBrush<'font, V, H>
+where
+    V: Clone + 'static,
+    H: BuildHasher,
+{
     /// Queues a section/layout to be processed by the next call of
     /// [`process_queued`](struct.GlyphBrush.html#method.process_queued). Can be called multiple
     /// times to queue multiple sections for drawing.
@@ -201,12 +209,10 @@ impl<'font, V: Clone + 'static, H: BuildHasher> GlyphBrush<'font, V, H> {
                     .get(frame_seq_id)
                     .cloned()
                     .and_then(|hash| {
-                        let change = match section_hash.diff(hash) {
-                            SectionHashDiff::GeometryChange => GlyphChange::Geometry(hash.geometry),
-                            SectionHashDiff::ColorChange => GlyphChange::Color,
-                            SectionHashDiff::AlphaChange => GlyphChange::Alpha,
-                            SectionHashDiff::Different => return None,
-                        };
+                        let change = hash.diff(section_hash);
+                        if let GlyphChange::Unknown = change {
+                            return None;
+                        }
 
                         let old_glyphs = if self.keep_in_cache.contains(&hash.full) {
                             let cached = self.calculate_glyph_cache.get(&hash.full)?;
@@ -566,25 +572,17 @@ impl std::error::Error for BrushError {
 
 #[derive(Debug, Clone, Copy)]
 struct SectionHashDetail {
-    /// hash of text
-    text_no_color_alpha: SectionHash,
-    // hash of text & alpha
-    text_no_color: SectionHash,
-    /// hash of text & colors including alpha
+    /// hash of text (- color - alpha - geo - z)
     text: SectionHash,
-    /// hash of everything
+    // hash of text + color (- alpha - geo - z)
+    text_color: SectionHash,
+    /// hash of text + color + alpha (- geo - z)
+    test_alpha_color: SectionHash,
+    /// hash of text  + color + alpha + geo + z
     full: SectionHash,
 
     /// copy of geometry for later comparison
     geometry: SectionGeometry,
-}
-
-#[derive(Debug)]
-enum SectionHashDiff {
-    GeometryChange,
-    ColorChange,
-    AlphaChange,
-    Different,
 }
 
 impl SectionHashDetail {
@@ -599,40 +597,40 @@ impl SectionHashDetail {
         let mut s = build_hasher.build_hasher();
         layout.hash(&mut s);
         parts.hash_text_no_color(&mut s);
-        let text_no_color_alpha_hash = s.finish();
-
-        parts.hash_alpha(&mut s);
-        let text_no_color_hash = s.finish();
+        let text_hash = s.finish();
 
         parts.hash_color(&mut s);
-        let text_hash = s.finish();
+        let text_color_hash = s.finish();
+
+        parts.hash_alpha(&mut s);
+        let test_alpha_color_hash = s.finish();
 
         parts.hash_geometry(&mut s);
         parts.hash_z(&mut s);
         let full_hash = s.finish();
 
         Self {
-            text_no_color_alpha: text_no_color_alpha_hash,
-            text_no_color: text_no_color_hash,
             text: text_hash,
-            // text_geometry: text_geo_hash,
+            text_color: text_color_hash,
+            test_alpha_color: test_alpha_color_hash,
             full: full_hash,
             geometry: SectionGeometry::from(section),
         }
     }
 
     /// They're different, but how?
-    fn diff(self, other: SectionHashDetail) -> SectionHashDiff {
-        if self.text == other.text {
-            return SectionHashDiff::GeometryChange;
+    fn diff(self, other: SectionHashDetail) -> GlyphChange {
+        if self.test_alpha_color == other.test_alpha_color {
+            return GlyphChange::Geometry(self.geometry);
         } else if self.geometry == other.geometry {
-            if self.text_no_color == other.text_no_color {
-                return SectionHashDiff::ColorChange;
-            } else if self.text_no_color_alpha == other.text_no_color_alpha {
-                return SectionHashDiff::AlphaChange;
+            if self.text_color == other.text_color {
+                return GlyphChange::Alpha;
+            } else if self.text == other.text {
+                // color and alpha may have changed
+                return GlyphChange::Color;
             }
         }
-        SectionHashDiff::Different
+        GlyphChange::Unknown
     }
 }
 
@@ -707,5 +705,125 @@ impl<'font, V> Glyphed<'font, V> {
                     }
                 }
             }));
+    }
+}
+
+
+#[cfg(test)]
+mod hash_diff_test {
+    use super::*;
+    use matches::assert_matches;
+
+    fn section() -> VariedSection<'static> {
+        VariedSection {
+            text: vec![
+                SectionText {
+                    text: "Hello, ",
+                    scale: Scale::uniform(20.0),
+                    color: [1.0, 0.9, 0.8, 0.7],
+                    font_id: FontId(0),
+                },
+                SectionText {
+                    text: "World",
+                    scale: Scale::uniform(22.0),
+                    color: [0.6, 0.5, 0.4, 0.3],
+                    font_id: FontId(1),
+                },
+            ],
+            bounds: (55.5, 66.6),
+            z: 0.444,
+            layout: Layout::default(),
+            screen_position: (999.99, 888.88),
+        }
+    }
+
+    #[test]
+    fn change_screen_position() {
+        let build_hasher = DefaultSectionHasher::default();
+        let mut section = section();
+        let hash_deets = SectionHashDetail::new(&build_hasher, &section, &section.layout);
+
+        section.screen_position.1 += 0.1;
+
+        let diff = hash_deets.diff(SectionHashDetail::new(
+            &build_hasher,
+            &section,
+            &section.layout,
+        ));
+
+        match diff {
+            GlyphChange::Geometry(geo) => assert_eq!(geo, hash_deets.geometry),
+            _ => assert_matches!(diff, GlyphChange::Geometry(..)),
+        }
+    }
+
+    #[test]
+    fn change_color() {
+        let build_hasher = DefaultSectionHasher::default();
+        let mut section = section();
+        let hash_deets = SectionHashDetail::new(&build_hasher, &section, &section.layout);
+
+        section.text[1].color[2] -= 0.1;
+
+        let diff = hash_deets.diff(SectionHashDetail::new(
+            &build_hasher,
+            &section,
+            &section.layout,
+        ));
+
+        assert_matches!(diff, GlyphChange::Color);
+    }
+
+    #[test]
+    fn change_color_alpha() {
+        let build_hasher = DefaultSectionHasher::default();
+        let mut section = section();
+        let hash_deets = SectionHashDetail::new(&build_hasher, &section, &section.layout);
+
+        section.text[1].color[2] -= 0.1;
+        section.text[0].color[0] -= 0.1;
+        section.text[0].color[3] += 0.1; // alpha change too
+
+        let diff = hash_deets.diff(SectionHashDetail::new(
+            &build_hasher,
+            &section,
+            &section.layout,
+        ));
+
+        assert_matches!(diff, GlyphChange::Color);
+    }
+
+    #[test]
+    fn change_alpha() {
+        let build_hasher = DefaultSectionHasher::default();
+        let mut section = section();
+        let hash_deets = SectionHashDetail::new(&build_hasher, &section, &section.layout);
+
+        section.text[1].color[3] -= 0.1;
+
+        let diff = hash_deets.diff(SectionHashDetail::new(
+            &build_hasher,
+            &section,
+            &section.layout,
+        ));
+
+        assert_matches!(diff, GlyphChange::Alpha);
+    }
+
+    #[test]
+    fn change_text() {
+        let build_hasher = DefaultSectionHasher::default();
+        let mut section = section();
+        let hash_deets = SectionHashDetail::new(&build_hasher, &section, &section.layout);
+
+        section.text[1].text = "something else";
+
+        let diff = hash_deets.diff(SectionHashDetail::new(
+            &build_hasher,
+            &section,
+            &section.layout,
+        ));
+
+        assert_matches!(diff, GlyphChange::Unknown);
     }
 }
