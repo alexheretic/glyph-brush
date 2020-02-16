@@ -1,3 +1,6 @@
+# Unreleased
+* Fix section color & alpha frame to frame changes to be incorrectly optimised as alpha only changes.
+
 # 0.6.2
 * Add `GlyphBrushBuilder::without_fonts()` for creating a brush without any fonts.
 

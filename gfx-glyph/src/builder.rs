@@ -67,7 +67,10 @@ impl<'a> GlyphBrushBuilder<'a> {
     }
 }
 
-impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
+impl<'a, H> GlyphBrushBuilder<'a, H>
+where
+    H: BuildHasher,
+{
     delegate_glyph_brush_builder_fns!(inner);
 
     /// Sets the depth test to use on the text section **z** values.

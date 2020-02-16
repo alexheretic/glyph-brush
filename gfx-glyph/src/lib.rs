@@ -190,8 +190,11 @@ impl<R: gfx::Resources, F: gfx::Factory<R>, H> fmt::Debug for GlyphBrush<'_, R, 
     }
 }
 
-impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphCruncher<'font>
-    for GlyphBrush<'font, R, F, H>
+impl<'font, R, F, H> GlyphCruncher<'font> for GlyphBrush<'font, R, F, H>
+where
+    R: gfx::Resources,
+    F: gfx::Factory<R>,
+    H: BuildHasher,
 {
     #[inline]
     fn pixel_bounds_custom_layout<'a, S, L>(
@@ -227,7 +230,12 @@ impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphCruncher
     }
 }
 
-impl<'font, R: gfx::Resources, F: gfx::Factory<R>, H: BuildHasher> GlyphBrush<'font, R, F, H> {
+impl<'font, R, F, H> GlyphBrush<'font, R, F, H>
+where
+    R: gfx::Resources,
+    F: gfx::Factory<R>,
+    H: BuildHasher,
+{
     /// Queues a section/layout to be drawn by the next call of
     /// [`.use_queue().draw(..)`](struct.DrawBuilder.html#method.draw). Can be called multiple times
     /// to queue multiple sections for drawing.
