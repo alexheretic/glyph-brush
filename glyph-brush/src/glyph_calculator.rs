@@ -545,6 +545,10 @@ mod test {
         Font::from_bytes(include_bytes!("../../fonts/DejaVuSansMono.ttf") as &[u8])
             .expect("Could not create rusttype::Font")
     });
+    static OPEN_SANS_LIGHT: Lazy<Font<'static>> = Lazy::new(|| {
+        Font::from_bytes(include_bytes!("../../fonts/OpenSans-Light.ttf") as &[u8])
+            .expect("Could not create rusttype::Font")
+    });
 
     #[test]
     fn pixel_bounds_respect_layout_bounds() {
@@ -715,5 +719,67 @@ mod test {
         b.glyphs[0].0.set_position(point(50.0, 61.0));
 
         assert_ne!(a, b);
+    }
+
+    /// Issue #87
+    #[test]
+    fn glyph_bound_section_bound_consistency() {
+        let calc = GlyphCalculatorBuilder::using_font(OPEN_SANS_LIGHT.clone()).build();
+        let mut calc = calc.cache_scope();
+
+        let section = Section {
+            text: "Eins Zwei Drei Vier Funf",
+            scale: Scale::uniform(20.0),
+            ..<_>::default()
+        };
+
+        let glyph_bounds = calc.glyph_bounds(&section).expect("None bounds");
+
+        // identical section with bounds that should be wide enough
+        let bounded_section = Section {
+            bounds: (glyph_bounds.width(), glyph_bounds.height()),
+            ..section
+        };
+
+        let glyphs: Vec<_> = calc.glyphs(&section).cloned().collect();
+        let bounded_glyphs: Vec<_> = calc.glyphs(&bounded_section).collect();
+
+        assert_eq!(glyphs.len(), bounded_glyphs.len());
+
+        for (glyph, bounded_glyph) in glyphs.iter().zip(bounded_glyphs.into_iter()) {
+            assert_relative_eq!(glyph.position().x, bounded_glyph.position().x);
+            assert_relative_eq!(glyph.position().y, bounded_glyph.position().y);
+        }
+    }
+
+    /// Issue #87
+    #[test]
+    fn glyph_bound_section_bound_consistency_trailing_space() {
+        let calc = GlyphCalculatorBuilder::using_font(OPEN_SANS_LIGHT.clone()).build();
+        let mut calc = calc.cache_scope();
+
+        let section = Section {
+            text: "Eins Zwei Drei Vier Funf ",
+            scale: Scale::uniform(20.0),
+            ..<_>::default()
+        };
+
+        let glyph_bounds = calc.glyph_bounds(&section).expect("None bounds");
+
+        // identical section with bounds that should be wide enough
+        let bounded_section = Section {
+            bounds: (glyph_bounds.width(), glyph_bounds.height()),
+            ..section
+        };
+
+        let glyphs: Vec<_> = calc.glyphs(&section).cloned().collect();
+        let bounded_glyphs: Vec<_> = calc.glyphs(&bounded_section).collect();
+
+        assert_eq!(glyphs.len(), bounded_glyphs.len());
+
+        for (glyph, bounded_glyph) in glyphs.iter().zip(bounded_glyphs.into_iter()) {
+            assert_relative_eq!(glyph.position().x, bounded_glyph.position().x);
+            assert_relative_eq!(glyph.position().y, bounded_glyph.position().y);
+        }
     }
 }

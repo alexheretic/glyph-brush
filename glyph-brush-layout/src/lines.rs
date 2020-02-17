@@ -102,9 +102,8 @@ impl<'font, L: LineBreaker, F: FontMap<'font>> Iterator for Lines<'_, '_, 'font,
         let mut progressed = false;
 
         while let Some(word) = self.words.peek() {
-            let word_max_x = word.bounds.map(|b| b.max.x).unwrap_or(word.layout_width);
             // only if `progressed` means the first word is allowed to overlap the bounds
-            if progressed && (caret.x + word_max_x).ceil() > self.width_bound {
+            if progressed && caret.x + word.layout_width_no_trail > self.width_bound {
                 break;
             }
 
@@ -123,13 +122,11 @@ impl<'font, L: LineBreaker, F: FontMap<'font>> Iterator for Lines<'_, '_, 'font,
                 line.max_v_metrics = word.max_v_metrics;
             }
 
-            if word.bounds.is_some() {
-                line.glyphs
-                    .extend(word.glyphs.into_iter().map(|(mut g, color, font_id)| {
-                        g.relative = g.relative + caret;
-                        (g, color, font_id)
-                    }));
-            }
+            line.glyphs
+                .extend(word.glyphs.into_iter().map(|(mut g, color, font_id)| {
+                    g.relative = g.relative + caret;
+                    (g, color, font_id)
+                }));
 
             caret.x += word.layout_width;
 

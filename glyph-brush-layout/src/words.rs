@@ -18,9 +18,10 @@ pub(crate) const ZERO_V_METRICS: VMetrics = VMetrics {
 /// Glyphs are relatively positioned from (0, 0) in a left-top alignment style.
 pub(crate) struct Word<'font> {
     pub glyphs: Vec<(RelativePositionedGlyph<'font>, Color, FontId)>,
-    pub bounds: Option<Rect<f32>>,
-    /// pixel advance width of word includes ending spaces
+    /// pixel advance width of word includes ending spaces/invisibles
     pub layout_width: f32,
+    /// pixel advance width of word not including any trailing spaces/invisibles
+    pub layout_width_no_trail: f32,
     pub max_v_metrics: VMetrics,
     /// indicates the break after the word is a hard one
     pub hard_break: bool,
@@ -84,8 +85,8 @@ where
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         let mut glyphs = Vec::new();
-        let mut bounds: Option<Rect<f32>> = None;
-        let mut caret = point(0.0, 0.0);
+        let mut caret = 0.0;
+        let mut caret_no_trail = caret;
         let mut last_glyph_id = None;
         let mut max_v_metrics = None;
         let mut hard_break = false;
@@ -108,7 +109,7 @@ where
                 }
 
                 if let Some(id) = last_glyph_id.take() {
-                    caret.x += font.pair_kerning(glyph.scale(), id, glyph.id());
+                    caret += font.pair_kerning(glyph.scale(), id, glyph.id());
                 }
                 last_glyph_id = Some(glyph.id());
             }
@@ -117,25 +118,18 @@ where
 
             if !control {
                 let positioned = RelativePositionedGlyph {
-                    relative: caret,
+                    relative: point(caret, 0.0),
                     glyph,
                 };
 
-                if let Some(glyph_bounds) = positioned.bounds() {
-                    if let Some(mut word) = bounds.take() {
-                        word.min.x = word.min.x.min(glyph_bounds.min.x);
-                        word.min.y = word.min.y.min(glyph_bounds.min.y);
-                        word.max.x = word.max.x.max(glyph_bounds.max.x);
-                        word.max.y = word.max.y.max(glyph_bounds.max.y);
-                        bounds = Some(word);
-                    } else {
-                        bounds = Some(glyph_bounds);
-                    }
+                caret += advance_width;
 
+                if positioned.bounds().is_some() {
                     glyphs.push((positioned, color, font_id));
-                }
 
-                caret.x += advance_width;
+                    // not an invisible trail
+                    caret_no_trail = caret;
+                }
             }
 
             if line_break.is_some() {
@@ -149,8 +143,8 @@ where
         if progress {
             return Some(Word {
                 glyphs,
-                bounds,
-                layout_width: caret.x,
+                layout_width: caret,
+                layout_width_no_trail: caret_no_trail,
                 hard_break,
                 max_v_metrics: max_v_metrics.unwrap_or(ZERO_V_METRICS),
             });
