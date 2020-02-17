@@ -12,8 +12,8 @@ readme="README.md"
 [dependencies]
 full_rusttype = { version = "0.8", package = "rusttype" }
 xi-unicode = "0.2"
+approx = "0.3.2"
 
 [dev-dependencies]
-approx = "0.3.1"
 once_cell = "1"
 ordered-float = "1"

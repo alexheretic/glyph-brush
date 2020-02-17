@@ -1,3 +1,8 @@
+# Unreleased
+* Fix consistency of section bounds by removing usage of glyph pixel bounds during word layout, instead always relying
+  on advance width.
+* Fix possible floating point errors when using section bounds that exactly bound the section.
+
 # 0.1.8
 * Update rusttype -> `0.8`. _Compatible with rusttype `0.6.5` & `0.7.9`._
 

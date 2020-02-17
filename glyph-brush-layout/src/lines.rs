@@ -102,8 +102,14 @@ impl<'font, L: LineBreaker, F: FontMap<'font>> Iterator for Lines<'_, '_, 'font,
         let mut progressed = false;
 
         while let Some(word) = self.words.peek() {
+            let word_in_bounds = {
+                let word_x = caret.x + word.layout_width_no_trail;
+                // Reduce float errors by using relative "<= width bound" check
+                word_x < self.width_bound || approx::relative_eq!(word_x, self.width_bound)
+            };
+
             // only if `progressed` means the first word is allowed to overlap the bounds
-            if progressed && caret.x + word.layout_width_no_trail > self.width_bound {
+            if !word_in_bounds && progressed {
                 break;
             }
 
