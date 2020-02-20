@@ -1,6 +1,6 @@
 [package]
 name = "glyph_brush"
-version = "0.6.2"
+version = "0.6.3"
 authors = ["Alex Butler <alexheretic@gmail.com>"]
 edition = "2018"
 description = "Fast cached text render library using rusttype"
@@ -10,7 +10,7 @@ license = "Apache-2.0"
 readme="README.md"
 
 [dependencies]
-glyph_brush_layout = { version = "0.1.8", path = "../glyph-brush-layout" }
+glyph_brush_layout = { version = "0.1.9", path = "../glyph-brush-layout" }
 log = "0.4.4"
 ordered-float = "1"
 full_rusttype = { version = "0.8", features = ["gpu_cache"], package = "rusttype" }

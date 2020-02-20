@@ -1,4 +1,4 @@
-# Unreleased
+# 0.6.3
 * Fix section color & alpha frame to frame changes to be incorrectly optimised as alpha only changes.
 
 # 0.6.2
