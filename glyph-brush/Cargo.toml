@@ -25,3 +25,8 @@ glutin = "0.23"
 spin_sleep = "0.3"
 approx = "0.3.1"
 matches = "0.1"
+criterion = "0.3"
+
+[[bench]]
+name = "bench"
+harness = false

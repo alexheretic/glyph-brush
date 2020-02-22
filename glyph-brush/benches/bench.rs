@@ -1,236 +1,304 @@
-#![feature(test)]
-extern crate test;
-
+use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 use glyph_brush::{rusttype::*, *};
+use std::borrow::Cow;
 use std::f32;
 
 const TEST_FONT: &[u8] = include_bytes!("../../fonts/DejaVuSansMono.ttf");
+const LIPSUM: &str = include_str!("lipsum.txt");
+const LOTS_OF_LIPSUM: &str = include_str!("lots_of_lipsum.txt");
+const SMALL_LIPSUM: &str = include_str!("small_lipsum.txt");
 
-#[bench]
-fn render_3_medium_sections_fully(b: &mut test::Bencher) {
-    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
-    let text = include_str!("lipsum.txt");
+fn render_3_medium_sections_fully(c: &mut Criterion) {
+    let _ = env_logger::try_init();
 
-    bench(
-        b,
-        &[
-            Section {
-                text,
-                bounds: (600.0, f32::INFINITY),
-                ..Section::default()
-            },
-            Section {
-                text,
-                screen_position: (600.0, 0.0),
-                bounds: (600.0, f32::INFINITY),
-                layout: Layout::default().h_align(HorizontalAlign::Center),
-                ..Section::default()
-            },
-            Section {
-                text,
-                screen_position: (1200.0, 0.0),
-                bounds: (600.0, f32::INFINITY),
-                layout: Layout::default().h_align(HorizontalAlign::Right),
-                ..Section::default()
-            },
-        ],
-        brush,
-    );
+    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT).build();
+
+    let sections = &[
+        Section {
+            text: LIPSUM,
+            bounds: (600.0, f32::INFINITY),
+            ..<_>::default()
+        },
+        Section {
+            text: LIPSUM,
+            screen_position: (600.0, 0.0),
+            bounds: (600.0, f32::INFINITY),
+            layout: Layout::default().h_align(HorizontalAlign::Center),
+            ..<_>::default()
+        },
+        Section {
+            text: LIPSUM,
+            screen_position: (1200.0, 0.0),
+            bounds: (600.0, f32::INFINITY),
+            layout: Layout::default().h_align(HorizontalAlign::Right),
+            ..<_>::default()
+        },
+    ];
+
+    c.bench_function("render_3_medium_sections_fully", |b| {
+        b.iter(|| {
+            for section in sections {
+                glyph_brush.queue(*section);
+            }
+            glyph_brush
+                .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
+                .unwrap();
+        })
+    });
 }
 
-#[bench]
 // Note: 'no_cache' here refers to the glyph positioning/drawing caches (not the gpu cache)
-fn no_cache_render_3_medium_sections_fully(b: &mut test::Bencher) {
-    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
+fn no_cache_render_3_medium_sections_fully(c: &mut Criterion) {
+    let _ = env_logger::try_init();
+
+    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
         .cache_glyph_positioning(false)
-        .cache_glyph_drawing(false);
-    let text = include_str!("lipsum.txt");
+        .cache_glyph_drawing(false)
+        .build();
 
-    bench(
-        b,
-        &[
-            Section {
-                text,
-                bounds: (600.0, f32::INFINITY),
-                ..Section::default()
-            },
-            Section {
-                text,
-                screen_position: (600.0, 0.0),
-                bounds: (600.0, f32::INFINITY),
-                layout: Layout::default().h_align(HorizontalAlign::Center),
-                ..Section::default()
-            },
-            Section {
-                text,
-                screen_position: (1200.0, 0.0),
-                bounds: (600.0, f32::INFINITY),
-                layout: Layout::default().h_align(HorizontalAlign::Right),
-                ..Section::default()
-            },
-        ],
-        brush,
-    );
+    let sections = &[
+        Section {
+            text: LIPSUM,
+            bounds: (600.0, f32::INFINITY),
+            ..<_>::default()
+        },
+        Section {
+            text: LIPSUM,
+            screen_position: (600.0, 0.0),
+            bounds: (600.0, f32::INFINITY),
+            layout: Layout::default().h_align(HorizontalAlign::Center),
+            ..<_>::default()
+        },
+        Section {
+            text: LIPSUM,
+            screen_position: (1200.0, 0.0),
+            bounds: (600.0, f32::INFINITY),
+            layout: Layout::default().h_align(HorizontalAlign::Right),
+            ..<_>::default()
+        },
+    ];
+
+    c.bench_function("no_cache_render_3_medium_sections_fully", |b| {
+        b.iter(|| {
+            for section in sections {
+                glyph_brush.queue(*section);
+            }
+            glyph_brush
+                .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
+                .unwrap();
+        })
+    });
 }
 
-#[bench]
-fn render_1_large_section_partially(b: &mut test::Bencher) {
-    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
-    let text = include_str!("lots_of_lipsum.txt");
+fn render_1_large_section_partially(c: &mut Criterion) {
+    let _ = env_logger::try_init();
 
-    bench(
-        b,
-        &[Section {
-            text,
-            bounds: (600.0, 600.0),
-            ..Section::default()
-        }],
-        brush,
-    );
+    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT).build();
+
+    let section = Section {
+        text: LOTS_OF_LIPSUM,
+        bounds: (600.0, 600.0),
+        ..<_>::default()
+    };
+
+    c.bench_function("render_1_large_section_partially", |b| {
+        b.iter(|| {
+            glyph_brush.queue(section);
+            glyph_brush
+                .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
+                .unwrap();
+        })
+    });
 }
 
-#[bench]
 // Note: 'no_cache' here refers to the glyph positioning/drawing caches (not the gpu cache)
-fn no_cache_render_1_large_section_partially(b: &mut test::Bencher) {
-    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
+fn no_cache_render_1_large_section_partially(c: &mut Criterion) {
+    let _ = env_logger::try_init();
+
+    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
         .cache_glyph_positioning(false)
-        .cache_glyph_drawing(false);
-    let text = include_str!("lots_of_lipsum.txt");
+        .cache_glyph_drawing(false)
+        .build();
 
-    bench(
-        b,
-        &[Section {
-            text,
-            bounds: (600.0, 600.0),
-            ..Section::default()
-        }],
-        brush,
-    );
+    let section = Section {
+        text: LOTS_OF_LIPSUM,
+        bounds: (600.0, 600.0),
+        ..<_>::default()
+    };
+
+    c.bench_function("no_cache_render_1_large_section_partially", |b| {
+        b.iter(|| {
+            glyph_brush.queue(section);
+            glyph_brush
+                .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
+                .unwrap();
+        })
+    });
 }
 
-#[bench]
-// Note: 'no_cache' here refers to the glyph positioning/drawing caches (not the gpu cache)
-fn render_v_center_1_large_section_partially(b: &mut test::Bencher) {
-    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
-    let text = include_str!("lots_of_lipsum.txt");
+fn render_v_center_1_large_section_partially(c: &mut Criterion) {
+    let _ = env_logger::try_init();
 
-    bench(
-        b,
-        &[Section {
-            text,
-            screen_position: (0.0, 300.0),
-            bounds: (600.0, 600.0),
-            layout: Layout::default().v_align(VerticalAlign::Center),
-            ..Section::default()
-        }],
-        brush,
-    );
+    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT).build();
+
+    let section = Section {
+        text: LOTS_OF_LIPSUM,
+        screen_position: (0.0, 300.0),
+        bounds: (600.0, 600.0),
+        layout: Layout::default().v_align(VerticalAlign::Center),
+        ..<_>::default()
+    };
+
+    c.bench_function("render_v_center_1_large_section_partially", |b| {
+        b.iter(|| {
+            glyph_brush.queue(section);
+            glyph_brush
+                .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
+                .unwrap();
+        })
+    });
 }
 
-#[bench]
-// Note: 'no_cache' here refers to the glyph positioning/drawing caches (not the gpu cache)
-fn no_cache_render_v_center_1_large_section_partially(b: &mut test::Bencher) {
-    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
+fn no_cache_render_v_center_1_large_section_partially(c: &mut Criterion) {
+    let _ = env_logger::try_init();
+
+    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
         .cache_glyph_positioning(false)
-        .cache_glyph_drawing(false);
-    let text = include_str!("lots_of_lipsum.txt");
+        .cache_glyph_drawing(false)
+        .build();
 
-    bench(
-        b,
-        &[Section {
-            text,
-            screen_position: (0.0, 300.0),
-            bounds: (600.0, 600.0),
-            layout: Layout::default().v_align(VerticalAlign::Center),
-            ..Section::default()
-        }],
-        brush,
-    );
+    let section = Section {
+        text: LOTS_OF_LIPSUM,
+        screen_position: (0.0, 300.0),
+        bounds: (600.0, 600.0),
+        layout: Layout::default().v_align(VerticalAlign::Center),
+        ..<_>::default()
+    };
+
+    c.bench_function("no_cache_render_v_center_1_large_section_partially", |b| {
+        b.iter(|| {
+            glyph_brush.queue(section);
+            glyph_brush
+                .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
+                .unwrap();
+        })
+    });
 }
 
-#[bench]
-fn render_v_bottom_1_large_section_partially(b: &mut test::Bencher) {
-    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
-    let text = include_str!("lots_of_lipsum.txt");
+fn render_v_bottom_1_large_section_partially(c: &mut Criterion) {
+    let _ = env_logger::try_init();
 
-    bench(
-        b,
-        &[Section {
-            text,
-            screen_position: (0.0, 600.0),
-            bounds: (600.0, 600.0),
-            layout: Layout::default().v_align(VerticalAlign::Bottom),
-            ..Section::default()
-        }],
-        brush,
-    );
+    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT).build();
+
+    let section = Section {
+        text: LOTS_OF_LIPSUM,
+        screen_position: (0.0, 600.0),
+        bounds: (600.0, 600.0),
+        layout: Layout::default().v_align(VerticalAlign::Bottom),
+        ..<_>::default()
+    };
+
+    c.bench_function("render_v_bottom_1_large_section_partially", |b| {
+        b.iter(|| {
+            glyph_brush.queue(section);
+            glyph_brush
+                .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
+                .unwrap();
+        })
+    });
 }
 
-#[bench]
 // Note: 'no_cache' here refers to the glyph positioning/drawing caches (not the gpu cache)
-fn no_cache_render_v_bottom_1_large_section_partially(b: &mut test::Bencher) {
-    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
-        .cache_glyph_positioning(false)
-        .cache_glyph_drawing(false);
-    let text = include_str!("lots_of_lipsum.txt");
+fn no_cache_render_v_bottom_1_large_section_partially(c: &mut Criterion) {
+    let _ = env_logger::try_init();
 
-    bench(
-        b,
-        &[Section {
-            text,
-            screen_position: (0.0, 600.0),
-            bounds: (600.0, 600.0),
-            layout: Layout::default().v_align(VerticalAlign::Bottom),
-            ..Section::default()
-        }],
-        brush,
-    );
+    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
+        .cache_glyph_positioning(false)
+        .cache_glyph_drawing(false)
+        .build();
+
+    let section = Section {
+        text: LOTS_OF_LIPSUM,
+        screen_position: (0.0, 600.0),
+        bounds: (600.0, 600.0),
+        layout: Layout::default().v_align(VerticalAlign::Bottom),
+        ..<_>::default()
+    };
+
+    c.bench_function("no_cache_render_v_bottom_1_large_section_partially", |b| {
+        b.iter(|| {
+            glyph_brush.queue(section);
+            glyph_brush
+                .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
+                .unwrap();
+        })
+    });
 }
 
-#[bench]
-fn render_100_small_sections_fully(b: &mut test::Bencher) {
-    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
-    let text = include_str!("small_lipsum.txt");
+fn render_100_small_sections_fully(c: &mut Criterion) {
+    let _ = env_logger::try_init();
 
-    let mut section_layouts = vec![];
+    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT).build();
+
+    let mut sections = vec![];
     for i in 0..100 {
-        section_layouts.push(Section {
-            text,
+        sections.push(Section {
+            text: SMALL_LIPSUM,
             screen_position: (i as f32, 0.0),
             bounds: (100.0, f32::INFINITY),
-            ..Section::default()
+            ..<_>::default()
         });
     }
 
-    bench(b, &section_layouts, brush);
+    c.bench_function("render_100_small_sections_fully", |b| {
+        b.iter(|| {
+            for section in &sections {
+                glyph_brush.queue(*section);
+            }
+            glyph_brush
+                .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
+                .unwrap();
+        })
+    });
 }
 
-#[bench]
 // Note: 'no_cache' here refers to the glyph positioning/drawing caches (not the gpu cache)
-fn no_cache_render_100_small_sections_fully(b: &mut test::Bencher) {
-    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
-        .cache_glyph_positioning(false)
-        .cache_glyph_drawing(false);
-    let text = include_str!("small_lipsum.txt");
+fn no_cache_render_100_small_sections_fully(c: &mut Criterion) {
+    let _ = env_logger::try_init();
 
-    let mut section_layouts = vec![];
+    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
+        .cache_glyph_positioning(false)
+        .cache_glyph_drawing(false)
+        .build();
+
+    let mut sections = vec![];
     for i in 0..100 {
-        section_layouts.push(Section {
-            text,
+        sections.push(Section {
+            text: SMALL_LIPSUM,
             screen_position: (i as f32, 0.0),
             bounds: (100.0, f32::INFINITY),
-            ..Section::default()
+            ..<_>::default()
         });
     }
 
-    bench(b, &section_layouts, brush);
+    c.bench_function("no_cache_render_100_small_sections_fully", |b| {
+        b.iter(|| {
+            for section in &sections {
+                glyph_brush.queue(*section);
+            }
+            glyph_brush
+                .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
+                .unwrap();
+        })
+    });
 }
 
-#[bench]
 /// section is rendered with text edits each run to the end
-fn continually_modify_end_text_of_1_of_3(b: &mut test::Bencher) {
-    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
-    let text = include_str!("lipsum.txt");
+fn continually_modify_end_text_of_1_of_3(c: &mut Criterion) {
+    let _ = env_logger::try_init();
+
+    let mut brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT).build();
+    let text = LIPSUM;
 
     let string_variants = vec![
         text.to_owned(),
@@ -246,34 +314,37 @@ fn continually_modify_end_text_of_1_of_3(b: &mut test::Bencher) {
                 Section {
                     text: s,
                     bounds: (600.0, f32::INFINITY),
-                    ..Section::default()
+                    ..<_>::default()
                 },
                 Section {
                     text,
                     screen_position: (600.0, 0.0),
                     bounds: (600.0, f32::INFINITY),
                     layout: Layout::default().h_align(HorizontalAlign::Center),
-                    ..Section::default()
+                    ..<_>::default()
                 },
                 Section {
                     text,
                     screen_position: (1200.0, 0.0),
                     bounds: (600.0, f32::INFINITY),
                     layout: Layout::default().h_align(HorizontalAlign::Right),
-                    ..Section::default()
+                    ..<_>::default()
                 },
             ]
         })
         .collect();
 
-    bench_variants(b, &variants, brush);
+    c.bench_function("continually_modify_end_text_of_1_of_3", |b| {
+        bench_variants(b, &variants, &mut brush)
+    });
 }
 
-#[bench]
 /// section is rendered with text edits each run to the beginning
-fn continually_modify_start_text_of_1_of_3(b: &mut test::Bencher) {
-    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
-    let text = include_str!("lipsum.txt");
+fn continually_modify_start_text_of_1_of_3(c: &mut Criterion) {
+    let _ = env_logger::try_init();
+
+    let mut brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT).build();
+    let text = LIPSUM;
 
     let string_variants = vec![
         text.to_owned(),
@@ -289,34 +360,37 @@ fn continually_modify_start_text_of_1_of_3(b: &mut test::Bencher) {
                 Section {
                     text: s,
                     bounds: (600.0, f32::INFINITY),
-                    ..Section::default()
+                    ..<_>::default()
                 },
                 Section {
                     text,
                     screen_position: (600.0, 0.0),
                     bounds: (600.0, f32::INFINITY),
                     layout: Layout::default().h_align(HorizontalAlign::Center),
-                    ..Section::default()
+                    ..<_>::default()
                 },
                 Section {
                     text,
                     screen_position: (1200.0, 0.0),
                     bounds: (600.0, f32::INFINITY),
                     layout: Layout::default().h_align(HorizontalAlign::Right),
-                    ..Section::default()
+                    ..<_>::default()
                 },
             ]
         })
         .collect();
 
-    bench_variants(b, &variants, brush);
+    c.bench_function("continually_modify_start_text_of_1_of_3", |b| {
+        bench_variants(b, &variants, &mut brush)
+    });
 }
 
-#[bench]
 /// section is rendered with text edits each run to the middle
-fn continually_modify_middle_text_of_1_of_3(b: &mut test::Bencher) {
-    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
-    let text = include_str!("lipsum.txt");
+fn continually_modify_middle_text_of_1_of_3(c: &mut Criterion) {
+    let _ = env_logger::try_init();
+
+    let mut brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT).build();
+    let text = LIPSUM;
     let middle_index = {
         let mut ci = text.char_indices();
         ci.nth(text.chars().count() / 2);
@@ -337,34 +411,37 @@ fn continually_modify_middle_text_of_1_of_3(b: &mut test::Bencher) {
                 Section {
                     text: s,
                     bounds: (600.0, f32::INFINITY),
-                    ..Section::default()
+                    ..<_>::default()
                 },
                 Section {
                     text,
                     screen_position: (600.0, 0.0),
                     bounds: (600.0, f32::INFINITY),
                     layout: Layout::default().h_align(HorizontalAlign::Center),
-                    ..Section::default()
+                    ..<_>::default()
                 },
                 Section {
                     text,
                     screen_position: (1200.0, 0.0),
                     bounds: (600.0, f32::INFINITY),
                     layout: Layout::default().h_align(HorizontalAlign::Right),
-                    ..Section::default()
+                    ..<_>::default()
                 },
             ]
         })
         .collect();
 
-    bench_variants(b, &variants, brush);
+    c.bench_function("continually_modify_middle_text_of_1_of_3", |b| {
+        bench_variants(b, &variants, &mut brush)
+    });
 }
 
-#[bench]
 /// section is rendered with the bounds redefined each run to the middle
-fn continually_modify_bounds_of_1_of_3(b: &mut test::Bencher) {
-    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
-    let text = include_str!("lipsum.txt");
+fn continually_modify_bounds_of_1_of_3(c: &mut Criterion) {
+    let _ = env_logger::try_init();
+
+    let mut brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT).build();
+    let text = LIPSUM;
 
     let variants: Vec<_> = vec![400, 600, 855]
         .into_iter()
@@ -373,34 +450,37 @@ fn continually_modify_bounds_of_1_of_3(b: &mut test::Bencher) {
                 Section {
                     text,
                     bounds: (width as f32, f32::INFINITY),
-                    ..Section::default()
+                    ..<_>::default()
                 },
                 Section {
                     text,
                     screen_position: (600.0, 0.0),
                     bounds: (600.0, f32::INFINITY),
                     layout: Layout::default().h_align(HorizontalAlign::Center),
-                    ..Section::default()
+                    ..<_>::default()
                 },
                 Section {
                     text,
                     screen_position: (1200.0, 0.0),
                     bounds: (600.0, f32::INFINITY),
                     layout: Layout::default().h_align(HorizontalAlign::Right),
-                    ..Section::default()
+                    ..<_>::default()
                 },
             ]
         })
         .collect();
 
-    bench_variants(b, &variants, brush);
+    c.bench_function("continually_modify_bounds_of_1_of_3", |b| {
+        bench_variants(b, &variants, &mut brush)
+    });
 }
 
-#[bench]
 /// 1 section of 3 is rendered with a different colour each frame
-fn continually_modify_color_of_1_of_3(b: &mut test::Bencher) {
-    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
-    let text = include_str!("lipsum.txt");
+fn continually_modify_color_of_1_of_3(c: &mut Criterion) {
+    let _ = env_logger::try_init();
+
+    let mut brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT).build();
+    let text = LIPSUM;
 
     let variants: Vec<_> = vec![
         [0.1, 0.2, 0.7, 1.0],
@@ -414,34 +494,37 @@ fn continually_modify_color_of_1_of_3(b: &mut test::Bencher) {
                 text,
                 color,
                 bounds: (600.0, f32::INFINITY),
-                ..Section::default()
+                ..<_>::default()
             },
             Section {
                 text,
                 screen_position: (600.0, 0.0),
                 bounds: (600.0, f32::INFINITY),
                 layout: Layout::default().h_align(HorizontalAlign::Center),
-                ..Section::default()
+                ..<_>::default()
             },
             Section {
                 text,
                 screen_position: (1200.0, 0.0),
                 bounds: (600.0, f32::INFINITY),
                 layout: Layout::default().h_align(HorizontalAlign::Right),
-                ..Section::default()
+                ..<_>::default()
             },
         ]
     })
     .collect();
 
-    bench_variants(b, &variants, brush);
+    c.bench_function("continually_modify_color_of_1_of_3", |b| {
+        bench_variants(b, &variants, &mut brush)
+    });
 }
 
-#[bench]
 /// 1 section of 3 is rendered with a different colour each frame
-fn continually_modify_alpha_of_1_of_3(b: &mut test::Bencher) {
-    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
-    let text = include_str!("lipsum.txt");
+fn continually_modify_alpha_of_1_of_3(c: &mut Criterion) {
+    let _ = env_logger::try_init();
+
+    let mut brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT).build();
+    let text = LIPSUM;
 
     let variants: Vec<_> = vec![
         // fade out alpha
@@ -490,14 +573,17 @@ fn continually_modify_alpha_of_1_of_3(b: &mut test::Bencher) {
     })
     .collect();
 
-    bench_varied_variants(b, &variants, brush);
+    c.bench_function("continually_modify_alpha_of_1_of_3", |b| {
+        bench_variants(b, &variants, &mut brush)
+    });
 }
 
-#[bench]
 /// section is rendered with the bounds redefined each run to the middle
-fn continually_modify_position_of_1_of_3(b: &mut test::Bencher) {
-    let brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT);
-    let text = include_str!("lipsum.txt");
+fn continually_modify_position_of_1_of_3(c: &mut Criterion) {
+    let _ = env_logger::try_init();
+
+    let mut brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT).build();
+    let text = LIPSUM;
 
     let variants: Vec<_> = vec![(0, 0), (100, 50), (101, 300)]
         .into_iter()
@@ -507,104 +593,46 @@ fn continually_modify_position_of_1_of_3(b: &mut test::Bencher) {
                     text,
                     screen_position: (x as f32, y as f32),
                     bounds: (600.0, f32::INFINITY),
-                    ..Section::default()
+                    ..<_>::default()
                 },
                 Section {
                     text,
                     screen_position: (600.0, 0.0),
                     bounds: (600.0, f32::INFINITY),
                     layout: Layout::default().h_align(HorizontalAlign::Center),
-                    ..Section::default()
+                    ..<_>::default()
                 },
                 Section {
                     text,
                     screen_position: (1200.0, 0.0),
                     bounds: (600.0, f32::INFINITY),
                     layout: Layout::default().h_align(HorizontalAlign::Right),
-                    ..Section::default()
+                    ..<_>::default()
                 },
             ]
         })
         .collect();
 
-    bench_variants(b, &variants, brush);
+    c.bench_function("continually_modify_position_of_1_of_3", |b| {
+        bench_variants(b, &variants, &mut brush)
+    });
 }
 
 /// Renders a different set of sections each run by
 /// cycling through the provided `variants`
-fn bench_variants(
-    b: &mut test::Bencher,
-    variants: &[Vec<Section<'_>>],
-    brush: GlyphBrushBuilder<'_>,
-) {
-    let _ = env_logger::try_init();
-
+#[inline]
+fn bench_variants<'a, S: 'a>(
+    b: &mut Bencher,
+    variants: &'a [std::vec::Vec<S>],
+    glyph_brush: &mut GlyphBrush<'_, [f32; 13]>,
+) where
+    &'a S: Into<Cow<'a, VariedSection<'a>>>,
+{
     let mut variants = variants.iter().cycle();
-    let mut glyph_brush = brush.build();
-
-    // once before, to warm up cache benches
-    for s in variants.next().unwrap() {
-        glyph_brush.queue(s);
-    }
-    glyph_brush
-        .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
-        .unwrap();
 
     b.iter(|| {
         for s in variants.next().unwrap() {
             glyph_brush.queue(s);
-        }
-        glyph_brush
-            .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
-            .unwrap();
-    });
-}
-
-fn bench_varied_variants(
-    b: &mut test::Bencher,
-    variants: &[Vec<VariedSection<'_>>],
-    brush: GlyphBrushBuilder<'_>,
-) {
-    let _ = env_logger::try_init();
-
-    let mut variants = variants.iter().cycle();
-    let mut glyph_brush = brush.build();
-
-    // once before, to warm up cache benches
-    for s in variants.next().unwrap() {
-        glyph_brush.queue(s);
-    }
-    glyph_brush
-        .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
-        .unwrap();
-
-    b.iter(|| {
-        for s in variants.next().unwrap() {
-            glyph_brush.queue(s);
-        }
-        glyph_brush
-            .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
-            .unwrap();
-    });
-}
-
-fn bench(b: &mut test::Bencher, sections: &[Section<'_>], brush: GlyphBrushBuilder<'_>) {
-    let _ = env_logger::try_init();
-
-    let mut glyph_brush = brush.build();
-
-    // once before, to warm up cache benches
-    for section in sections {
-        glyph_brush.queue(*section);
-    }
-
-    glyph_brush
-        .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
-        .unwrap();
-
-    b.iter(|| {
-        for section in sections {
-            glyph_brush.queue(*section);
         }
         glyph_brush
             .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
@@ -668,3 +696,31 @@ fn gl_to_vertex(
         color[3],
     ]
 }
+
+criterion_group!(
+    benches,
+    render_3_medium_sections_fully,
+    render_1_large_section_partially,
+    render_v_center_1_large_section_partially,
+    render_v_bottom_1_large_section_partially,
+    render_100_small_sections_fully,
+    continually_modify_end_text_of_1_of_3,
+    continually_modify_start_text_of_1_of_3,
+    continually_modify_middle_text_of_1_of_3,
+    continually_modify_bounds_of_1_of_3,
+    continually_modify_color_of_1_of_3,
+    continually_modify_alpha_of_1_of_3,
+    continually_modify_position_of_1_of_3,
+);
+
+criterion_group!(
+    name = no_cache_benches;
+    config = Criterion::default().sample_size(20);
+    targets = no_cache_render_3_medium_sections_fully,
+        no_cache_render_1_large_section_partially,
+        no_cache_render_v_center_1_large_section_partially,
+        no_cache_render_v_bottom_1_large_section_partially,
+        no_cache_render_100_small_sections_fully,
+);
+
+criterion_main!(benches, no_cache_benches);
