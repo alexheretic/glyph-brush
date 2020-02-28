@@ -334,7 +334,10 @@ macro_rules! delegate_glyph_brush_builder_fns {
         /// Adds additional fonts to the one added in [`using_font`](#method.using_font) /
         /// [`using_font_bytes`](#method.using_font_bytes).
         /// Returns a [`FontId`](struct.FontId.html) to reference this font.
-        pub fn add_font_bytes<B: Into<$crate::rusttype::SharedBytes<'a>>>(&mut self, font_data: B) -> $crate::FontId {
+        pub fn add_font_bytes<B: Into<$crate::rusttype::SharedBytes<'a>>>(
+            &mut self,
+            font_data: B,
+        ) -> $crate::FontId {
             self.$inner.add_font_bytes(font_data)
         }
 
@@ -415,5 +418,5 @@ macro_rules! delegate_glyph_brush_builder_fns {
             self.$inner = self.$inner.cache_glyph_drawing(cache);
             self
         }
-    }
+    };
 }
