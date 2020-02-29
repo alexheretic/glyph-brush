@@ -708,7 +708,6 @@ impl<'font, V> Glyphed<'font, V> {
     }
 }
 
-
 #[cfg(test)]
 mod hash_diff_test {
     use super::*;

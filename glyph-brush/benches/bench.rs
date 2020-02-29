@@ -1,7 +1,6 @@
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 use glyph_brush::{rusttype::*, *};
-use std::borrow::Cow;
-use std::f32;
+use std::{borrow::Cow, f32};
 
 const TEST_FONT: &[u8] = include_bytes!("../../fonts/DejaVuSansMono.ttf");
 const LIPSUM: &str = include_str!("lipsum.txt");
