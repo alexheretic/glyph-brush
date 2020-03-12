@@ -192,7 +192,6 @@ pub trait GlyphCruncher<'font> {
 ///
 /// ```
 /// use glyph_brush::{GlyphCalculatorBuilder, GlyphCruncher, Section};
-/// # fn main() {
 ///
 /// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
 /// let glyphs = GlyphCalculatorBuilder::using_font_bytes(dejavu).build();
@@ -207,7 +206,6 @@ pub trait GlyphCruncher<'font> {
 /// let mut scope = glyphs.cache_scope();
 ///
 /// let bounds = scope.pixel_bounds(section);
-/// # }
 /// ```
 ///
 /// # Caching behaviour
@@ -333,7 +331,7 @@ impl<'font, H: BuildHasher> GlyphCruncher<'font> for GlyphCalculatorGuard<'_, 'f
 
 impl<H> Drop for GlyphCalculatorGuard<'_, '_, H> {
     fn drop(&mut self) {
-        let cached = mem::replace(&mut self.cached, FxHashSet::default());
+        let cached = mem::take(&mut self.cached);
         self.glyph_cache.retain(|key, _| cached.contains(key));
     }
 }

@@ -409,7 +409,7 @@ where
     fn cleanup_frame(&mut self) {
         if self.cache_glyph_positioning {
             // clear section_buffer & trim calculate_glyph_cache to active sections
-            let active = mem::replace(&mut self.keep_in_cache, <_>::default());
+            let active = mem::take(&mut self.keep_in_cache);
             self.calculate_glyph_cache
                 .retain(|key, _| active.contains(key));
             mem::replace(&mut self.keep_in_cache, active);
@@ -559,7 +559,9 @@ pub enum BrushError {
 }
 impl fmt::Display for BrushError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", std::error::Error::description(self))
+        match self {
+            Self::TextureTooSmall {..} => write!(f, "TextureTooSmall")
+        }
     }
 }
 impl std::error::Error for BrushError {

@@ -13,7 +13,7 @@ use gfx::{
 };
 use glutin::{
     event::{
-        DeviceEvent, ElementState, Event, KeyboardInput, ModifiersState, MouseScrollDelta,
+        ElementState, Event, KeyboardInput, ModifiersState, MouseScrollDelta,
         VirtualKeyCode, WindowEvent,
     },
     event_loop::ControlFlow,
@@ -89,12 +89,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         match event {
             Event::MainEventsCleared => window_ctx.window().request_redraw(),
-            Event::DeviceEvent { event, .. } => {
-                if let DeviceEvent::ModifiersChanged(new_mods) = event {
-                    modifiers = new_mods
-                }
-            }
             Event::WindowEvent { event, .. } => match event {
+                WindowEvent::ModifiersChanged(new_mods) => modifiers = new_mods,
                 WindowEvent::KeyboardInput {
                     input:
                         KeyboardInput {
