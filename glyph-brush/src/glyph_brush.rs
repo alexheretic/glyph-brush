@@ -560,7 +560,7 @@ pub enum BrushError {
 impl fmt::Display for BrushError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::TextureTooSmall {..} => write!(f, "TextureTooSmall")
+            Self::TextureTooSmall { .. } => write!(f, "TextureTooSmall"),
         }
     }
 }

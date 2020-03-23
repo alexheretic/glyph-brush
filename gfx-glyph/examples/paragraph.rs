@@ -13,8 +13,8 @@ use gfx::{
 };
 use glutin::{
     event::{
-        ElementState, Event, KeyboardInput, ModifiersState, MouseScrollDelta,
-        VirtualKeyCode, WindowEvent,
+        ElementState, Event, KeyboardInput, ModifiersState, MouseScrollDelta, VirtualKeyCode,
+        WindowEvent,
     },
     event_loop::ControlFlow,
 };
