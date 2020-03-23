@@ -23,6 +23,11 @@ os:
 - windows
 
 script: |
+  if [[ "$TRAVIS_RUST_VERSION" == *stable* ]]; then
+    rustup component add rustfmt; cargo fmt --version;
+    cargo fmt -- --check || (echo "Please reformat your code with 'cargo fmt'
+    (version $(cargo fmt --version))"; false);
+  fi
   if [ -n "$TARGET" ]; then
     rustup target add "$TARGET" && cargo test --all --target "$TARGET"
   else
