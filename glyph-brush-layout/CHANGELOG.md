@@ -1,6 +1,8 @@
+# Unreleased
+* Use advance-width of final glyph in a line for center & right alignment instead of pixel bounds. This produces more consistent results.
+
 # 0.1.9
-* Fix consistency of section bounds by removing usage of glyph pixel bounds during word layout, instead always relying
-  on advance width.
+* Fix consistency of section bounds by removing usage of glyph pixel bounds during word layout, instead always relying on advance-width.
 * Fix possible floating point errors when using section bounds that exactly bound the section.
 
 # 0.1.8

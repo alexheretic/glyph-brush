@@ -542,9 +542,8 @@ mod layout_test {
             last_glyph.position()
         );
 
-        // this is pretty approximate because of the pixel bounding box, but should be around 0
-        let rightmost_x = last_glyph.pixel_bounding_box().unwrap().max.x as f32
-            + last_glyph.unpositioned().h_metrics().left_side_bearing;
+        let rightmost_x =
+            last_glyph.position().x + last_glyph.unpositioned().h_metrics().advance_width;
         assert_relative_eq!(rightmost_x, 0.0, epsilon = 1e-1);
     }
 
@@ -578,10 +577,8 @@ mod layout_test {
         );
 
         let leftmost_x = glyphs[0].0.position().x;
-        // this is pretty approximate because of the pixel bounding box, but should be around
-        // the negation of the left
-        let rightmost_x = last_glyph.pixel_bounding_box().unwrap().max.x as f32
-            + last_glyph.unpositioned().h_metrics().left_side_bearing;
+        let rightmost_x =
+            last_glyph.position().x + last_glyph.unpositioned().h_metrics().advance_width;
         assert_relative_eq!(rightmost_x, -leftmost_x, epsilon = 1e-1);
     }
 

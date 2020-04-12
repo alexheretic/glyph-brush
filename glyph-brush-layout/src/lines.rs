@@ -39,11 +39,7 @@ impl<'font> Line<'font> {
             HorizontalAlign::Center | HorizontalAlign::Right => {
                 let mut shift_left = {
                     let last_glyph = &self.glyphs.last().unwrap().0;
-                    last_glyph
-                        .bounds()
-                        .map(|bounds| bounds.max.x.ceil())
-                        .unwrap_or(last_glyph.relative.x)
-                        + last_glyph.glyph.h_metrics().left_side_bearing
+                    last_glyph.relative.x + last_glyph.glyph.h_metrics().advance_width
                 };
                 if h_align == HorizontalAlign::Center {
                     shift_left /= 2.0;
