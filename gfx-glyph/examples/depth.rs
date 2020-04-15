@@ -99,6 +99,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     font_id: italic_font,
                     layout: Layout::default().h_align(HorizontalAlign::Center),
                     z: 0.2,
+                    custom: (),
                 });
 
                 // 2nd section is drawn last but with higher z,

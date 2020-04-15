@@ -25,10 +25,10 @@ pub type PositionedGlyphIter<'a, 'font> = std::iter::Map<
 /// # use glyph_brush::GlyphBrush;
 /// use glyph_brush::GlyphCruncher;
 ///
-/// # let glyph_brush: GlyphBrush<'_, ()> = unimplemented!();
+/// # let glyph_brush: GlyphBrush<'_, (), ()> = unimplemented!();
 /// let default_font = glyph_brush.fonts()[0];
 /// ```
-pub trait GlyphCruncher<'font> {
+pub trait GlyphCruncher<'font, C: Clone> {
     /// Returns the pixel bounding box for the input section using a custom layout.
     /// The box is a conservative whole number pixel rectangle that can contain the section.
     ///
@@ -45,7 +45,8 @@ pub trait GlyphCruncher<'font> {
     ) -> Option<Rect<i32>>
     where
         L: GlyphPositioner + Hash,
-        S: Into<Cow<'a, VariedSection<'a>>>;
+        S: Into<Cow<'a, VariedSection<'a, C>>>,
+        C: 'a;
 
     /// Returns the pixel bounding box for the input section. The box is a conservative
     /// whole number pixel rectangle that can contain the section.
@@ -59,7 +60,8 @@ pub trait GlyphCruncher<'font> {
     #[inline]
     fn pixel_bounds<'a, S>(&mut self, section: S) -> Option<Rect<i32>>
     where
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, VariedSection<'a, C>>>,
+        C: 'a,
     {
         let section = section.into();
         let layout = section.layout;
@@ -79,7 +81,8 @@ pub trait GlyphCruncher<'font> {
     ) -> PositionedGlyphIter<'b, 'font>
     where
         L: GlyphPositioner + Hash,
-        S: Into<Cow<'a, VariedSection<'a>>>;
+        S: Into<Cow<'a, VariedSection<'a, C>>>,
+        C: 'a;
 
     /// Returns an iterator over the `PositionedGlyph`s of the given section.
     ///
@@ -90,7 +93,8 @@ pub trait GlyphCruncher<'font> {
     #[inline]
     fn glyphs<'a, 'b, S>(&'b mut self, section: S) -> PositionedGlyphIter<'b, 'font>
     where
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, VariedSection<'a, C>>>,
+        C: 'a,
     {
         let section = section.into();
         let layout = section.layout;
@@ -121,7 +125,8 @@ pub trait GlyphCruncher<'font> {
     ) -> Option<Rect<f32>>
     where
         L: GlyphPositioner + Hash,
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, VariedSection<'a, C>>>,
+        C: 'a,
     {
         let section = section.into();
         let geometry = SectionGeometry::from(section.as_ref());
@@ -175,7 +180,8 @@ pub trait GlyphCruncher<'font> {
     #[inline]
     fn glyph_bounds<'a, S>(&mut self, section: S) -> Option<Rect<f32>>
     where
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, VariedSection<'a, C>>>,
+        C: 'a,
     {
         let section = section.into();
         let layout = section.layout;
@@ -194,7 +200,7 @@ pub trait GlyphCruncher<'font> {
 /// use glyph_brush::{GlyphCalculatorBuilder, GlyphCruncher, Section};
 ///
 /// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-/// let glyphs = GlyphCalculatorBuilder::using_font_bytes(dejavu).build();
+/// let glyphs = GlyphCalculatorBuilder::using_font_bytes(dejavu).build::<()>();
 ///
 /// let section = Section {
 ///     text: "Hello glyph_brush",
@@ -220,24 +226,24 @@ pub trait GlyphCruncher<'font> {
 /// is created, that provides the calculation functionality. Dropping indicates the 'cache frame'
 /// is over, similar to when a `GlyphBrush` draws. Section calculations are cached for the next
 /// 'cache frame', if not used then they will be dropped.
-pub struct GlyphCalculator<'font, H = DefaultSectionHasher> {
+pub struct GlyphCalculator<'font, C, H = DefaultSectionHasher> {
     fonts: Vec<Font<'font>>,
 
     // cache of section-layout hash -> computed glyphs, this avoid repeated glyph computation
     // for identical layout/sections common to repeated frame rendering
-    calculate_glyph_cache: Mutex<FxHashMap<u64, GlyphedSection<'font>>>,
+    calculate_glyph_cache: Mutex<FxHashMap<u64, GlyphedSection<'font, C>>>,
 
     section_hasher: H,
 }
 
-impl<H> fmt::Debug for GlyphCalculator<'_, H> {
+impl<C, H> fmt::Debug for GlyphCalculator<'_, C, H> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "GlyphCalculator")
     }
 }
 
-impl<'font, H: BuildHasher + Clone> GlyphCalculator<'font, H> {
-    pub fn cache_scope<'a>(&'a self) -> GlyphCalculatorGuard<'a, 'font, H> {
+impl<'font, C, H: BuildHasher + Clone> GlyphCalculator<'font, C, H> {
+    pub fn cache_scope<'a>(&'a self) -> GlyphCalculatorGuard<'a, 'font, C, H> {
         GlyphCalculatorGuard {
             fonts: &self.fonts,
             glyph_cache: self.calculate_glyph_cache.lock().unwrap(),
@@ -255,16 +261,16 @@ impl<'font, H: BuildHasher + Clone> GlyphCalculator<'font, H> {
 }
 
 /// [`GlyphCalculator`](struct.GlyphCalculator.html) scoped cache lock.
-pub struct GlyphCalculatorGuard<'brush, 'font: 'brush, H = DefaultSectionHasher> {
+pub struct GlyphCalculatorGuard<'brush, 'font: 'brush, C, H = DefaultSectionHasher> {
     fonts: &'brush Vec<Font<'font>>,
-    glyph_cache: MutexGuard<'brush, FxHashMap<u64, GlyphedSection<'font>>>,
+    glyph_cache: MutexGuard<'brush, FxHashMap<u64, GlyphedSection<'font, C>>>,
     cached: FxHashSet<u64>,
     section_hasher: H,
 }
 
-impl<H: BuildHasher> GlyphCalculatorGuard<'_, '_, H> {
+impl<C: Hash + Clone, H: BuildHasher> GlyphCalculatorGuard<'_, '_, C, H> {
     /// Returns the calculate_glyph_cache key for this sections glyphs
-    fn cache_glyphs<L>(&mut self, section: &VariedSection<'_>, layout: &L) -> u64
+    fn cache_glyphs<L>(&mut self, section: &VariedSection<'_, C>, layout: &L) -> u64
     where
         L: GlyphPositioner,
     {
@@ -281,6 +287,7 @@ impl<H: BuildHasher> GlyphCalculatorGuard<'_, '_, H> {
                 bounds: layout.bounds_rect(&geometry),
                 glyphs: layout.calculate_glyphs(self.fonts, &geometry, &section.text),
                 z: section.z,
+                custom: section.custom.clone(),
             });
         }
 
@@ -288,13 +295,13 @@ impl<H: BuildHasher> GlyphCalculatorGuard<'_, '_, H> {
     }
 }
 
-impl fmt::Debug for GlyphCalculatorGuard<'_, '_> {
+impl<C> fmt::Debug for GlyphCalculatorGuard<'_, '_, C> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "GlyphCalculatorGuard")
     }
 }
 
-impl<'font, H: BuildHasher> GlyphCruncher<'font> for GlyphCalculatorGuard<'_, 'font, H> {
+impl<'font, C: Clone + Hash, H: BuildHasher> GlyphCruncher<'font, C> for GlyphCalculatorGuard<'_, 'font, C, H> {
     fn pixel_bounds_custom_layout<'a, S, L>(
         &mut self,
         section: S,
@@ -302,7 +309,8 @@ impl<'font, H: BuildHasher> GlyphCruncher<'font> for GlyphCalculatorGuard<'_, 'f
     ) -> Option<Rect<i32>>
     where
         L: GlyphPositioner + Hash,
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, VariedSection<'a, C>>>,
+        C: 'a
     {
         let section_hash = self.cache_glyphs(&section.into(), custom_layout);
         self.cached.insert(section_hash);
@@ -316,7 +324,8 @@ impl<'font, H: BuildHasher> GlyphCruncher<'font> for GlyphCalculatorGuard<'_, 'f
     ) -> PositionedGlyphIter<'b, 'font>
     where
         L: GlyphPositioner + Hash,
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, VariedSection<'a, C>>>,
+        C: 'a,
     {
         let section_hash = self.cache_glyphs(&section.into(), custom_layout);
         self.cached.insert(section_hash);
@@ -329,7 +338,7 @@ impl<'font, H: BuildHasher> GlyphCruncher<'font> for GlyphCalculatorGuard<'_, 'f
     }
 }
 
-impl<H> Drop for GlyphCalculatorGuard<'_, '_, H> {
+impl<C, H> Drop for GlyphCalculatorGuard<'_, '_, C, H> {
     fn drop(&mut self) {
         let cached = mem::take(&mut self.cached);
         self.glyph_cache.retain(|key, _| cached.contains(key));
@@ -344,7 +353,7 @@ impl<H> Drop for GlyphCalculatorGuard<'_, '_, H> {
 /// use glyph_brush::GlyphCalculatorBuilder;
 ///
 /// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-/// let mut glyphs = GlyphCalculatorBuilder::using_font_bytes(dejavu).build();
+/// let mut glyphs = GlyphCalculatorBuilder::using_font_bytes(dejavu).build::<()>();
 /// ```
 #[derive(Debug, Clone)]
 pub struct GlyphCalculatorBuilder<'a, H = DefaultSectionHasher> {
@@ -424,7 +433,7 @@ impl<'a, H: BuildHasher> GlyphCalculatorBuilder<'a, H> {
     }
 
     /// Builds a `GlyphCalculator`
-    pub fn build(self) -> GlyphCalculator<'a, H> {
+    pub fn build<C>(self) -> GlyphCalculator<'a, C, H> {
         GlyphCalculator {
             fonts: self.font_data,
             calculate_glyph_cache: Mutex::default(),
@@ -434,13 +443,14 @@ impl<'a, H: BuildHasher> GlyphCalculatorBuilder<'a, H> {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct GlyphedSection<'font> {
+pub(crate) struct GlyphedSection<'font, C> {
     pub bounds: Rect<f32>,
     pub glyphs: Vec<(PositionedGlyph<'font>, Color, FontId)>,
     pub z: f32,
+    pub custom: C
 }
 
-impl<'a> PartialEq<GlyphedSection<'a>> for GlyphedSection<'a> {
+impl<'a, C> PartialEq<GlyphedSection<'a, C>> for GlyphedSection<'a, C> {
     fn eq(&self, other: &Self) -> bool {
         self.bounds == other.bounds
             && self.z == other.z
@@ -455,7 +465,7 @@ impl<'a> PartialEq<GlyphedSection<'a>> for GlyphedSection<'a> {
     }
 }
 
-impl<'font> GlyphedSection<'font> {
+impl<'font, C> GlyphedSection<'font, C> {
     pub(crate) fn pixel_bounds(&self) -> Option<Rect<i32>> {
         let Self {
             ref glyphs, bounds, ..
@@ -550,7 +560,7 @@ mod test {
 
     #[test]
     fn pixel_bounds_respect_layout_bounds() {
-        let glyphs = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build();
+        let glyphs = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build::<()>();
         let mut glyphs = glyphs.cache_scope();
 
         let section = Section {
@@ -585,7 +595,7 @@ mod test {
 
     #[test]
     fn pixel_bounds_handle_infinity() {
-        let glyphs = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build();
+        let glyphs = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build::<()>();
         let mut glyphs = glyphs.cache_scope();
 
         for h_align in &[
@@ -625,7 +635,7 @@ mod test {
 
     #[test]
     fn glyph_bounds() {
-        let glyphs = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build();
+        let glyphs = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build::<()>();
         let mut glyphs = glyphs.cache_scope();
 
         let scale = Scale::uniform(16.0);
@@ -656,7 +666,7 @@ mod test {
 
     #[test]
     fn glyph_bounds_respect_layout_bounds() {
-        let glyphs = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build();
+        let glyphs = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build::<()>();
         let mut glyphs = glyphs.cache_scope();
 
         let section = Section {
@@ -702,6 +712,7 @@ mod test {
             },
             z: 0.5,
             glyphs: vec![(glyph.clone(), color, FontId(0))],
+            custom: (),
         };
         let mut b = GlyphedSection {
             bounds: Rect {
@@ -710,6 +721,7 @@ mod test {
             },
             z: 0.5,
             glyphs: vec![(glyph.clone(), color, FontId(0))],
+            custom: (),
         };
 
         assert_eq!(a, b);
@@ -722,7 +734,7 @@ mod test {
     /// Issue #87
     #[test]
     fn glyph_bound_section_bound_consistency() {
-        let calc = GlyphCalculatorBuilder::using_font(OPEN_SANS_LIGHT.clone()).build();
+        let calc = GlyphCalculatorBuilder::using_font(OPEN_SANS_LIGHT.clone()).build::<()>();
         let mut calc = calc.cache_scope();
 
         let section = Section {
@@ -753,7 +765,7 @@ mod test {
     /// Issue #87
     #[test]
     fn glyph_bound_section_bound_consistency_trailing_space() {
-        let calc = GlyphCalculatorBuilder::using_font(OPEN_SANS_LIGHT.clone()).build();
+        let calc = GlyphCalculatorBuilder::using_font(OPEN_SANS_LIGHT.clone()).build::<()>();
         let mut calc = calc.cache_scope();
 
         let section = Section {
@@ -785,7 +797,7 @@ mod test {
     /// error between the calculated glyph_bounds bounds & those used during layout.
     #[test]
     fn glyph_bound_section_bound_consistency_floating_point() {
-        let calc = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build();
+        let calc = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build::<()>();
         let mut calc = calc.cache_scope();
 
         let section = Section {

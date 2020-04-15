@@ -11,7 +11,7 @@ use std::hash::BuildHasher;
 /// # type Vertex = ();
 ///
 /// let dejavu: &[u8] = include_bytes!("../../../fonts/DejaVuSans.ttf");
-/// let mut glyph_brush: GlyphBrush<'_, Vertex> =
+/// let mut glyph_brush: GlyphBrush<'_, Vertex, ()> =
 ///     GlyphBrushBuilder::using_font_bytes(dejavu).build();
 /// ```
 pub struct GlyphBrushBuilder<'a, H = DefaultSectionHasher> {
@@ -110,10 +110,10 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     /// # type Vertex = ();
     /// # let open_sans = Font::from_bytes(&include_bytes!("../../../fonts/DejaVuSans.ttf")[..]).unwrap();
     /// # let deja_vu_sans = open_sans.clone();
-    /// let two_font_brush: GlyphBrush<'_, Vertex>
+    /// let two_font_brush: GlyphBrush<'_, Vertex, ()>
     ///     = GlyphBrushBuilder::using_fonts(vec![open_sans, deja_vu_sans]).build();
     ///
-    /// let one_font_brush: GlyphBrush<'_, Vertex> = two_font_brush
+    /// let one_font_brush: GlyphBrush<'_, Vertex, ()> = two_font_brush
     ///     .to_builder()
     ///     .replace_fonts(|mut fonts| {
     ///         // remove open_sans, leaving just deja_vu as FontId(0)
@@ -234,7 +234,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     }
 
     /// Builds a `GlyphBrush` using the input gfx factory
-    pub fn build<V>(self) -> GlyphBrush<'a, V, H> {
+    pub fn build<V, C>(self) -> GlyphBrush<'a, V, C, H> {
         GlyphBrush {
             fonts: self.font_data,
             texture_cache: self.gpu_cache_builder.build(),
@@ -266,14 +266,14 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     /// # use glyph_brush::{*, rusttype::*};
     /// # let sans = Font::from_bytes(&include_bytes!("../../../fonts/DejaVuSans.ttf")[..]).unwrap();
     /// # type Vertex = ();
-    /// let mut glyph_brush: GlyphBrush<'_, Vertex> = GlyphBrushBuilder::using_font(sans).build();
+    /// let mut glyph_brush: GlyphBrush<'_, Vertex, ()> = GlyphBrushBuilder::using_font(sans).build();
     /// assert_eq!(glyph_brush.texture_dimensions(), (256, 256));
     ///
     /// // Use a new builder to rebuild the brush with a smaller initial cache size
     /// glyph_brush.to_builder().initial_cache_size((64, 64)).rebuild(&mut glyph_brush);
     /// assert_eq!(glyph_brush.texture_dimensions(), (64, 64));
     /// ```
-    pub fn rebuild<V>(self, brush: &mut GlyphBrush<'a, V, H>) {
+    pub fn rebuild<V, C>(self, brush: &mut GlyphBrush<'a, V, C, H>) {
         std::mem::replace(brush, self.build());
     }
 }

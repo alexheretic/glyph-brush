@@ -623,9 +623,9 @@ fn continually_modify_position_of_1_of_3(c: &mut Criterion) {
 fn bench_variants<'a, S: 'a>(
     b: &mut Bencher,
     variants: &'a [std::vec::Vec<S>],
-    glyph_brush: &mut GlyphBrush<'_, [f32; 13]>,
+    glyph_brush: &mut GlyphBrush<'_, [f32; 13], ()>,
 ) where
-    &'a S: Into<Cow<'a, VariedSection<'a>>>,
+    &'a S: Into<Cow<'a, VariedSection<'a, ()>>>,
 {
     let mut variants = variants.iter().cycle();
 
@@ -648,7 +648,8 @@ fn gl_to_vertex(
         bounds,
         color,
         z,
-    }: glyph_brush::GlyphVertex,
+        custom: (),
+    }: glyph_brush::GlyphVertex<()>,
 ) -> [f32; 13] {
     let gl_bounds = bounds;
 

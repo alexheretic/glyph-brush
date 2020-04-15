@@ -46,14 +46,14 @@ type SectionHash = u64;
 /// This behaviour can be adjusted with
 /// [`GlyphBrushBuilder::gpu_cache_position_tolerance`]
 /// (struct.GlyphBrushBuilder.html#method.gpu_cache_position_tolerance).
-pub struct GlyphBrush<'font, V, H = DefaultSectionHasher> {
+pub struct GlyphBrush<'font, V, C, H = DefaultSectionHasher> {
     fonts: Vec<Font<'font>>,
     texture_cache: Cache<'font>,
     last_draw: LastDrawInfo,
 
     // cache of section-layout hash -> computed glyphs, this avoid repeated glyph computation
     // for identical layout/sections common to repeated frame rendering
-    calculate_glyph_cache: FxHashMap<SectionHash, Glyphed<'font, V>>,
+    calculate_glyph_cache: FxHashMap<SectionHash, Glyphed<'font, V, C>>,
 
     last_frame_seq_id_sections: Vec<SectionHashDetail>,
     frame_seq_id_sections: Vec<SectionHashDetail>,
@@ -71,20 +71,21 @@ pub struct GlyphBrush<'font, V, H = DefaultSectionHasher> {
 
     section_hasher: H,
 
-    last_pre_positioned: Vec<Glyphed<'font, V>>,
-    pre_positioned: Vec<Glyphed<'font, V>>,
+    last_pre_positioned: Vec<Glyphed<'font, V, C>>,
+    pre_positioned: Vec<Glyphed<'font, V, C>>,
 }
 
-impl<V, H> fmt::Debug for GlyphBrush<'_, V, H> {
+impl<V, H, C> fmt::Debug for GlyphBrush<'_, V, H, C> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "GlyphBrush")
     }
 }
 
-impl<'font, V, H> GlyphCruncher<'font> for GlyphBrush<'font, V, H>
+impl<'font, V, C, H> GlyphCruncher<'font, C> for GlyphBrush<'font, V, C, H>
 where
     V: Clone + 'static,
     H: BuildHasher,
+    C: Clone,
 {
     fn pixel_bounds_custom_layout<'a, S, L>(
         &mut self,
@@ -93,7 +94,8 @@ where
     ) -> Option<Rect<i32>>
     where
         L: GlyphPositioner + Hash,
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, VariedSection<'a, C>>>,
+        C: 'a,
     {
         let section_hash = self.cache_glyphs(&section.into(), custom_layout);
         self.keep_in_cache.insert(section_hash);
@@ -109,7 +111,8 @@ where
     ) -> PositionedGlyphIter<'b, 'font>
     where
         L: GlyphPositioner + Hash,
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, VariedSection<'a, C>>>,
+        C: 'a,
     {
         let section_hash = self.cache_glyphs(&section.into(), custom_layout);
         self.keep_in_cache.insert(section_hash);
@@ -123,10 +126,11 @@ where
     }
 }
 
-impl<'font, V, H> GlyphBrush<'font, V, H>
+impl<'font, V, C, H> GlyphBrush<'font, V, C, H>
 where
     V: Clone + 'static,
     H: BuildHasher,
+    C: Clone,
 {
     /// Queues a section/layout to be processed by the next call of
     /// [`process_queued`](struct.GlyphBrush.html#method.process_queued). Can be called multiple
@@ -139,7 +143,8 @@ where
     pub fn queue_custom_layout<'a, S, G>(&mut self, section: S, custom_layout: &G)
     where
         G: GlyphPositioner,
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, VariedSection<'a, C>>>,
+        C: 'a,
     {
         let section = section.into();
         if cfg!(debug_assertions) {
@@ -161,7 +166,7 @@ where
     /// ```no_run
     /// # use glyph_brush::*;
     /// # let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-    /// # let mut glyph_brush: GlyphBrush<'_, ()> = GlyphBrushBuilder::using_font_bytes(dejavu).build();
+    /// # let mut glyph_brush: GlyphBrush<'_, (), ()> = GlyphBrushBuilder::using_font_bytes(dejavu).build();
     /// glyph_brush.queue(Section {
     ///     text: "Hello glyph_brush",
     ///     ..Section::default()
@@ -169,7 +174,8 @@ where
     /// ```
     pub fn queue<'a, S>(&mut self, section: S)
     where
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, VariedSection<'a, C>>>,
+        C: 'a,
     {
         let section = section.into();
         let layout = section.layout;
@@ -184,14 +190,15 @@ where
         glyphs: Vec<(PositionedGlyph<'font>, Color, FontId)>,
         bounds: Rect<f32>,
         z: f32,
+        custom: C,
     ) {
         self.pre_positioned
-            .push(Glyphed::new(GlyphedSection { glyphs, bounds, z }));
+            .push(Glyphed::new(GlyphedSection { glyphs, bounds, z, custom }));
     }
 
     /// Returns the calculate_glyph_cache key for this sections glyphs
     #[allow(clippy::map_entry)] // further borrows are required after the contains_key check
-    fn cache_glyphs<L>(&mut self, section: &VariedSection<'_>, layout: &L) -> SectionHash
+    fn cache_glyphs<L>(&mut self, section: &VariedSection<'_,C>, layout: &L) -> SectionHash
     where
         L: GlyphPositioner,
     {
@@ -239,6 +246,7 @@ where
                             layout.calculate_glyphs(&self.fonts, &geometry, &section.text)
                         }),
                         z: section.z,
+                        custom: section.custom.clone(),
                     }),
                 );
             }
@@ -250,6 +258,7 @@ where
                     bounds: layout.bounds_rect(&geometry),
                     glyphs: layout.calculate_glyphs(&self.fonts, &geometry, &section.text),
                     z: section.z,
+                    custom: section.custom.clone(),
                 }),
             );
         }
@@ -275,7 +284,7 @@ where
     /// # use glyph_brush::*;
     /// # fn main() -> Result<(), BrushError> {
     /// # let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-    /// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
+    /// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build::<(), ()>();
     /// # fn update_texture(_: glyph_brush::rusttype::Rect<u32>, _: &[u8]) {}
     /// # let into_vertex = |_| ();
     /// glyph_brush.process_queued(
@@ -293,7 +302,7 @@ where
     ) -> Result<BrushAction<V>, BrushError>
     where
         F1: FnMut(Rect<u32>, &[u8]),
-        F2: Fn(GlyphVertex) -> V + Copy,
+        F2: Fn(GlyphVertex<C>) -> V + Copy,
     {
         let draw_info = LastDrawInfo {
             text_state: {
@@ -384,7 +393,7 @@ where
     /// ```no_run
     /// # use glyph_brush::*;
     /// # let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-    /// # let mut glyph_brush: GlyphBrush<'_, ()> = GlyphBrushBuilder::using_font_bytes(dejavu).build();
+    /// # let mut glyph_brush: GlyphBrush<'_, (), ()> = GlyphBrushBuilder::using_font_bytes(dejavu).build();
     /// glyph_brush.resize_texture(512, 512);
     /// ```
     pub fn resize_texture(&mut self, new_width: u32, new_height: u32) {
@@ -445,7 +454,7 @@ where
     ///
     /// // dejavu is built as default `FontId(0)`
     /// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-    /// let mut glyph_brush: GlyphBrush<'_, Vertex> =
+    /// let mut glyph_brush: GlyphBrush<'_, Vertex, ()> =
     ///     GlyphBrushBuilder::using_font_bytes(dejavu).build();
     ///
     /// // some time later, add another font referenced by a new `FontId`
@@ -469,8 +478,9 @@ where
     /// Should not generally be necessary, see [caching behaviour](#caching-behaviour).
     pub fn keep_cached_custom_layout<'a, S, G>(&mut self, section: S, custom_layout: &G)
     where
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, VariedSection<'a, C>>>,
         G: GlyphPositioner,
+        C: 'a,
     {
         if !self.cache_glyph_positioning {
             return;
@@ -491,7 +501,8 @@ where
     /// Should not generally be necessary, see [caching behaviour](#caching-behaviour).
     pub fn keep_cached<'a, S>(&mut self, section: S)
     where
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, VariedSection<'a, C>>>,
+        C: 'a,
     {
         let section = section.into();
         let layout = section.layout;
@@ -499,7 +510,7 @@ where
     }
 }
 
-impl<'font, V, H: BuildHasher + Clone> GlyphBrush<'font, V, H> {
+impl<'font, V, C, H: BuildHasher + Clone> GlyphBrush<'font, V, C, H> {
     /// Return a [`GlyphBrushBuilder`](struct.GlyphBrushBuilder.html) prefilled with the
     /// properties of this `GlyphBrush`.
     ///
@@ -509,11 +520,11 @@ impl<'font, V, H: BuildHasher + Clone> GlyphBrush<'font, V, H> {
     /// # use glyph_brush::{*, rusttype::*};
     /// # type Vertex = ();
     /// # let sans = Font::from_bytes(&include_bytes!("../../fonts/DejaVuSans.ttf")[..]).unwrap();
-    /// let glyph_brush: GlyphBrush<'_, Vertex> = GlyphBrushBuilder::using_font(sans)
+    /// let glyph_brush: GlyphBrush<'_, Vertex, ()> = GlyphBrushBuilder::using_font(sans)
     ///     .initial_cache_size((128, 128))
     ///     .build();
     ///
-    /// let new_brush: GlyphBrush<'_, Vertex> = glyph_brush.to_builder().build();
+    /// let new_brush: GlyphBrush<'_, Vertex, ()> = glyph_brush.to_builder().build();
     /// assert_eq!(new_brush.texture_dimensions(), (128, 128));
     /// ```
     pub fn to_builder(&self) -> GlyphBrushBuilder<'font, H> {
@@ -533,12 +544,13 @@ struct LastDrawInfo {
 
 /// Data used to generate vertex information for a single glyph
 #[derive(Debug)]
-pub struct GlyphVertex {
+pub struct GlyphVertex<C> {
     pub tex_coords: Rect<f32>,
     pub pixel_coords: Rect<i32>,
     pub bounds: Rect<f32>,
     pub color: Color,
     pub z: f32,
+    pub custom: C,
 }
 
 /// Actions that should be taken after processing queue data
@@ -589,10 +601,11 @@ struct SectionHashDetail {
 
 impl SectionHashDetail {
     #[inline]
-    fn new<H, L>(build_hasher: &H, section: &VariedSection<'_>, layout: &L) -> Self
+    fn new<H, L, C>(build_hasher: &H, section: &VariedSection<'_, C>, layout: &L) -> Self
     where
         H: BuildHasher,
         L: GlyphPositioner,
+        C: Clone,
     {
         let parts = section.to_hashable_parts();
 
@@ -637,21 +650,21 @@ impl SectionHashDetail {
 }
 
 /// Container for positioned glyphs which can generate and cache vertices
-struct Glyphed<'font, V> {
-    positioned: GlyphedSection<'font>,
+struct Glyphed<'font, V, C> {
+    positioned: GlyphedSection<'font, C>,
     vertices: Vec<V>,
 }
 
-impl<V> PartialEq for Glyphed<'_, V> {
+impl<V, C> PartialEq for Glyphed<'_, V, C> {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.positioned == other.positioned
     }
 }
 
-impl<'font, V> Glyphed<'font, V> {
+impl<'font, V, C: Clone> Glyphed<'font, V, C> {
     #[inline]
-    fn new(gs: GlyphedSection<'font>) -> Self {
+    fn new(gs: GlyphedSection<'font, C>) -> Self {
         Self {
             positioned: gs,
             vertices: Vec::new(),
@@ -666,7 +679,7 @@ impl<'font, V> Glyphed<'font, V> {
     /// Calculate vertices if not already done
     fn ensure_vertices<F>(&mut self, texture_cache: &Cache<'font>, to_vertex: F)
     where
-        F: Fn(GlyphVertex) -> V,
+        F: Fn(GlyphVertex<C>) -> V,
     {
         if !self.vertices.is_empty() {
             return;
@@ -676,7 +689,10 @@ impl<'font, V> Glyphed<'font, V> {
             bounds,
             z,
             ref glyphs,
+            ..
         } = self.positioned;
+
+        let custom = self.positioned.custom.clone();
 
         self.vertices.reserve(glyphs.len());
         self.vertices
@@ -702,6 +718,7 @@ impl<'font, V> Glyphed<'font, V> {
                                 bounds,
                                 color: *color,
                                 z,
+                                custom: custom.clone(),
                             }))
                         }
                     }
@@ -715,7 +732,7 @@ mod hash_diff_test {
     use super::*;
     use matches::assert_matches;
 
-    fn section() -> VariedSection<'static> {
+    fn section() -> VariedSection<'static, ()> {
         VariedSection {
             text: vec![
                 SectionText {
@@ -735,6 +752,7 @@ mod hash_diff_test {
             z: 0.444,
             layout: Layout::default(),
             screen_position: (999.99, 888.88),
+            custom: (),
         }
     }
 

@@ -25,11 +25,12 @@ use std::{borrow::Cow, f32, hash::*};
 ///             ..SectionText::default()
 ///         },
 ///     ],
+///     custom: (),
 ///     ..VariedSection::default()
 /// };
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct VariedSection<'a> {
+pub struct VariedSection<'a, C:> {
     /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
     pub screen_position: (f32, f32),
     /// Max (width, height) bounds, in pixels from top-left. Defaults to unbounded.
@@ -41,9 +42,10 @@ pub struct VariedSection<'a> {
     pub layout: Layout<BuiltInLineBreaker>,
     /// Text to render, rendered next to one another according the layout.
     pub text: Vec<SectionText<'a>>,
+    pub custom: C,
 }
 
-impl Default for VariedSection<'static> {
+impl<C: Default> Default for VariedSection<'static, C> {
     #[inline]
     fn default() -> Self {
         Self {
@@ -52,23 +54,24 @@ impl Default for VariedSection<'static> {
             z: 0.0,
             layout: Layout::default(),
             text: vec![],
+            custom: C::default()
         }
     }
 }
 
-impl<'a> From<VariedSection<'a>> for Cow<'a, VariedSection<'a>> {
-    fn from(owned: VariedSection<'a>) -> Self {
+impl<'a, C: Clone> From<VariedSection<'a, C>> for Cow<'a, VariedSection<'a, C>> {
+    fn from(owned: VariedSection<'a, C>) -> Self {
         Cow::Owned(owned)
     }
 }
 
-impl<'a, 'b> From<&'b VariedSection<'a>> for Cow<'b, VariedSection<'a>> {
-    fn from(owned: &'b VariedSection<'a>) -> Self {
+impl<'a, 'b, C: Clone> From<&'b VariedSection<'a, C>> for Cow<'b, VariedSection<'a, C>> {
+    fn from(owned: &'b VariedSection<'a, C>) -> Self {
         Cow::Borrowed(owned)
     }
 }
 
-impl Hash for VariedSection<'_> {
+impl<C: Hash> Hash for VariedSection<'_, C> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         let VariedSection {
             screen_position: (screen_x, screen_y),
@@ -76,6 +79,7 @@ impl Hash for VariedSection<'_> {
             z,
             layout,
             ref text,
+            ..
         } = *self;
 
         let ord_floats: &[OrderedFloat<_>] = &[
@@ -91,6 +95,8 @@ impl Hash for VariedSection<'_> {
         hash_section_text(state, text);
 
         ord_floats.hash(state);
+
+        self.custom.hash(state);
     }
 }
 
@@ -117,14 +123,15 @@ fn hash_section_text<H: Hasher>(state: &mut H, text: &[SectionText]) {
     }
 }
 
-impl<'text> VariedSection<'text> {
-    pub fn to_owned(&self) -> OwnedVariedSection {
+impl<'text, C: Clone> VariedSection<'text, C> {
+    pub fn to_owned(&self) -> OwnedVariedSection<C> {
         OwnedVariedSection {
             screen_position: self.screen_position,
             bounds: self.bounds,
             z: self.z,
             layout: self.layout,
             text: self.text.iter().map(OwnedSectionText::from).collect(),
+            custom: self.custom.clone(),
         }
     }
 
@@ -152,8 +159,8 @@ impl<'text> VariedSection<'text> {
     }
 }
 
-impl From<&VariedSection<'_>> for SectionGeometry {
-    fn from(section: &VariedSection<'_>) -> Self {
+impl<C> From<&VariedSection<'_, C>> for SectionGeometry {
+    fn from(section: &VariedSection<'_, C>) -> Self {
         Self {
             bounds: section.bounds,
             screen_position: section.screen_position,
@@ -170,13 +177,13 @@ impl From<&VariedSection<'_>> for SectionGeometry {
 /// ```
 /// use glyph_brush::Section;
 ///
-/// let section = Section {
+/// let section: Section<()> = Section {
 ///     text: "Hello glyph_brush",
 ///     ..Section::default()
 /// };
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Section<'a> {
+pub struct Section<'a, C> {
     /// Text to render
     pub text: &'a str,
     /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
@@ -198,9 +205,10 @@ pub struct Section<'a> {
     /// either `FontId::default()` or the return of
     /// [`add_font`](struct.GlyphBrushBuilder.html#method.add_font).
     pub font_id: FontId,
+    pub custom: C
 }
 
-impl Default for Section<'static> {
+impl<C: Default> Default for Section<'static, C> {
     #[inline]
     fn default() -> Self {
         Self {
@@ -212,12 +220,13 @@ impl Default for Section<'static> {
             z: 0.0,
             layout: Layout::default(),
             font_id: FontId::default(),
+            custom: C::default(),
         }
     }
 }
 
-impl<'a> From<&Section<'a>> for VariedSection<'a> {
-    fn from(s: &Section<'a>) -> Self {
+impl<'a, C: Clone> From<&Section<'a, C>> for VariedSection<'a, C> {
+    fn from(s: &Section<'a, C>) -> Self {
         let Section {
             text,
             scale,
@@ -227,6 +236,7 @@ impl<'a> From<&Section<'a>> for VariedSection<'a> {
             z,
             layout,
             font_id,
+            ..
         } = *s;
 
         VariedSection {
@@ -240,24 +250,25 @@ impl<'a> From<&Section<'a>> for VariedSection<'a> {
             bounds,
             z,
             layout,
+            custom: s.custom.clone(),
         }
     }
 }
 
-impl<'a> From<Section<'a>> for VariedSection<'a> {
-    fn from(s: Section<'a>) -> Self {
+impl<'a, C: Clone> From<Section<'a, C>> for VariedSection<'a, C> {
+    fn from(s: Section<'a, C>) -> Self {
         VariedSection::from(&s)
     }
 }
 
-impl<'a> From<Section<'a>> for Cow<'a, VariedSection<'a>> {
-    fn from(section: Section<'a>) -> Self {
+impl<'a, C: Clone> From<Section<'a, C>> for Cow<'a, VariedSection<'a, C>> {
+    fn from(section: Section<'a, C>) -> Self {
         Cow::Owned(VariedSection::from(section))
     }
 }
 
-impl<'a> From<&Section<'a>> for Cow<'a, VariedSection<'a>> {
-    fn from(section: &Section<'a>) -> Self {
+impl<'a, C: Clone> From<&Section<'a, C>> for Cow<'a, VariedSection<'a, C>> {
+    fn from(section: &Section<'a, C>) -> Self {
         Cow::Owned(VariedSection::from(section))
     }
 }

@@ -3,7 +3,7 @@
 //!
 //! # fn main() -> Result<(), glyph_brush::BrushError> {
 //! let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-//! let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
+//! let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build::<(), ()>();
 //! # let some_other_section = Section { text: "another", ..Section::default() };
 //!
 //! glyph_brush.queue(Section {
@@ -66,8 +66,8 @@ fn default_section_hasher() {
         color: [1.0, 1.0, 1.0, 1.0],
         ..<_>::default()
     };
-    let hash = |s: &Section| {
-        let s: VariedSection = s.into();
+    let hash = |s: &Section<()>| {
+        let s: VariedSection<_> = s.into();
         let mut hasher = DefaultSectionHasher::default().build_hasher();
         s.hash(&mut hasher);
         hasher.finish()

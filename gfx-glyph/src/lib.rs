@@ -177,7 +177,7 @@ pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>, H = DefaultS
     factory: F,
     program: gfx::handle::Program<R>,
     draw_cache: Option<DrawnGlyphBrush<R>>,
-    glyph_brush: glyph_brush::GlyphBrush<'font, GlyphVertex, H>,
+    glyph_brush: glyph_brush::GlyphBrush<'font, GlyphVertex, (), H>,
 
     // config
     depth_test: gfx::state::Depth,
@@ -190,7 +190,7 @@ impl<R: gfx::Resources, F: gfx::Factory<R>, H> fmt::Debug for GlyphBrush<'_, R, 
     }
 }
 
-impl<'font, R, F, H> GlyphCruncher<'font> for GlyphBrush<'font, R, F, H>
+impl<'font, R, F, H> GlyphCruncher<'font, ()> for GlyphBrush<'font, R, F, H>
 where
     R: gfx::Resources,
     F: gfx::Factory<R>,
@@ -204,7 +204,7 @@ where
     ) -> Option<Rect<i32>>
     where
         L: GlyphPositioner + Hash,
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, VariedSection<'a, ()>>>,
     {
         self.glyph_brush
             .pixel_bounds_custom_layout(section, custom_layout)
@@ -218,7 +218,7 @@ where
     ) -> PositionedGlyphIter<'b, 'font>
     where
         L: GlyphPositioner + Hash,
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, VariedSection<'a, ()>>>,
     {
         self.glyph_brush
             .glyphs_custom_layout(section, custom_layout)
@@ -244,7 +244,7 @@ where
     #[inline]
     pub fn queue<'a, S>(&mut self, section: S)
     where
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, VariedSection<'a, ()>>>,
     {
         self.glyph_brush.queue(section)
     }
@@ -293,7 +293,7 @@ where
     pub fn queue_custom_layout<'a, S, G>(&mut self, section: S, custom_layout: &G)
     where
         G: GlyphPositioner,
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, VariedSection<'a, ()>>>,
     {
         self.glyph_brush.queue_custom_layout(section, custom_layout)
     }
@@ -307,7 +307,7 @@ where
         bounds: Rect<f32>,
         z: f32,
     ) {
-        self.glyph_brush.queue_pre_positioned(glyphs, bounds, z)
+        self.glyph_brush.queue_pre_positioned(glyphs, bounds, z, ())
     }
 
     /// Retains the section in the cache as if it had been used in the last draw-frame.
@@ -317,7 +317,7 @@ where
     #[inline]
     pub fn keep_cached_custom_layout<'a, S, G>(&mut self, section: S, custom_layout: &G)
     where
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, VariedSection<'a, ()>>>,
         G: GlyphPositioner,
     {
         self.glyph_brush
@@ -331,7 +331,7 @@ where
     #[inline]
     pub fn keep_cached<'a, S>(&mut self, section: S)
     where
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, VariedSection<'a, ()>>>,
     {
         self.glyph_brush.keep_cached(section)
     }
@@ -603,7 +603,8 @@ fn to_vertex(
         bounds,
         color,
         z,
-    }: glyph_brush::GlyphVertex,
+        custom: (),
+    }: glyph_brush::GlyphVertex<()>,
 ) -> GlyphVertex {
     let gl_bounds = bounds;
 

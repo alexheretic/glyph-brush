@@ -435,7 +435,8 @@ fn to_vertex(
         bounds,
         color,
         z,
-    }: glyph_brush::GlyphVertex,
+        custom: _
+    }: glyph_brush::GlyphVertex<()>,
 ) -> Vertex {
     let gl_bounds = bounds;
 

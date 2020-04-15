@@ -2,7 +2,7 @@ use super::*;
 use std::{borrow::Cow, f32};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct OwnedVariedSection {
+pub struct OwnedVariedSection<C> {
     /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
     pub screen_position: (f32, f32),
     /// Max (width, height) bounds, in pixels from top-left. Defaults to unbounded.
@@ -14,9 +14,10 @@ pub struct OwnedVariedSection {
     pub layout: Layout<BuiltInLineBreaker>,
     /// Text to render, rendered next to one another according the layout.
     pub text: Vec<OwnedSectionText>,
+    pub custom: C,
 }
 
-impl Default for OwnedVariedSection {
+impl<C: Default> Default for OwnedVariedSection<C> {
     fn default() -> Self {
         Self {
             screen_position: (0.0, 0.0),
@@ -24,30 +25,32 @@ impl Default for OwnedVariedSection {
             z: 0.0,
             layout: Layout::default(),
             text: vec![],
+            custom: C::default()
         }
     }
 }
 
-impl OwnedVariedSection {
-    pub fn to_borrowed(&self) -> VariedSection<'_> {
+impl<C: Clone> OwnedVariedSection<C> {
+    pub fn to_borrowed(&self) -> VariedSection<'_, C> {
         VariedSection {
             screen_position: self.screen_position,
             bounds: self.bounds,
             z: self.z,
             layout: self.layout,
             text: self.text.iter().map(|t| t.into()).collect(),
+            custom: self.custom.clone(),
         }
     }
 }
 
-impl<'a> From<&'a OwnedVariedSection> for VariedSection<'a> {
-    fn from(owned: &'a OwnedVariedSection) -> Self {
+impl<'a, C: Clone> From<&'a OwnedVariedSection<C>> for VariedSection<'a, C> {
+    fn from(owned: &'a OwnedVariedSection<C>) -> Self {
         owned.to_borrowed()
     }
 }
 
-impl<'a> From<&'a OwnedVariedSection> for Cow<'a, VariedSection<'a>> {
-    fn from(owned: &'a OwnedVariedSection) -> Self {
+impl<'a, C: Clone> From<&'a OwnedVariedSection<C>> for Cow<'a, VariedSection<'a, C>> {
+    fn from(owned: &'a OwnedVariedSection<C>) -> Self {
         Cow::Owned(owned.to_borrowed())
     }
 }
