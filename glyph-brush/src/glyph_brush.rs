@@ -85,7 +85,7 @@ impl<'font, V, C, H> GlyphCruncher<'font, C> for GlyphBrush<'font, V, C, H>
 where
     V: Clone + 'static,
     H: BuildHasher,
-    C: Clone,
+    C: Clone + Hash,
 {
     fn pixel_bounds_custom_layout<'a, S, L>(
         &mut self,
@@ -130,7 +130,7 @@ impl<'font, V, C, H> GlyphBrush<'font, V, C, H>
 where
     V: Clone + 'static,
     H: BuildHasher,
-    C: Clone,
+    C: Clone + Hash,
 {
     /// Queues a section/layout to be processed by the next call of
     /// [`process_queued`](struct.GlyphBrush.html#method.process_queued). Can be called multiple
@@ -605,7 +605,7 @@ impl SectionHashDetail {
     where
         H: BuildHasher,
         L: GlyphPositioner,
-        C: Clone,
+        C: Clone + Hash,
     {
         let parts = section.to_hashable_parts();
 
@@ -622,6 +622,7 @@ impl SectionHashDetail {
 
         parts.hash_geometry(&mut s);
         parts.hash_z(&mut s);
+        parts.hash_custom(&mut s);
         let full_hash = s.finish();
 
         Self {

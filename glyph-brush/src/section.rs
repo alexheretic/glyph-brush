@@ -135,7 +135,7 @@ impl<'text, C: Clone> VariedSection<'text, C> {
         }
     }
 
-    pub(crate) fn to_hashable_parts(&self) -> HashableVariedSectionParts<'_> {
+    pub(crate) fn to_hashable_parts(&self) -> HashableVariedSectionParts<'_, C> {
         let VariedSection {
             screen_position: (screen_x, screen_y),
             bounds: (bound_w, bound_h),
@@ -155,6 +155,7 @@ impl<'text, C: Clone> VariedSection<'text, C> {
             geometry,
             z: z.into(),
             text,
+            custom: self.custom.clone(),
         }
     }
 }
@@ -273,13 +274,14 @@ impl<'a, C: Clone> From<&Section<'a, C>> for Cow<'a, VariedSection<'a, C>> {
     }
 }
 
-pub(crate) struct HashableVariedSectionParts<'a> {
+pub(crate) struct HashableVariedSectionParts<'a, C> {
     geometry: [OrderedFloat<f32>; 4],
     z: OrderedFloat<f32>,
     text: &'a [SectionText<'a>],
+    custom: C,
 }
 
-impl HashableVariedSectionParts<'_> {
+impl<C> HashableVariedSectionParts<'_, C> {
     #[inline]
     pub fn hash_geometry<H: Hasher>(&self, state: &mut H) {
         self.geometry.hash(state);
@@ -323,5 +325,10 @@ impl HashableVariedSectionParts<'_> {
 
             ord_floats.hash(state);
         }
+    }
+
+    #[inline]
+    pub fn hash_custom<H: Hasher>(&self, state: &mut H) where C: Hash {
+        self.custom.hash(state);
     }
 }
