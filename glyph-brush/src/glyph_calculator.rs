@@ -11,10 +11,10 @@ use std::{
 };
 
 /// [`PositionedGlyph`](struct.PositionedGlyph.html) iterator.
-pub type PositionedGlyphIter<'a, 'font> = std::iter::Map<
-    slice::Iter<'a, (rusttype::PositionedGlyph<'font>, [f32; 4], FontId)>,
+pub type PositionedGlyphIter<'a, 'font, C> = std::iter::Map<
+    slice::Iter<'a, (rusttype::PositionedGlyph<'font>, [f32; 4], FontId, C)>,
     fn(
-        &'a (rusttype::PositionedGlyph<'font>, [f32; 4], FontId),
+        &'a (rusttype::PositionedGlyph<'font>, [f32; 4], FontId, C),
     ) -> &'a rusttype::PositionedGlyph<'font>,
 >;
 
@@ -78,7 +78,7 @@ pub trait GlyphCruncher<'font, C: Clone> {
         &'b mut self,
         section: S,
         custom_layout: &L,
-    ) -> PositionedGlyphIter<'b, 'font>
+    ) -> PositionedGlyphIter<'b, 'font, C>
     where
         L: GlyphPositioner + Hash,
         S: Into<Cow<'a, VariedSection<'a, C>>>,
@@ -91,7 +91,7 @@ pub trait GlyphCruncher<'font, C: Clone> {
     ///
     /// Benefits from caching, see [caching behaviour](#caching-behaviour).
     #[inline]
-    fn glyphs<'a, 'b, S>(&'b mut self, section: S) -> PositionedGlyphIter<'b, 'font>
+    fn glyphs<'a, 'b, S>(&'b mut self, section: S) -> PositionedGlyphIter<'b, 'font, C>
     where
         S: Into<Cow<'a, VariedSection<'a, C>>>,
         C: 'a,
@@ -287,7 +287,6 @@ impl<C: Hash + Clone, H: BuildHasher> GlyphCalculatorGuard<'_, '_, C, H> {
                 bounds: layout.bounds_rect(&geometry),
                 glyphs: layout.calculate_glyphs(self.fonts, &geometry, &section.text),
                 z: section.z,
-                custom: section.custom.clone(),
             });
         }
 
@@ -321,7 +320,7 @@ impl<'font, C: Clone + Hash, H: BuildHasher> GlyphCruncher<'font, C> for GlyphCa
         &'b mut self,
         section: S,
         custom_layout: &L,
-    ) -> PositionedGlyphIter<'b, 'font>
+    ) -> PositionedGlyphIter<'b, 'font, C>
     where
         L: GlyphPositioner + Hash,
         S: Into<Cow<'a, VariedSection<'a, C>>>,
@@ -445,9 +444,8 @@ impl<'a, H: BuildHasher> GlyphCalculatorBuilder<'a, H> {
 #[derive(Debug, Clone)]
 pub(crate) struct GlyphedSection<'font, C> {
     pub bounds: Rect<f32>,
-    pub glyphs: Vec<(PositionedGlyph<'font>, Color, FontId)>,
+    pub glyphs: Vec<(PositionedGlyph<'font>, Color, FontId, C)>,
     pub z: f32,
-    pub custom: C
 }
 
 impl<'a, C> PartialEq<GlyphedSection<'a, C>> for GlyphedSection<'a, C> {
@@ -537,7 +535,7 @@ impl<'font, C> GlyphedSection<'font, C> {
     }
 
     #[inline]
-    pub(crate) fn glyphs(&self) -> PositionedGlyphIter<'_, 'font> {
+    pub(crate) fn glyphs(&self) -> PositionedGlyphIter<'_, 'font, C> {
         self.glyphs.iter().map(|(g, ..)| g)
     }
 }
@@ -711,8 +709,7 @@ mod test {
                 max: point(300.0, 400.0),
             },
             z: 0.5,
-            glyphs: vec![(glyph.clone(), color, FontId(0))],
-            custom: (),
+            glyphs: vec![(glyph.clone(), color, FontId(0), ())],
         };
         let mut b = GlyphedSection {
             bounds: Rect {
@@ -720,8 +717,7 @@ mod test {
                 max: point(300.0, 400.0),
             },
             z: 0.5,
-            glyphs: vec![(glyph.clone(), color, FontId(0))],
-            custom: (),
+            glyphs: vec![(glyph.clone(), color, FontId(0), ())],
         };
 
         assert_eq!(a, b);

@@ -108,7 +108,7 @@ where
         &'b mut self,
         section: S,
         custom_layout: &L,
-    ) -> PositionedGlyphIter<'b, 'font>
+    ) -> PositionedGlyphIter<'b, 'font, C>
     where
         L: GlyphPositioner + Hash,
         S: Into<Cow<'a, VariedSection<'a, C>>>,
@@ -187,13 +187,12 @@ where
     /// times.
     pub fn queue_pre_positioned(
         &mut self,
-        glyphs: Vec<(PositionedGlyph<'font>, Color, FontId)>,
+        glyphs: Vec<(PositionedGlyph<'font>, Color, FontId, C)>,
         bounds: Rect<f32>,
         z: f32,
-        custom: C,
     ) {
         self.pre_positioned
-            .push(Glyphed::new(GlyphedSection { glyphs, bounds, z, custom }));
+            .push(Glyphed::new(GlyphedSection { glyphs, bounds, z }));
     }
 
     /// Returns the calculate_glyph_cache key for this sections glyphs
@@ -246,7 +245,6 @@ where
                             layout.calculate_glyphs(&self.fonts, &geometry, &section.text)
                         }),
                         z: section.z,
-                        custom: section.custom.clone(),
                     }),
                 );
             }
@@ -258,7 +256,6 @@ where
                     bounds: layout.bounds_rect(&geometry),
                     glyphs: layout.calculate_glyphs(&self.fonts, &geometry, &section.text),
                     z: section.z,
-                    custom: section.custom.clone(),
                 }),
             );
         }
@@ -321,7 +318,7 @@ where
             // be retained in the texture cache avoiding cache thrashing if they are rendered
             // in a 2-draw per frame style.
             for section_hash in &self.keep_in_cache {
-                for &(ref glyph, _, font_id) in self
+                for &(ref glyph, _, font_id, _) in self
                     .calculate_glyph_cache
                     .get(section_hash)
                     .iter()
@@ -332,7 +329,7 @@ where
                 }
             }
 
-            for &(ref glyph, _, font_id) in self
+            for &(ref glyph, _, font_id, _) in self
                 .pre_positioned
                 .iter()
                 .flat_map(|p| &p.positioned.glyphs)
@@ -622,7 +619,6 @@ impl SectionHashDetail {
 
         parts.hash_geometry(&mut s);
         parts.hash_z(&mut s);
-        parts.hash_custom(&mut s);
         let full_hash = s.finish();
 
         Self {
@@ -693,11 +689,9 @@ impl<'font, V, C: Clone> Glyphed<'font, V, C> {
             ..
         } = self.positioned;
 
-        let custom = self.positioned.custom.clone();
-
         self.vertices.reserve(glyphs.len());
         self.vertices
-            .extend(glyphs.iter().filter_map(|(glyph, color, font_id)| {
+            .extend(glyphs.iter().filter_map(|(glyph, color, font_id, custom)| {
                 match texture_cache.rect_for(font_id.0, glyph) {
                     Err(err) => {
                         error!("Cache miss?: {:?}, {:?}: {}", font_id, glyph, err);
@@ -741,19 +735,20 @@ mod hash_diff_test {
                     scale: Scale::uniform(20.0),
                     color: [1.0, 0.9, 0.8, 0.7],
                     font_id: FontId(0),
+                    custom: (),
                 },
                 SectionText {
                     text: "World",
                     scale: Scale::uniform(22.0),
                     color: [0.6, 0.5, 0.4, 0.3],
                     font_id: FontId(1),
+                    custom: (),
                 },
             ],
             bounds: (55.5, 66.6),
             z: 0.444,
             layout: Layout::default(),
             screen_position: (999.99, 888.88),
-            custom: (),
         }
     }
 

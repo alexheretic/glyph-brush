@@ -22,15 +22,15 @@ use std::{borrow::Cow, f32, hash::*};
 ///         SectionText {
 ///             text: "RED",
 ///             color: [1.0, 0.0, 0.0, 1.0],
+///             custom: (),
 ///             ..SectionText::default()
 ///         },
 ///     ],
-///     custom: (),
 ///     ..VariedSection::default()
 /// };
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct VariedSection<'a, C:> {
+pub struct VariedSection<'a, C> {
     /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
     pub screen_position: (f32, f32),
     /// Max (width, height) bounds, in pixels from top-left. Defaults to unbounded.
@@ -41,11 +41,10 @@ pub struct VariedSection<'a, C:> {
     /// see [`queue_custom_layout`](struct.GlyphBrush.html#method.queue_custom_layout)
     pub layout: Layout<BuiltInLineBreaker>,
     /// Text to render, rendered next to one another according the layout.
-    pub text: Vec<SectionText<'a>>,
-    pub custom: C,
+    pub text: Vec<SectionText<'a, C>>,
 }
 
-impl<C: Default> Default for VariedSection<'static, C> {
+impl<C> Default for VariedSection<'static, C> {
     #[inline]
     fn default() -> Self {
         Self {
@@ -54,7 +53,6 @@ impl<C: Default> Default for VariedSection<'static, C> {
             z: 0.0,
             layout: Layout::default(),
             text: vec![],
-            custom: C::default()
         }
     }
 }
@@ -71,7 +69,7 @@ impl<'a, 'b, C: Clone> From<&'b VariedSection<'a, C>> for Cow<'b, VariedSection<
     }
 }
 
-impl<C: Hash> Hash for VariedSection<'_, C> {
+impl<C: Clone + Hash> Hash for VariedSection<'_, C> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         let VariedSection {
             screen_position: (screen_x, screen_y),
@@ -95,20 +93,21 @@ impl<C: Hash> Hash for VariedSection<'_, C> {
         hash_section_text(state, text);
 
         ord_floats.hash(state);
-
-        self.custom.hash(state);
     }
 }
 
 #[inline]
-fn hash_section_text<H: Hasher>(state: &mut H, text: &[SectionText]) {
+fn hash_section_text<H: Hasher, C: Clone + Hash>(state: &mut H, text: &[SectionText<C>]) {
     for t in text {
         let SectionText {
             text,
             scale,
             color,
             font_id,
+            ..
         } = *t;
+
+        let custom = t.custom.clone();
 
         let ord_floats: &[OrderedFloat<_>] = &[
             scale.x.into(),
@@ -119,7 +118,7 @@ fn hash_section_text<H: Hasher>(state: &mut H, text: &[SectionText]) {
             color[3].into(),
         ];
 
-        (text, font_id, ord_floats).hash(state);
+        (text, font_id, ord_floats, custom).hash(state);
     }
 }
 
@@ -131,7 +130,6 @@ impl<'text, C: Clone> VariedSection<'text, C> {
             z: self.z,
             layout: self.layout,
             text: self.text.iter().map(OwnedSectionText::from).collect(),
-            custom: self.custom.clone(),
         }
     }
 
@@ -155,7 +153,6 @@ impl<'text, C: Clone> VariedSection<'text, C> {
             geometry,
             z: z.into(),
             text,
-            custom: self.custom.clone(),
         }
     }
 }
@@ -246,12 +243,12 @@ impl<'a, C: Clone> From<&Section<'a, C>> for VariedSection<'a, C> {
                 scale,
                 color,
                 font_id,
+                custom: s.custom.clone()
             }],
             screen_position,
             bounds,
             z,
             layout,
-            custom: s.custom.clone(),
         }
     }
 }
@@ -277,11 +274,10 @@ impl<'a, C: Clone> From<&Section<'a, C>> for Cow<'a, VariedSection<'a, C>> {
 pub(crate) struct HashableVariedSectionParts<'a, C> {
     geometry: [OrderedFloat<f32>; 4],
     z: OrderedFloat<f32>,
-    text: &'a [SectionText<'a>],
-    custom: C,
+    text: &'a [SectionText<'a, C>],
 }
 
-impl<C> HashableVariedSectionParts<'_, C> {
+impl<C: Clone + Hash> HashableVariedSectionParts<'_, C> {
     #[inline]
     pub fn hash_geometry<H: Hasher>(&self, state: &mut H) {
         self.geometry.hash(state);
@@ -302,9 +298,11 @@ impl<C> HashableVariedSectionParts<'_, C> {
                 ..
             } = *t;
 
+            let custom = t.custom.clone();
+
             let ord_floats: &[OrderedFloat<_>] = &[scale.x.into(), scale.y.into()];
 
-            (text, font_id, ord_floats).hash(state);
+            (text, font_id, ord_floats, custom).hash(state);
         }
     }
 
@@ -325,10 +323,5 @@ impl<C> HashableVariedSectionParts<'_, C> {
 
             ord_floats.hash(state);
         }
-    }
-
-    #[inline]
-    pub fn hash_custom<H: Hasher>(&self, state: &mut H) where C: Hash {
-        self.custom.hash(state);
     }
 }
