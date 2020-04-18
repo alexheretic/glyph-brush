@@ -12,7 +12,7 @@ use std::{
 };
 
 /// Single character info
-pub(crate) struct Character<'font> {
+pub(crate) struct Character<'font, C> {
     pub glyph: ScaledGlyph<'font>,
     pub color: Color,
     pub font_id: FontId,
@@ -20,30 +20,31 @@ pub(crate) struct Character<'font> {
     pub line_break: Option<LineBreak>,
     /// Equivalent to `char::is_control()`.
     pub control: bool,
+    pub custom: C,
 }
 
 /// `Character` iterator
-pub(crate) struct Characters<'a, 'b, 'font, L, F>
+pub(crate) struct Characters<'a, 'b, 'font, L, F, C>
 where
     'font: 'a + 'b,
     L: LineBreaker,
     F: FontMap<'font>,
 {
     font_map: &'b F,
-    section_text: slice::Iter<'a, SectionText<'a>>,
+    section_text: slice::Iter<'a, SectionText<'a, C>>,
     line_breaker: L,
-    part_info: Option<PartInfo<'a>>,
+    part_info: Option<PartInfo<'a, C>>,
     phantom: PhantomData<&'font ()>,
 }
 
-struct PartInfo<'a> {
-    section: &'a SectionText<'a>,
+struct PartInfo<'a, C> {
+    section: &'a SectionText<'a, C>,
     info_chars: CharIndices<'a>,
     line_breaks: Box<dyn Iterator<Item = LineBreak> + 'a>,
     next_break: Option<LineBreak>,
 }
 
-impl<'a, 'b, 'font, L, F> Characters<'a, 'b, 'font, L, F>
+impl<'a, 'b, 'font, L, F, C> Characters<'a, 'b, 'font, L, F, C>
 where
     L: LineBreaker,
     F: FontMap<'font>,
@@ -51,7 +52,7 @@ where
     /// Returns a new `Characters` iterator.
     pub(crate) fn new(
         font_map: &'b F,
-        section_text: slice::Iter<'a, SectionText<'a>>,
+        section_text: slice::Iter<'a, SectionText<'a, C>>,
         line_breaker: L,
     ) -> Self {
         Self {
@@ -64,17 +65,18 @@ where
     }
 
     /// Wraps into a `Words` iterator.
-    pub(crate) fn words(self) -> Words<'a, 'b, 'font, L, F> {
+    pub(crate) fn words(self) -> Words<'a, 'b, 'font, L, F, C> {
         Words { characters: self }
     }
 }
 
-impl<'font, L, F> Iterator for Characters<'_, '_, 'font, L, F>
+impl<'font, L, F, C> Iterator for Characters<'_, '_, 'font, L, F, C>
 where
     L: LineBreaker,
     F: FontMap<'font>,
+    C: Clone,
 {
-    type Item = Character<'font>;
+    type Item = Character<'font, C>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -103,6 +105,7 @@ where
                         color,
                         font_id,
                         text,
+                        custom,
                     },
                 info_chars,
                 line_breaks,
@@ -135,6 +138,7 @@ where
                     font_id: *font_id,
                     line_break,
                     control: c.is_control(),
+                    custom: custom.clone(),
                 });
             }
         }
@@ -144,15 +148,16 @@ where
     }
 }
 
-impl<'font, L, F> FusedIterator for Characters<'_, '_, 'font, L, F>
+impl<'font, L, F, C> FusedIterator for Characters<'_, '_, 'font, L, F, C>
 where
     L: LineBreaker,
     F: FontMap<'font>,
+    C: Clone,
 {
 }
 
 #[inline]
-fn valid_section(s: &SectionText<'_>) -> bool {
+fn valid_section<C>(s: &SectionText<'_, C>) -> bool {
     let Scale { x, y } = s.scale;
     x > 0.0 && y > 0.0
 }

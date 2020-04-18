@@ -16,8 +16,8 @@ pub(crate) const ZERO_V_METRICS: VMetrics = VMetrics {
 /// Single 'word' ie a sequence of `Character`s where the last is a line-break.
 ///
 /// Glyphs are relatively positioned from (0, 0) in a left-top alignment style.
-pub(crate) struct Word<'font> {
-    pub glyphs: Vec<(RelativePositionedGlyph<'font>, Color, FontId)>,
+pub(crate) struct Word<'font, C> {
+    pub glyphs: Vec<(RelativePositionedGlyph<'font>, Color, FontId, C)>,
     /// pixel advance width of word includes ending spaces/invisibles
     pub layout_width: f32,
     /// pixel advance width of word not including any trailing spaces/invisibles
@@ -54,20 +54,21 @@ impl<'font> RelativePositionedGlyph<'font> {
 }
 
 /// `Word` iterator.
-pub(crate) struct Words<'a, 'b, 'font: 'a + 'b, L, F>
+pub(crate) struct Words<'a, 'b, 'font: 'a + 'b, L, F, C>
 where
     L: LineBreaker,
     F: FontMap<'font>,
 {
-    pub(crate) characters: Characters<'a, 'b, 'font, L, F>,
+    pub(crate) characters: Characters<'a, 'b, 'font, L, F, C>,
 }
 
-impl<'a, 'b, 'font, L, F> Words<'a, 'b, 'font, L, F>
+impl<'a, 'b, 'font, L, F, C> Words<'a, 'b, 'font, L, F, C>
 where
     L: LineBreaker,
     F: FontMap<'font>,
+    C: Clone,
 {
-    pub(crate) fn lines(self, width_bound: f32) -> Lines<'a, 'b, 'font, L, F> {
+    pub(crate) fn lines(self, width_bound: f32) -> Lines<'a, 'b, 'font, L, F, C> {
         Lines {
             words: self.peekable(),
             width_bound,
@@ -75,12 +76,13 @@ where
     }
 }
 
-impl<'font, L, F> Iterator for Words<'_, '_, 'font, L, F>
+impl<'font, L, F, C> Iterator for Words<'_, '_, 'font, L, F, C>
 where
     L: LineBreaker,
     F: FontMap<'font>,
+    C: Clone,
 {
-    type Item = Word<'font>;
+    type Item = Word<'font, C>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -98,6 +100,7 @@ where
             font_id,
             line_break,
             control,
+            custom,
         } in &mut self.characters
         {
             progress = true;
@@ -125,7 +128,7 @@ where
                 caret += advance_width;
 
                 if positioned.bounds().is_some() {
-                    glyphs.push((positioned, color, font_id));
+                    glyphs.push((positioned, color, font_id, custom));
 
                     // not an invisible trail
                     caret_no_trail = caret;
@@ -154,4 +157,4 @@ where
     }
 }
 
-impl<'font, L: LineBreaker, F: FontMap<'font>> FusedIterator for Words<'_, '_, 'font, L, F> {}
+impl<'font, L: LineBreaker, F: FontMap<'font>, C: Clone> FusedIterator for Words<'_, '_, 'font, L, F, C> {}

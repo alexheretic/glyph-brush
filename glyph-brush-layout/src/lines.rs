@@ -7,12 +7,12 @@ use full_rusttype::{point, vector, PositionedGlyph, VMetrics};
 use std::iter::{FusedIterator, Iterator, Peekable};
 
 /// A line of `Word`s limited to a max width bound.
-pub(crate) struct Line<'font> {
-    pub glyphs: Vec<(RelativePositionedGlyph<'font>, Color, FontId)>,
+pub(crate) struct Line<'font, C> {
+    pub glyphs: Vec<(RelativePositionedGlyph<'font>, Color, FontId, C)>,
     pub max_v_metrics: VMetrics,
 }
 
-impl<'font> Line<'font> {
+impl<'font, C> Line<'font, C> {
     #[inline]
     pub(crate) fn line_height(&self) -> f32 {
         self.max_v_metrics.ascent - self.max_v_metrics.descent + self.max_v_metrics.line_gap
@@ -24,7 +24,7 @@ impl<'font> Line<'font> {
         screen_position: (f32, f32),
         h_align: HorizontalAlign,
         v_align: VerticalAlign,
-    ) -> Vec<(PositionedGlyph<'font>, Color, FontId)> {
+    ) -> Vec<(PositionedGlyph<'font>, Color, FontId, C)> {
         if self.glyphs.is_empty() {
             return Vec::new();
         }
@@ -64,7 +64,7 @@ impl<'font> Line<'font> {
 
         self.glyphs
             .into_iter()
-            .map(|(glyph, color, font_id)| (glyph.screen_positioned(screen_pos), color, font_id))
+            .map(|(glyph, color, font_id, custom)| (glyph.screen_positioned(screen_pos), color, font_id, custom))
             .collect()
     }
 }
@@ -75,18 +75,19 @@ impl<'font> Line<'font> {
 ///
 /// Note: Will always have at least one word, if possible, even if the word itself
 /// breaks the `width_bound`.
-pub(crate) struct Lines<'a, 'b, 'font, L, F>
+pub(crate) struct Lines<'a, 'b, 'font, L, F, C>
 where
     'font: 'a + 'b,
     L: LineBreaker,
     F: FontMap<'font>,
+    C: Clone,
 {
-    pub(crate) words: Peekable<Words<'a, 'b, 'font, L, F>>,
+    pub(crate) words: Peekable<Words<'a, 'b, 'font, L, F, C>>,
     pub(crate) width_bound: f32,
 }
 
-impl<'font, L: LineBreaker, F: FontMap<'font>> Iterator for Lines<'_, '_, 'font, L, F> {
-    type Item = Line<'font>;
+impl<'font, L: LineBreaker, F: FontMap<'font>, C: Clone> Iterator for Lines<'_, '_, 'font, L, F, C> {
+    type Item = Line<'font, C>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut caret = vector(0.0, 0.0);
@@ -125,9 +126,9 @@ impl<'font, L: LineBreaker, F: FontMap<'font>> Iterator for Lines<'_, '_, 'font,
             }
 
             line.glyphs
-                .extend(word.glyphs.into_iter().map(|(mut g, color, font_id)| {
+                .extend(word.glyphs.into_iter().map(|(mut g, color, font_id, custom)| {
                     g.relative = g.relative + caret;
-                    (g, color, font_id)
+                    (g, color, font_id, custom)
                 }));
 
             caret.x += word.layout_width;
@@ -141,4 +142,4 @@ impl<'font, L: LineBreaker, F: FontMap<'font>> Iterator for Lines<'_, '_, 'font,
     }
 }
 
-impl<'font, L: LineBreaker, F: FontMap<'font>> FusedIterator for Lines<'_, '_, 'font, L, F> {}
+impl<'font, L: LineBreaker, F: FontMap<'font>, C: Clone> FusedIterator for Lines<'_, '_, 'font, L, F, C> {}

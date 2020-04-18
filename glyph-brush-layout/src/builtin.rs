@@ -136,12 +136,12 @@ impl<L: LineBreaker> Layout<L> {
 }
 
 impl<L: LineBreaker> GlyphPositioner for Layout<L> {
-    fn calculate_glyphs<'font, F: FontMap<'font>>(
+    fn calculate_glyphs<'font, F: FontMap<'font>, C: Clone>(
         &self,
         font_map: &F,
         geometry: &SectionGeometry,
-        sections: &[SectionText<'_>],
-    ) -> Vec<(PositionedGlyph<'font>, Color, FontId)> {
+        sections: &[SectionText<'_, C>],
+    ) -> Vec<(PositionedGlyph<'font>, Color, FontId, C)> {
         use crate::Layout::{SingleLine, Wrap};
 
         let SectionGeometry {
@@ -204,11 +204,11 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                             // y-position and filter out-of-bounds glyphs
                             let shifted: Vec<_> = out
                                 .drain(..)
-                                .filter_map(|(mut g, color, font)| {
+                                .filter_map(|(mut g, color, font, custom)| {
                                     let mut pos = g.position();
                                     pos.y -= shift_up;
                                     g.set_position(pos);
-                                    Some((g, color, font)).filter(|(g, ..)| {
+                                    Some((g, color, font, custom)).filter(|(g, ..)| {
                                         g.pixel_bounding_box()
                                             .map(|bb| {
                                                 bb.max.y as f32 >= min_y
@@ -257,14 +257,14 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
     }
 
     #[allow(clippy::float_cmp)]
-    fn recalculate_glyphs<'font, F>(
+    fn recalculate_glyphs<'font, F, C: Clone>(
         &self,
-        previous: Cow<'_, Vec<(PositionedGlyph<'font>, Color, FontId)>>,
+        previous: Cow<'_, Vec<(PositionedGlyph<'font>, Color, FontId, C)>>,
         change: GlyphChange,
         fonts: &F,
         geometry: &SectionGeometry,
-        sections: &[SectionText<'_>],
-    ) -> Vec<(PositionedGlyph<'font>, Color, FontId)>
+        sections: &[SectionText<'_, C>],
+    ) -> Vec<(PositionedGlyph<'font>, Color, FontId, C)>
     where
         F: FontMap<'font>,
     {
@@ -440,12 +440,12 @@ mod layout_test {
     #[derive(Hash)]
     enum SimpleCustomGlyphPositioner {}
     impl GlyphPositioner for SimpleCustomGlyphPositioner {
-        fn calculate_glyphs<'font, F: FontMap<'font>>(
+        fn calculate_glyphs<'font, F: FontMap<'font>, C: Clone>(
             &self,
             _: &F,
             _: &SectionGeometry,
-            _: &[SectionText<'_>],
-        ) -> Vec<(PositionedGlyph<'font>, Color, FontId)> {
+            _: &[SectionText<'_, C>],
+        ) -> Vec<(PositionedGlyph<'font>, Color, FontId, C)> {
             vec![]
         }
 
@@ -463,7 +463,7 @@ mod layout_test {
     fn zero_scale_glyphs() {
         let glyphs = Layout::default_single_line()
             .line_breaker(AnyCharLineBreaker)
-            .calculate_glyphs(
+            .calculate_glyphs::<_, ()>(
                 &*FONT_MAP,
                 &SectionGeometry::default(),
                 &[SectionText {
@@ -480,7 +480,7 @@ mod layout_test {
     fn negative_scale_glyphs() {
         let glyphs = Layout::default_single_line()
             .line_breaker(AnyCharLineBreaker)
-            .calculate_glyphs(
+            .calculate_glyphs::<_, ()>(
                 &*FONT_MAP,
                 &SectionGeometry::default(),
                 &[SectionText {
@@ -497,7 +497,7 @@ mod layout_test {
     fn single_line_chars_left_simple() {
         let glyphs = Layout::default_single_line()
             .line_breaker(AnyCharLineBreaker)
-            .calculate_glyphs(
+            .calculate_glyphs::<_, ()>(
                 &*FONT_MAP,
                 &SectionGeometry::default(),
                 &[SectionText {
@@ -523,7 +523,7 @@ mod layout_test {
         let glyphs = Layout::default_single_line()
             .line_breaker(AnyCharLineBreaker)
             .h_align(HorizontalAlign::Right)
-            .calculate_glyphs(
+            .calculate_glyphs::<_, ()>(
                 &*FONT_MAP,
                 &SectionGeometry::default(),
                 &[SectionText {
@@ -552,7 +552,7 @@ mod layout_test {
         let glyphs = Layout::default_single_line()
             .line_breaker(AnyCharLineBreaker)
             .h_align(HorizontalAlign::Center)
-            .calculate_glyphs(
+            .calculate_glyphs::<_, ()>(
                 &*FONT_MAP,
                 &SectionGeometry::default(),
                 &[SectionText {
@@ -586,7 +586,7 @@ mod layout_test {
     fn single_line_chars_left_finish_at_newline() {
         let glyphs = Layout::default_single_line()
             .line_breaker(AnyCharLineBreaker)
-            .calculate_glyphs(
+            .calculate_glyphs::<_, ()>(
                 &*FONT_MAP,
                 &SectionGeometry::default(),
                 &[SectionText {
@@ -607,7 +607,7 @@ mod layout_test {
 
     #[test]
     fn wrap_word_left() {
-        let glyphs = Layout::default_single_line().calculate_glyphs(
+        let glyphs = Layout::default_single_line().calculate_glyphs::<_, ()>(
             &*FONT_MAP,
             &SectionGeometry {
                 bounds: (85.0, f32::INFINITY), // should only be enough room for the 1st word
@@ -629,7 +629,7 @@ mod layout_test {
             last_glyph.position()
         );
 
-        let glyphs = Layout::default_single_line().calculate_glyphs(
+        let glyphs = Layout::default_single_line().calculate_glyphs::<_, ()>(
             &*FONT_MAP,
             &SectionGeometry {
                 bounds: (125.0, f32::INFINITY),
@@ -656,7 +656,7 @@ mod layout_test {
     fn single_line_limited_horizontal_room() {
         let glyphs = Layout::default_single_line()
             .line_breaker(AnyCharLineBreaker)
-            .calculate_glyphs(
+            .calculate_glyphs::<_, ()>(
                 &*FONT_MAP,
                 &SectionGeometry {
                     bounds: (50.0, f32::INFINITY),
@@ -679,7 +679,7 @@ mod layout_test {
                         a worm digs silently\n\
                         into the chestnut.";
 
-        let glyphs = Layout::default_wrap().calculate_glyphs(
+        let glyphs = Layout::default_wrap().calculate_glyphs::<_, ()>(
             &*FONT_MAP,
             &SectionGeometry::default(),
             &[SectionText {
@@ -702,7 +702,7 @@ mod layout_test {
 
     #[test]
     fn leftover_max_vmetrics() {
-        let glyphs = Layout::default_single_line().calculate_glyphs(
+        let glyphs = Layout::default_single_line().calculate_glyphs::<_, ()>(
             &*FONT_MAP,
             &SectionGeometry {
                 bounds: (750.0, f32::INFINITY),
@@ -739,7 +739,7 @@ mod layout_test {
 
     #[test]
     fn eol_new_line_hard_breaks() {
-        let glyphs = Layout::default_wrap().calculate_glyphs(
+        let glyphs = Layout::default_wrap().calculate_glyphs::<_, ()>(
             &*FONT_MAP,
             &SectionGeometry::default(),
             &[
@@ -794,7 +794,7 @@ mod layout_test {
             Some((15, true)),
         );
 
-        let glyphs = Layout::default_single_line().calculate_glyphs(
+        let glyphs = Layout::default_single_line().calculate_glyphs::<_, ()>(
             &*FONT_MAP,
             &SectionGeometry::default(),
             &[SectionText {
@@ -815,7 +815,7 @@ mod layout_test {
 
     #[test]
     fn no_inherent_section_break() {
-        let glyphs = Layout::default_wrap().calculate_glyphs(
+        let glyphs = Layout::default_wrap().calculate_glyphs::<_, ()>(
             &*FONT_MAP,
             &SectionGeometry {
                 bounds: (50.0, ::std::f32::INFINITY),
@@ -855,7 +855,7 @@ mod layout_test {
 
     #[test]
     fn recalculate_identical() {
-        let glyphs = Layout::default().calculate_glyphs(
+        let glyphs = Layout::default().calculate_glyphs::<_, ()>(
             &*FONT_MAP,
             &SectionGeometry::default(),
             &[SectionText {
@@ -895,7 +895,7 @@ mod layout_test {
             ..<_>::default()
         };
 
-        let glyphs = Layout::default().calculate_glyphs(
+        let glyphs = Layout::default().calculate_glyphs::<_, ()>(
             &*FONT_MAP,
             &geometry_1,
             &[SectionText {
@@ -939,7 +939,7 @@ mod layout_test {
         const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
         const BLUE: [f32; 4] = [0.0, 0.0, 1.0, 1.0];
 
-        let glyphs = Layout::default().calculate_glyphs(
+        let glyphs = Layout::default().calculate_glyphs::<_, ()>(
             &*FONT_MAP,
             &SectionGeometry::default(),
             &[SectionText {
@@ -976,7 +976,7 @@ mod layout_test {
         const YELLOW: [f32; 4] = [1.0, 1.0, 0.0, 1.0];
         const YELLOW_HALF_ALPHA: [f32; 4] = [1.0, 1.0, 0.0, 0.5];
 
-        let glyphs = Layout::default().calculate_glyphs(
+        let glyphs = Layout::default().calculate_glyphs::<_, ()>(
             &*FONT_MAP,
             &SectionGeometry::default(),
             &[
@@ -1023,7 +1023,7 @@ mod layout_test {
     /// a seperate line.
     #[test]
     fn wrap_word_chinese() {
-        let glyphs = Layout::default().calculate_glyphs(
+        let glyphs = Layout::default().calculate_glyphs::<_, ()>(
             &*FONT_MAP,
             &SectionGeometry {
                 bounds: (25.0, f32::INFINITY),

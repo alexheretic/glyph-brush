@@ -31,18 +31,19 @@
 //!             scale: Scale::uniform(25.0),
 //!             font_id: FontId(1),
 //!             color: [0.0, 1.0, 0.0, 1.0],
+//!             custom: ()
 //!         },
 //!     ],
 //! );
 //!
 //! assert_eq!(glyphs.len(), 23);
 //!
-//! let (o_glyph, glyph_4_color, glyph_4_font) = &glyphs[4];
+//! let (o_glyph, glyph_4_color, glyph_4_font, ()) = &glyphs[4];
 //! assert_eq!(o_glyph.id(), fonts[0].glyph('o').id());
 //! assert_eq!(*glyph_4_color, [0.0, 0.0, 0.0, 1.0]);
 //! assert_eq!(*glyph_4_font, FontId(0));
 //!
-//! let (s_glyph, glyph_14_color, glyph_14_font) = &glyphs[14];
+//! let (s_glyph, glyph_14_color, glyph_14_font, ()) = &glyphs[14];
 //! assert_eq!(s_glyph.id(), fonts[1].glyph('s').id());
 //! assert_eq!(*glyph_14_color, [0.0, 1.0, 0.0, 1.0]);
 //! assert_eq!(*glyph_14_font, FontId(1));
@@ -78,12 +79,12 @@ use std::hash::Hash;
 pub trait GlyphPositioner: Hash {
     /// Calculate a sequence of positioned glyphs to render. Custom implementations should
     /// return the same result when called with the same arguments to allow layout caching.
-    fn calculate_glyphs<'font, F: FontMap<'font>>(
+    fn calculate_glyphs<'font, F: FontMap<'font>, C: Clone>(
         &self,
         fonts: &F,
         geometry: &SectionGeometry,
-        sections: &[SectionText<'_>],
-    ) -> Vec<(PositionedGlyph<'font>, Color, FontId)>;
+        sections: &[SectionText<'_, C>],
+    ) -> Vec<(PositionedGlyph<'font>, Color, FontId, C)>;
 
     /// Return a screen rectangle according to the requested render position and bounds
     /// appropriate for the glyph layout.
@@ -93,14 +94,14 @@ pub trait GlyphPositioner: Hash {
     ///
     /// The default implementation simply calls `calculate_glyphs` so must be implemented
     /// to provide benefits as such benefits are spefic to the internal layout logic.
-    fn recalculate_glyphs<'font, F>(
+    fn recalculate_glyphs<'font, F, C: Clone>(
         &self,
-        previous: Cow<'_, Vec<(PositionedGlyph<'font>, Color, FontId)>>,
+        previous: Cow<'_, Vec<(PositionedGlyph<'font>, Color, FontId, C)>>,
         change: GlyphChange,
         fonts: &F,
         geometry: &SectionGeometry,
-        sections: &[SectionText<'_>],
-    ) -> Vec<(PositionedGlyph<'font>, Color, FontId)>
+        sections: &[SectionText<'_, C>],
+    ) -> Vec<(PositionedGlyph<'font>, Color, FontId, C)>
     where
         F: FontMap<'font>,
     {

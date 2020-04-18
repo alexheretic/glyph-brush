@@ -23,7 +23,7 @@ impl Default for SectionGeometry {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct SectionText<'a> {
+pub struct SectionText<'a, C> {
     /// Text to render
     pub text: &'a str,
     /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
@@ -36,9 +36,10 @@ pub struct SectionText<'a> {
     /// either `FontId::default()` or the return of
     /// [`add_font`](struct.GlyphBrushBuilder.html#method.add_font).
     pub font_id: FontId,
+    pub custom: C
 }
 
-impl Default for SectionText<'static> {
+impl<C: Default> Default for SectionText<'static, C> {
     #[inline]
     fn default() -> Self {
         Self {
@@ -46,6 +47,7 @@ impl Default for SectionText<'static> {
             scale: Scale::uniform(16.0),
             color: [0.0, 0.0, 0.0, 1.0],
             font_id: FontId::default(),
+            custom: C::default()
         }
     }
 }
