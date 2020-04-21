@@ -159,32 +159,8 @@ fn main() -> Res<()> {
         *control_flow = ControlFlow::Poll;
 
         match event {
-            Event::LoopDestroyed => unsafe {
-                gl::DeleteProgram(program);
-                gl::DeleteShader(fs);
-                gl::DeleteShader(vs);
-                gl::DeleteBuffers(1, &vbo);
-                gl::DeleteVertexArrays(1, &vao);
-            },
-            Event::MainEventsCleared => window_ctx.window().request_redraw(),
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                WindowEvent::Resized(size) => {
-                    window_ctx.resize(size);
-                    dimensions = size;
-                    unsafe {
-                        gl::Viewport(0, 0, dimensions.width as _, dimensions.height as _);
-                        let transform = ortho(
-                            0.0,
-                            dimensions.width as _,
-                            0.0,
-                            dimensions.height as _,
-                            1.0,
-                            -1.0,
-                        );
-                        gl::UniformMatrix4fv(transform_uniform, 1, 0, transform.as_ptr());
-                    }
-                }
                 WindowEvent::KeyboardInput {
                     input:
                         KeyboardInput {
@@ -226,7 +202,26 @@ fn main() -> Res<()> {
                 }
                 _ => (),
             },
-            Event::RedrawRequested(_) => {
+            Event::MainEventsCleared => {
+                // handle window size changes
+                let window_size = window_ctx.window().inner_size();
+                if dimensions != window_size {
+                    dimensions = window_size;
+                    window_ctx.resize(window_size); // update context with new size
+                    unsafe {
+                        gl::Viewport(0, 0, dimensions.width as _, dimensions.height as _);
+                        let transform = ortho(
+                            0.0,
+                            dimensions.width as _,
+                            0.0,
+                            dimensions.height as _,
+                            1.0,
+                            -1.0,
+                        );
+                        gl::UniformMatrix4fv(transform_uniform, 1, 0, transform.as_ptr());
+                    }
+                }
+
                 let width = dimensions.width as f32;
                 let height = dimensions.height as _;
                 let scale =
@@ -350,6 +345,13 @@ fn main() -> Res<()> {
                 loop_helper.loop_sleep();
                 loop_helper.loop_start();
             }
+            Event::LoopDestroyed => unsafe {
+                gl::DeleteProgram(program);
+                gl::DeleteShader(fs);
+                gl::DeleteShader(vs);
+                gl::DeleteBuffers(1, &vbo);
+                gl::DeleteVertexArrays(1, &vao);
+            },
             _ => (),
         }
     });
