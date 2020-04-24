@@ -10,7 +10,7 @@ license = "Apache-2.0"
 readme="README.md"
 
 [dependencies]
-full_rusttype = { version = "0.8", package = "rusttype" }
+ab_glyph = { path = "../../ab-glyph/glyph" }
 xi-unicode = "0.2"
 approx = "0.3.2"
 

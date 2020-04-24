@@ -1,9 +1,9 @@
 use super::{Color, EolLineBreak, FontId, FontMap, SectionText};
 use crate::{
     linebreak::{LineBreak, LineBreaker},
-    rusttype::{Scale, ScaledGlyph},
     words::Words,
 };
+use ab_glyph::*;
 use std::{
     iter::{FusedIterator, Iterator},
     marker::PhantomData,
@@ -12,28 +12,33 @@ use std::{
 };
 
 /// Single character info
-pub(crate) struct Character<'font> {
-    pub glyph: ScaledGlyph<'font>,
+pub(crate) struct Character<'b, F: Font> {
+    pub glyph: Glyph,
+    pub scale_font: PxScaleFont<&'b F>,
+
     pub color: Color,
     pub font_id: FontId,
     /// Line break proceeding this character.
     pub line_break: Option<LineBreak>,
     /// Equivalent to `char::is_control()`.
     pub control: bool,
+    /// Equivalent to `char::is_whitespace()`.
+    pub whitespace: bool,
 }
 
 /// `Character` iterator
-pub(crate) struct Characters<'a, 'b, 'font, L, F>
+pub(crate) struct Characters<'a, 'b, L, F, FM>
 where
-    'font: 'a + 'b,
+    F: 'a + 'b,
     L: LineBreaker,
-    F: FontMap<'font>,
+    F: Font,
+    FM: FontMap<F>,
 {
-    font_map: &'b F,
+    font_map: &'b FM,
     section_text: slice::Iter<'a, SectionText<'a>>,
     line_breaker: L,
     part_info: Option<PartInfo<'a>>,
-    phantom: PhantomData<&'font ()>,
+    phantom: PhantomData<F>,
 }
 
 struct PartInfo<'a> {
@@ -43,14 +48,15 @@ struct PartInfo<'a> {
     next_break: Option<LineBreak>,
 }
 
-impl<'a, 'b, 'font, L, F> Characters<'a, 'b, 'font, L, F>
+impl<'a, 'b, L, F, FM> Characters<'a, 'b, L, F, FM>
 where
     L: LineBreaker,
-    F: FontMap<'font>,
+    F: Font,
+    FM: FontMap<F>,
 {
     /// Returns a new `Characters` iterator.
     pub(crate) fn new(
-        font_map: &'b F,
+        font_map: &'b FM,
         section_text: slice::Iter<'a, SectionText<'a>>,
         line_breaker: L,
     ) -> Self {
@@ -64,17 +70,18 @@ where
     }
 
     /// Wraps into a `Words` iterator.
-    pub(crate) fn words(self) -> Words<'a, 'b, 'font, L, F> {
+    pub(crate) fn words(self) -> Words<'a, 'b, L, F, FM> {
         Words { characters: self }
     }
 }
 
-impl<'font, L, F> Iterator for Characters<'_, '_, 'font, L, F>
+impl<'b, L, F, FM> Iterator for Characters<'_, 'b, L, F, FM>
 where
     L: LineBreaker,
-    F: FontMap<'font>,
+    F: Font,
+    FM: FontMap<F>,
 {
-    type Item = Character<'font>;
+    type Item = Character<'b, F>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -120,7 +127,9 @@ where
                     }
                 }
 
-                let glyph = self.font_map.font(*font_id).glyph(c).scaled(*scale);
+                let scale_font: PxScaleFont<&'b F> = self.font_map.font(*font_id).as_scaled(*scale);
+
+                let glyph = scale_font.scaled_glyph(c);
 
                 let c_len = c.len_utf8();
                 let mut line_break = next_break.filter(|b| b.offset() == byte_index + c_len);
@@ -131,10 +140,12 @@ where
 
                 return Some(Character {
                     glyph,
+                    scale_font,
                     color: *color,
                     font_id: *font_id,
                     line_break,
                     control: c.is_control(),
+                    whitespace: c.is_whitespace(),
                 });
             }
         }
@@ -144,15 +155,16 @@ where
     }
 }
 
-impl<'font, L, F> FusedIterator for Characters<'_, '_, 'font, L, F>
+impl<'font, L, F, FM> FusedIterator for Characters<'_, '_, L, F, FM>
 where
     L: LineBreaker,
-    F: FontMap<'font>,
+    F: Font,
+    FM: FontMap<F>,
 {
 }
 
 #[inline]
 fn valid_section(s: &SectionText<'_>) -> bool {
-    let Scale { x, y } = s.scale;
+    let PxScale { x, y } = s.scale;
     x > 0.0 && y > 0.0
 }

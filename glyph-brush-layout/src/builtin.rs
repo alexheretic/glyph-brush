@@ -1,10 +1,10 @@
 use super::{
-    BuiltInLineBreaker, Color, FontId, FontMap, GlyphPositioner, LineBreaker, PositionedGlyph,
-    Rect, SectionGeometry, SectionText,
+    BuiltInLineBreaker, Color, FontId, FontMap, GlyphPositioner, LineBreaker, SectionGeometry,
+    SectionText,
 };
-use crate::{characters::Characters, rusttype::point, GlyphChange};
-use full_rusttype::vector;
-use std::{borrow::Cow, mem};
+use crate::{characters::Characters, GlyphChange};
+use ab_glyph::*;
+use std::borrow::Cow;
 
 /// Built-in [`GlyphPositioner`](trait.GlyphPositioner.html) implementations.
 ///
@@ -136,12 +136,12 @@ impl<L: LineBreaker> Layout<L> {
 }
 
 impl<L: LineBreaker> GlyphPositioner for Layout<L> {
-    fn calculate_glyphs<'font, F: FontMap<'font>>(
+    fn calculate_glyphs<F: Font, FM: FontMap<F>>(
         &self,
-        font_map: &F,
+        font_map: &FM,
         geometry: &SectionGeometry,
         sections: &[SectionText<'_>],
-    ) -> Vec<(PositionedGlyph<'font>, Color, FontId)> {
+    ) -> Vec<(Glyph, Color, FontId)> {
         use crate::Layout::{SingleLine, Wrap};
 
         let SectionGeometry {
@@ -198,29 +198,11 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                                 caret.1 - screen_position.1
                             };
 
-                            let (min_x, max_x) = h_align.x_bounds(screen_position.0, bound_w);
-                            let (min_y, max_y) = v_align.y_bounds(screen_position.1, bound_h);
+                            // TODO filter out out-of-bounds glyphs?
+                            // let (min_x, max_x) = h_align.x_bounds(screen_position.0, bound_w);
+                            // let (min_y, max_y) = v_align.y_bounds(screen_position.1, bound_h);
 
-                            // y-position and filter out-of-bounds glyphs
-                            let shifted: Vec<_> = out
-                                .drain(..)
-                                .filter_map(|(mut g, color, font)| {
-                                    let mut pos = g.position();
-                                    pos.y -= shift_up;
-                                    g.set_position(pos);
-                                    Some((g, color, font)).filter(|(g, ..)| {
-                                        g.pixel_bounding_box()
-                                            .map(|bb| {
-                                                bb.max.y as f32 >= min_y
-                                                    && bb.min.y as f32 <= max_y
-                                                    && bb.max.x as f32 >= min_x
-                                                    && bb.min.x as f32 <= max_x
-                                            })
-                                            .unwrap_or(false)
-                                    })
-                                })
-                                .collect();
-                            mem::replace(&mut out, shifted);
+                            out.iter_mut().for_each(|(g, ..)| g.position.y -= shift_up);
                         }
                     }
                 }
@@ -230,7 +212,7 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
         }
     }
 
-    fn bounds_rect(&self, geometry: &SectionGeometry) -> Rect<f32> {
+    fn bounds_rect(&self, geometry: &SectionGeometry) -> Rect {
         use crate::Layout::{SingleLine, Wrap};
 
         let SectionGeometry {
@@ -257,31 +239,26 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
     }
 
     #[allow(clippy::float_cmp)]
-    fn recalculate_glyphs<'font, F>(
+    fn recalculate_glyphs<F: Font, FM: FontMap<F>>(
         &self,
-        previous: Cow<'_, Vec<(PositionedGlyph<'font>, Color, FontId)>>,
+        previous: Cow<'_, Vec<(Glyph, Color, FontId)>>,
         change: GlyphChange,
-        fonts: &F,
+        fonts: &FM,
         geometry: &SectionGeometry,
         sections: &[SectionText<'_>],
-    ) -> Vec<(PositionedGlyph<'font>, Color, FontId)>
-    where
-        F: FontMap<'font>,
-    {
+    ) -> Vec<(Glyph, Color, FontId)> {
         match change {
             GlyphChange::Geometry(old) if old.bounds == geometry.bounds => {
                 // position change
-                let adjustment = vector(
+                let adjustment = point(
                     geometry.screen_position.0 - old.screen_position.0,
                     geometry.screen_position.1 - old.screen_position.1,
                 );
 
                 let mut glyphs = previous.into_owned();
-                for (glyph, ..) in &mut glyphs {
-                    let new_pos = glyph.position() + adjustment;
-                    glyph.set_position(new_pos);
-                }
-
+                glyphs
+                    .iter_mut()
+                    .for_each(|(g, ..)| g.position += adjustment);
                 glyphs
             }
             GlyphChange::Color if !sections.is_empty() && !previous.is_empty() => {
@@ -392,46 +369,53 @@ mod bounds_test {
 #[cfg(test)]
 mod layout_test {
     use super::*;
-    use crate::{
-        rusttype::{Font, Scale},
-        BuiltInLineBreaker::*,
-    };
+    use crate::BuiltInLineBreaker::*;
     use approx::assert_relative_eq;
     use once_cell::sync::Lazy;
     use ordered_float::OrderedFloat;
     use std::{collections::*, f32};
-    use xi_unicode;
 
-    static A_FONT: Lazy<Font<'static>> = Lazy::new(|| {
-        Font::from_bytes(include_bytes!("../../fonts/DejaVuSansMono.ttf") as &[u8])
-            .expect("Could not create rusttype::Font")
+    static A_FONT: Lazy<FontRef<'static>> = Lazy::new(|| {
+        FontRef::try_from_slice(include_bytes!("../../fonts/DejaVuSansMono.ttf")).unwrap()
     });
-    static CJK_FONT: Lazy<Font<'static>> = Lazy::new(|| {
-        Font::from_bytes(include_bytes!("../../fonts/WenQuanYiMicroHei.ttf") as &[u8])
-            .expect("Could not create rusttype::Font")
+    static CJK_FONT: Lazy<FontRef<'static>> = Lazy::new(|| {
+        FontRef::try_from_slice(include_bytes!("../../fonts/WenQuanYiMicroHei.ttf")).unwrap()
     });
-    static FONT_MAP: Lazy<Vec<Font<'static>>> =
-        Lazy::new(|| vec![A_FONT.clone(), CJK_FONT.clone()]);
+    static FONT_MAP: Lazy<[&'static FontRef<'static>; 2]> = Lazy::new(|| [&*A_FONT, &*CJK_FONT]);
+
+    /// All the chars used in testing, so we can reverse lookup the glyph-ids
+    const TEST_CHARS: &[char] = &[
+        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R',
+        'S', 'T', 'U', 'V', 'W', 'X', 'Q', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
+        'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', ' ', ',',
+        '.', '提', '高', '代', '碼', '執', '行', '率', '❤', 'é', 'ß', '\'', '_'
+    ];
+
+    /// Turns glyphs into a string, uses `☐` to denote that it didn't work
+    fn glyphs_to_common_string<F>(glyphs: &[(Glyph, Color, FontId)], font: &F) -> String
+    where
+        F: Font,
+    {
+        glyphs
+            .iter()
+            .map(|(g, ..)| {
+                TEST_CHARS
+                    .iter()
+                    .find(|cc| font.glyph_id(**cc) == g.id)
+                    .unwrap_or(&'☐')
+            })
+            .collect()
+    }
 
     /// Checks the order of glyphs in the first arg iterable matches the
     /// second arg string characters
-    /// $glyphs: Vec<(PositionedGlyph<'font>, Color, FontId)>
+    /// $glyphs: Vec<(Glyph, Color, FontId)>
     macro_rules! assert_glyph_order {
         ($glyphs:expr, $string:expr) => {
-            assert_glyph_order!($glyphs, $string, font = A_FONT)
+            assert_glyph_order!($glyphs, $string, font = &*A_FONT)
         };
         ($glyphs:expr, $string:expr, font = $font:expr) => {{
-            let expected_len = $string.chars().count();
-            assert_eq!($glyphs.len(), expected_len, "Unexpected number of glyphs");
-            let mut glyphs = $glyphs.iter();
-            for c in $string.chars() {
-                assert_eq!(
-                    glyphs.next().unwrap().0.id(),
-                    $font.glyph(c).id(),
-                    "Unexpected glyph id, expecting id for char `{}`",
-                    c
-                );
-            }
+            assert_eq!($string, glyphs_to_common_string(&$glyphs, $font));
         }};
     }
 
@@ -440,18 +424,18 @@ mod layout_test {
     #[derive(Hash)]
     enum SimpleCustomGlyphPositioner {}
     impl GlyphPositioner for SimpleCustomGlyphPositioner {
-        fn calculate_glyphs<'font, F: FontMap<'font>>(
+        fn calculate_glyphs<F: Font, FM: FontMap<F>>(
             &self,
-            _: &F,
+            _: &FM,
             _: &SectionGeometry,
             _: &[SectionText<'_>],
-        ) -> Vec<(PositionedGlyph<'font>, Color, FontId)> {
-            vec![]
+        ) -> Vec<(Glyph, Color, FontId)> {
+            <_>::default()
         }
 
         /// Return a screen rectangle according to the requested render position and bounds
         /// appropriate for the glyph layout.
-        fn bounds_rect(&self, _: &SectionGeometry) -> Rect<f32> {
+        fn bounds_rect(&self, _: &SectionGeometry) -> Rect {
             Rect {
                 min: point(0.0, 0.0),
                 max: point(0.0, 0.0),
@@ -468,8 +452,8 @@ mod layout_test {
                 &SectionGeometry::default(),
                 &[SectionText {
                     text: "hello world",
-                    scale: Scale::uniform(0.0),
-                    ..SectionText::default()
+                    scale: 0.0.into(),
+                    ..<_>::default()
                 }],
             );
 
@@ -485,8 +469,8 @@ mod layout_test {
                 &SectionGeometry::default(),
                 &[SectionText {
                     text: "hello world",
-                    scale: Scale::uniform(-20.0),
-                    ..SectionText::default()
+                    scale: PxScale::from(-20.0),
+                    ..<_>::default()
                 }],
             );
 
@@ -502,19 +486,19 @@ mod layout_test {
                 &SectionGeometry::default(),
                 &[SectionText {
                     text: "hello world",
-                    scale: Scale::uniform(20.0),
+                    scale: PxScale::from(20.0),
                     ..SectionText::default()
                 }],
             );
 
-        assert_glyph_order!(glyphs, "helloworld");
+        assert_glyph_order!(glyphs, "hello world");
 
-        assert_relative_eq!(glyphs[0].0.position().x, 0.0);
+        assert_relative_eq!(glyphs[0].0.position.x, 0.0);
         let last_glyph = &glyphs.last().unwrap().0;
         assert!(
-            last_glyph.position().x > 0.0,
+            last_glyph.position.x > 0.0,
             "unexpected last position {:?}",
-            last_glyph.position()
+            last_glyph.position
         );
     }
 
@@ -528,22 +512,22 @@ mod layout_test {
                 &SectionGeometry::default(),
                 &[SectionText {
                     text: "hello world",
-                    scale: Scale::uniform(20.0),
+                    scale: PxScale::from(20.0),
                     ..SectionText::default()
                 }],
             );
 
-        assert_glyph_order!(glyphs, "helloworld");
+        assert_glyph_order!(glyphs, "hello world");
         let last_glyph = &glyphs.last().unwrap().0;
-        assert!(glyphs[0].0.position().x < last_glyph.position().x);
+        assert!(glyphs[0].0.position.x < last_glyph.position.x);
         assert!(
-            last_glyph.position().x <= 0.0,
+            last_glyph.position.x <= 0.0,
             "unexpected last position {:?}",
-            last_glyph.position()
+            last_glyph.position
         );
 
-        let rightmost_x =
-            last_glyph.position().x + last_glyph.unpositioned().h_metrics().advance_width;
+        let sfont = A_FONT.as_scaled(20.0);
+        let rightmost_x = last_glyph.position.x + sfont.h_advance(last_glyph.id);
         assert_relative_eq!(rightmost_x, 0.0, epsilon = 1e-1);
     }
 
@@ -557,28 +541,28 @@ mod layout_test {
                 &SectionGeometry::default(),
                 &[SectionText {
                     text: "hello world",
-                    scale: Scale::uniform(20.0),
+                    scale: PxScale::from(20.0),
                     ..SectionText::default()
                 }],
             );
 
-        assert_glyph_order!(glyphs, "helloworld");
+        assert_glyph_order!(glyphs, "hello world");
         assert!(
-            glyphs[0].0.position().x < 0.0,
+            glyphs[0].0.position.x < 0.0,
             "unexpected first glyph position {:?}",
-            glyphs[0].0.position()
+            glyphs[0].0.position
         );
 
         let last_glyph = &glyphs.last().unwrap().0;
         assert!(
-            last_glyph.position().x > 0.0,
+            last_glyph.position.x > 0.0,
             "unexpected last glyph position {:?}",
-            last_glyph.position()
+            last_glyph.position
         );
 
-        let leftmost_x = glyphs[0].0.position().x;
-        let rightmost_x =
-            last_glyph.position().x + last_glyph.unpositioned().h_metrics().advance_width;
+        let leftmost_x = glyphs[0].0.position.x;
+        let sfont = A_FONT.as_scaled(20.0);
+        let rightmost_x = last_glyph.position.x + sfont.h_advance(last_glyph.id);
         assert_relative_eq!(rightmost_x, -leftmost_x, epsilon = 1e-1);
     }
 
@@ -591,17 +575,17 @@ mod layout_test {
                 &SectionGeometry::default(),
                 &[SectionText {
                     text: "hello\nworld",
-                    scale: Scale::uniform(20.0),
+                    scale: PxScale::from(20.0),
                     ..SectionText::default()
                 }],
             );
 
         assert_glyph_order!(glyphs, "hello");
-        assert_relative_eq!(glyphs[0].0.position().x, 0.0);
+        assert_relative_eq!(glyphs[0].0.position.x, 0.0);
         assert!(
-            glyphs[4].0.position().x > 0.0,
+            glyphs[4].0.position.x > 0.0,
             "unexpected last position {:?}",
-            glyphs[4].0.position()
+            glyphs[4].0.position
         );
     }
 
@@ -615,18 +599,18 @@ mod layout_test {
             },
             &[SectionText {
                 text: "hello what's _happening_?",
-                scale: Scale::uniform(20.0),
+                scale: PxScale::from(20.0),
                 ..SectionText::default()
             }],
         );
 
-        assert_glyph_order!(glyphs, "hello");
-        assert_relative_eq!(glyphs[0].0.position().x, 0.0);
+        assert_glyph_order!(glyphs, "hello ");
+        assert_relative_eq!(glyphs[0].0.position.x, 0.0);
         let last_glyph = &glyphs.last().unwrap().0;
         assert!(
-            last_glyph.position().x > 0.0,
+            last_glyph.position.x > 0.0,
             "unexpected last position {:?}",
-            last_glyph.position()
+            last_glyph.position
         );
 
         let glyphs = Layout::default_single_line().calculate_glyphs(
@@ -637,18 +621,18 @@ mod layout_test {
             },
             &[SectionText {
                 text: "hello what's _happening_?",
-                scale: Scale::uniform(20.0),
+                scale: PxScale::from(20.0),
                 ..SectionText::default()
             }],
         );
 
-        assert_glyph_order!(glyphs, "hellowhat's");
-        assert_relative_eq!(glyphs[0].0.position().x, 0.0);
+        assert_glyph_order!(glyphs, "hello what's ");
+        assert_relative_eq!(glyphs[0].0.position.x, 0.0);
         let last_glyph = &glyphs.last().unwrap().0;
         assert!(
-            last_glyph.position().x > 0.0,
+            last_glyph.position.x > 0.0,
             "unexpected last position {:?}",
-            last_glyph.position()
+            last_glyph.position
         );
     }
 
@@ -663,14 +647,14 @@ mod layout_test {
                     ..SectionGeometry::default()
                 },
                 &[SectionText {
-                    text: "helloworld",
-                    scale: Scale::uniform(20.0),
+                    text: "hello world",
+                    scale: PxScale::from(20.0),
                     ..SectionText::default()
                 }],
             );
 
         assert_glyph_order!(glyphs, "hell");
-        assert_relative_eq!(glyphs[0].0.position().x, 0.0);
+        assert_relative_eq!(glyphs[0].0.position.x, 0.0);
     }
 
     #[test]
@@ -684,18 +668,22 @@ mod layout_test {
             &SectionGeometry::default(),
             &[SectionText {
                 text: test_str,
-                scale: Scale::uniform(20.0),
+                scale: PxScale::from(20.0),
                 ..SectionText::default()
             }],
         );
 
-        assert_glyph_order!(glyphs, "Autumnmoonlightawormdigssilentlyintothechestnut.");
+        // newlines don't turn up as glyphs
+        assert_glyph_order!(
+            glyphs,
+            "Autumn moonlighta worm digs silentlyinto the chestnut."
+        );
         assert!(
-            glyphs[16].0.position().y > glyphs[0].0.position().y,
+            glyphs[16].0.position.y > glyphs[0].0.position.y,
             "second line should be lower than first"
         );
         assert!(
-            glyphs[36].0.position().y > glyphs[16].0.position().y,
+            glyphs[36].0.position.y > glyphs[16].0.position.y,
             "third line should be lower than second"
         );
     }
@@ -711,29 +699,27 @@ mod layout_test {
             &[
                 SectionText {
                     text: "Autumn moonlight, ",
-                    scale: Scale::uniform(30.0),
+                    scale: PxScale::from(30.0),
                     ..SectionText::default()
                 },
                 SectionText {
                     text: "a worm digs silently ",
-                    scale: Scale::uniform(40.0),
+                    scale: PxScale::from(40.0),
                     ..SectionText::default()
                 },
                 SectionText {
                     text: "into the chestnut.",
-                    scale: Scale::uniform(10.0),
+                    scale: PxScale::from(10.0),
                     ..SectionText::default()
                 },
             ],
         );
 
-        let max_v_metrics = A_FONT.v_metrics(Scale::uniform(40.0));
-
         for g in glyphs {
-            println!("{:?}", (g.0.scale(), g.0.position()));
+            println!("{:?}", (g.0.scale, g.0.position));
             // all glyphs should have the same ascent drawing position
-            let y_pos = g.0.position().y;
-            assert_relative_eq!(y_pos, max_v_metrics.ascent);
+            let y_pos = g.0.position.y;
+            assert_relative_eq!(y_pos, A_FONT.as_scaled(40.0).ascent());
         }
     }
 
@@ -764,21 +750,21 @@ mod layout_test {
 
         let y_ords: HashSet<OrderedFloat<f32>> = glyphs
             .iter()
-            .map(|g| OrderedFloat(g.0.position().y))
+            .map(|g| OrderedFloat(g.0.position.y))
             .collect();
 
         println!("Y ords: {:?}", y_ords);
         assert_eq!(y_ords.len(), 3, "expected 3 distinct lines");
 
-        assert_glyph_order!(glyphs, "Autumnmoonlight,awormdigssilentlyintothechestnut.");
+        assert_glyph_order!(glyphs, "Autumn moonlight, a worm digs silently into the chestnut.");
 
-        let line_2_glyph = &glyphs[16].0;
-        let line_3_glyph = &&glyphs[33].0;
-        assert_eq!(line_2_glyph.id(), A_FONT.glyph('a').id());
-        assert!(line_2_glyph.position().y > glyphs[0].0.position().y);
+        let line_2_glyph = &glyphs[18].0;
+        let line_3_glyph = &&glyphs[39].0;
+        assert_eq!(line_2_glyph.id, A_FONT.glyph_id('a'));
+        assert!(line_2_glyph.position.y > glyphs[0].0.position.y);
 
-        assert_eq!(line_3_glyph.id(), A_FONT.glyph('i').id());
-        assert!(line_3_glyph.position().y > line_2_glyph.position().y);
+        assert_eq!(line_3_glyph.id, A_FONT.glyph_id('i'));
+        assert!(line_3_glyph.position.y > line_2_glyph.position.y);
     }
 
     #[test]
@@ -799,17 +785,17 @@ mod layout_test {
             &SectionGeometry::default(),
             &[SectionText {
                 text: unicode_str,
-                scale: Scale::uniform(20.0),
+                scale: PxScale::from(20.0),
                 ..SectionText::default()
             }],
         );
 
         assert_glyph_order!(glyphs, "\u{2764}\u{2764}\u{e9}\u{2764}\u{2764}");
-        assert_relative_eq!(glyphs[0].0.position().x, 0.0);
+        assert_relative_eq!(glyphs[0].0.position.x, 0.0);
         assert!(
-            glyphs[4].0.position().x > 0.0,
+            glyphs[4].0.position.x > 0.0,
             "unexpected last position {:?}",
-            glyphs[4].0.position()
+            glyphs[4].0.position
         );
     }
 
@@ -837,11 +823,11 @@ mod layout_test {
             ],
         );
 
-        assert_glyph_order!(glyphs, "Themoonlight");
+        assert_glyph_order!(glyphs, "The moonlight");
 
         let y_ords: HashSet<OrderedFloat<f32>> = glyphs
             .iter()
-            .map(|g| OrderedFloat(g.0.position().y))
+            .map(|g| OrderedFloat(g.0.position.y))
             .collect();
 
         assert_eq!(y_ords.len(), 2, "Y ords: {:?}", y_ords);
@@ -849,8 +835,8 @@ mod layout_test {
         let first_line_y = y_ords.iter().min().unwrap();
         let second_line_y = y_ords.iter().max().unwrap();
 
-        assert_relative_eq!(glyphs[0].0.position().y, first_line_y);
-        assert_relative_eq!(glyphs[3].0.position().y, second_line_y);
+        assert_relative_eq!(glyphs[0].0.position.y, first_line_y);
+        assert_relative_eq!(glyphs[4].0.position.y, second_line_y);
     }
 
     #[test]
@@ -860,7 +846,7 @@ mod layout_test {
             &SectionGeometry::default(),
             &[SectionText {
                 text: "hello world",
-                scale: Scale::uniform(20.0),
+                scale: PxScale::from(20.0),
                 ..SectionText::default()
             }],
         );
@@ -872,19 +858,19 @@ mod layout_test {
             &SectionGeometry::default(),
             &[SectionText {
                 text: "hello world",
-                scale: Scale::uniform(20.0),
+                scale: PxScale::from(20.0),
                 ..SectionText::default()
             }],
         );
 
-        assert_glyph_order!(recalc, "helloworld");
+        assert_glyph_order!(recalc, "hello world");
 
-        assert_relative_eq!(recalc[0].0.position().x, 0.0);
+        assert_relative_eq!(recalc[0].0.position.x, 0.0);
         let last_glyph = &recalc.last().unwrap().0;
         assert!(
-            last_glyph.position().x > 0.0,
+            last_glyph.position.x > 0.0,
             "unexpected last position {:?}",
-            last_glyph.position()
+            last_glyph.position
         );
     }
 
@@ -900,12 +886,12 @@ mod layout_test {
             &geometry_1,
             &[SectionText {
                 text: "hello world",
-                scale: Scale::uniform(20.0),
+                scale: PxScale::from(20.0),
                 ..SectionText::default()
             }],
         );
 
-        let original_y = glyphs[0].0.position().y;
+        let original_y = glyphs[0].0.position.y;
 
         let recalc = Layout::default().recalculate_glyphs(
             Cow::Owned(glyphs),
@@ -917,20 +903,20 @@ mod layout_test {
             },
             &[SectionText {
                 text: "hello world",
-                scale: Scale::uniform(20.0),
+                scale: PxScale::from(20.0),
                 ..SectionText::default()
             }],
         );
 
-        assert_glyph_order!(recalc, "helloworld");
+        assert_glyph_order!(recalc, "hello world");
 
-        assert_relative_eq!(recalc[0].0.position().x, 0.0);
-        assert_relative_eq!(recalc[0].0.position().y, original_y + 50.0);
+        assert_relative_eq!(recalc[0].0.position.x, 0.0);
+        assert_relative_eq!(recalc[0].0.position.y, original_y + 50.0);
         let last_glyph = &recalc.last().unwrap().0;
         assert!(
-            last_glyph.position().x > 0.0,
+            last_glyph.position.x > 0.0,
             "unexpected last position {:?}",
-            last_glyph.position()
+            last_glyph.position
         );
     }
 
@@ -949,7 +935,7 @@ mod layout_test {
             }],
         );
 
-        assert_glyph_order!(glyphs, "helloworld");
+        assert_glyph_order!(glyphs, "hello world");
         assert_eq!(glyphs[2].1, RED);
 
         let recalc = Layout::default().recalculate_glyphs(
@@ -964,7 +950,7 @@ mod layout_test {
             }],
         );
 
-        assert_glyph_order!(recalc, "helloworld");
+        assert_glyph_order!(recalc, "hello world");
         assert_eq!(recalc[2].1, BLUE);
     }
 
@@ -993,7 +979,7 @@ mod layout_test {
             ],
         );
 
-        assert_glyph_order!(glyphs, "helloworld");
+        assert_glyph_order!(glyphs, "hello world");
         assert_eq!(glyphs[2].1, RED);
 
         let recalc = Layout::default().recalculate_glyphs(
@@ -1015,7 +1001,7 @@ mod layout_test {
             ],
         );
 
-        assert_glyph_order!(recalc, "helloworld");
+        assert_glyph_order!(recalc, "hello world");
         assert_eq!(recalc[2].1, RED_HALF_ALPHA);
     }
 
@@ -1031,23 +1017,23 @@ mod layout_test {
             },
             &[SectionText {
                 text: "提高代碼執行率",
-                scale: Scale::uniform(20.0),
+                scale: PxScale::from(20.0),
                 font_id: FontId(1),
                 ..<_>::default()
             }],
         );
 
-        assert_glyph_order!(glyphs, "提高代碼執行率", font = CJK_FONT);
+        assert_glyph_order!(glyphs, "提高代碼執行率", font = &*CJK_FONT);
 
         let x_positions: HashSet<_> = glyphs
             .iter()
-            .map(|g| OrderedFloat(g.0.position().x))
+            .map(|g| OrderedFloat(g.0.position.x))
             .collect();
         assert_eq!(x_positions, std::iter::once(OrderedFloat(0.0)).collect());
 
         let y_positions: HashSet<_> = glyphs
             .iter()
-            .map(|g| OrderedFloat(g.0.position().y))
+            .map(|g| OrderedFloat(g.0.position.y))
             .collect();
 
         assert_eq!(y_positions.len(), 7, "{:?}", y_positions);

@@ -4,20 +4,48 @@ use crate::{
     linebreak::{LineBreak, LineBreaker},
     lines::Lines,
 };
-use full_rusttype::{point, Point, PositionedGlyph, Rect, ScaledGlyph, VMetrics};
+use ab_glyph::*;
 use std::iter::{FusedIterator, Iterator};
 
-pub(crate) const ZERO_V_METRICS: VMetrics = VMetrics {
-    ascent: 0.0,
-    descent: 0.0,
-    line_gap: 0.0,
-};
+#[derive(Clone, Debug, Default)]
+pub(crate) struct VMetrics {
+    pub ascent: f32,
+    pub descent: f32,
+    pub line_gap: f32,
+}
+
+impl VMetrics {
+    #[inline]
+    pub fn height(&self) -> f32 {
+        self.ascent - self.descent
+    }
+
+    #[inline]
+    pub fn max(self, other: Self) -> Self {
+        if other.height() > self.height() {
+            other
+        } else {
+            self
+        }
+    }
+}
+
+impl<F: Font> From<PxScaleFont<F>> for VMetrics {
+    #[inline]
+    fn from(scale_font: PxScaleFont<F>) -> Self {
+        Self {
+            ascent: scale_font.ascent(),
+            descent: scale_font.descent(),
+            line_gap: scale_font.line_gap(),
+        }
+    }
+}
 
 /// Single 'word' ie a sequence of `Character`s where the last is a line-break.
 ///
 /// Glyphs are relatively positioned from (0, 0) in a left-top alignment style.
-pub(crate) struct Word<'font> {
-    pub glyphs: Vec<(RelativePositionedGlyph<'font>, Color, FontId)>,
+pub(crate) struct Word {
+    pub glyphs: Vec<(Glyph, Color, FontId)>,
     /// pixel advance width of word includes ending spaces/invisibles
     pub layout_width: f32,
     /// pixel advance width of word not including any trailing spaces/invisibles
@@ -27,47 +55,23 @@ pub(crate) struct Word<'font> {
     pub hard_break: bool,
 }
 
-/// A scaled glyph that's relatively positioned.
-pub(crate) struct RelativePositionedGlyph<'font> {
-    pub relative: Point<f32>,
-    pub glyph: ScaledGlyph<'font>,
-}
-
-impl<'font> RelativePositionedGlyph<'font> {
-    #[inline]
-    pub(crate) fn bounds(&self) -> Option<Rect<f32>> {
-        self.glyph.exact_bounding_box().map(|mut bb| {
-            bb.min.x += self.relative.x;
-            bb.min.y += self.relative.y;
-            bb.max.x += self.relative.x;
-            bb.max.y += self.relative.y;
-            bb
-        })
-    }
-
-    #[inline]
-    pub(crate) fn screen_positioned(self, mut pos: Point<f32>) -> PositionedGlyph<'font> {
-        pos.x += self.relative.x;
-        pos.y += self.relative.y;
-        self.glyph.positioned(pos)
-    }
-}
-
 /// `Word` iterator.
-pub(crate) struct Words<'a, 'b, 'font: 'a + 'b, L, F>
+pub(crate) struct Words<'a, 'b, L, F, FM>
 where
     L: LineBreaker,
-    F: FontMap<'font>,
+    F: Font,
+    FM: FontMap<F>,
 {
-    pub(crate) characters: Characters<'a, 'b, 'font, L, F>,
+    pub(crate) characters: Characters<'a, 'b, L, F, FM>,
 }
 
-impl<'a, 'b, 'font, L, F> Words<'a, 'b, 'font, L, F>
+impl<'a, 'b, L, F, FM> Words<'a, 'b, L, F, FM>
 where
     L: LineBreaker,
-    F: FontMap<'font>,
+    F: Font,
+    FM: FontMap<F>,
 {
-    pub(crate) fn lines(self, width_bound: f32) -> Lines<'a, 'b, 'font, L, F> {
+    pub(crate) fn lines(self, width_bound: f32) -> Lines<'a, 'b, L, F, FM> {
         Lines {
             words: self.peekable(),
             width_bound,
@@ -75,12 +79,13 @@ where
     }
 }
 
-impl<'font, L, F> Iterator for Words<'_, '_, 'font, L, F>
+impl<'b, L, F: 'b, FM> Iterator for Words<'_, 'b, L, F, FM>
 where
     L: LineBreaker,
-    F: FontMap<'font>,
+    F: Font,
+    FM: FontMap<F>,
 {
-    type Item = Word<'font>;
+    type Item = Word;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -88,45 +93,38 @@ where
         let mut caret = 0.0;
         let mut caret_no_trail = caret;
         let mut last_glyph_id = None;
-        let mut max_v_metrics = None;
+        let mut max_v_metrics = VMetrics::default();
         let mut hard_break = false;
         let mut progress = false;
 
         for Character {
-            glyph,
+            mut glyph,
+            scale_font,
             color,
             font_id,
             line_break,
             control,
+            whitespace,
         } in &mut self.characters
         {
             progress = true;
             {
-                let font = glyph.font().expect("standalone not supported");
-                let v_metrics = font.v_metrics(glyph.scale());
-                if max_v_metrics.is_none() || v_metrics > max_v_metrics.unwrap() {
-                    max_v_metrics = Some(v_metrics);
-                }
+                max_v_metrics = max_v_metrics.max(scale_font.into());
 
                 if let Some(id) = last_glyph_id.take() {
-                    caret += font.pair_kerning(glyph.scale(), id, glyph.id());
+                    caret += scale_font.kern(id, glyph.id);
                 }
-                last_glyph_id = Some(glyph.id());
+                last_glyph_id = Some(glyph.id);
             }
 
-            let advance_width = glyph.h_metrics().advance_width;
+            let advance_width = scale_font.h_advance(glyph.id);
 
             if !control {
-                let positioned = RelativePositionedGlyph {
-                    relative: point(caret, 0.0),
-                    glyph,
-                };
-
+                glyph.position = point(caret, 0.0);
+                glyphs.push((glyph, color, font_id));
                 caret += advance_width;
 
-                if positioned.bounds().is_some() {
-                    glyphs.push((positioned, color, font_id));
-
+                if !whitespace {
                     // not an invisible trail
                     caret_no_trail = caret;
                 }
@@ -146,7 +144,7 @@ where
                 layout_width: caret,
                 layout_width_no_trail: caret_no_trail,
                 hard_break,
-                max_v_metrics: max_v_metrics.unwrap_or(ZERO_V_METRICS),
+                max_v_metrics,
             });
         }
 
@@ -154,4 +152,4 @@ where
     }
 }
 
-impl<'font, L: LineBreaker, F: FontMap<'font>> FusedIterator for Words<'_, '_, 'font, L, F> {}
+impl<L: LineBreaker, F: Font, FM: FontMap<F>> FusedIterator for Words<'_, '_, L, F, FM> {}

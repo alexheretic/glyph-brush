@@ -1,20 +1,21 @@
-use full_rusttype::Font;
+use ab_glyph::*;
 
 /// Id for a font
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub struct FontId(pub usize);
 
 /// Mapper of [`FontId`](struct.FontId.html) -> [`Font`](rusttype/struct.Font.html)
-pub trait FontMap<'font> {
-    fn font(&self, id: FontId) -> &Font<'font>;
+pub trait FontMap<F: Font> {
+    fn font(&self, id: FontId) -> &F;
 }
 
-impl<'font, T> FontMap<'font> for T
+impl<T, F> FontMap<F> for T
 where
-    T: AsRef<[Font<'font>]>,
+    F: Font,
+    T: AsRef<[F]>,
 {
     #[inline]
-    fn font(&self, i: FontId) -> &Font<'font> {
+    fn font(&self, i: FontId) -> &F {
         &self.as_ref()[i.0]
     }
 }
@@ -24,12 +25,12 @@ mod test {
     use super::*;
     use once_cell::sync::Lazy;
 
-    static DEJA_VU: Lazy<Font<'static>> = Lazy::new(|| {
-        Font::from_bytes(include_bytes!("../../fonts/DejaVuSans.ttf") as &[u8]).unwrap()
+    static DEJA_VU: Lazy<FontRef<'static>> = Lazy::new(|| {
+        FontRef::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf")).unwrap()
     });
-    static GARAMOND: Lazy<Font<'static>> = Lazy::new(|| {
+    static GARAMOND: Lazy<FontRef<'static>> = Lazy::new(|| {
         let font =
-            Font::from_bytes(include_bytes!("../../fonts/GaramondNo8-Reg.ttf") as &[u8]).unwrap();
+            FontRef::try_from_slice(include_bytes!("../../fonts/GaramondNo8-Reg.ttf")).unwrap();
         assert_ne!(font.glyph_count(), DEJA_VU.glyph_count());
         font
     });
@@ -46,21 +47,21 @@ mod test {
 
     #[test]
     fn font_map_for_vecs() {
-        let fonts: Vec<Font> = vec![DEJA_VU.clone(), GARAMOND.clone()];
+        let fonts: Vec<FontRef<'static>> = vec![DEJA_VU.clone(), GARAMOND.clone()];
         assert_eq_font!(fonts.font(FontId(0)), DEJA_VU);
         assert_eq_font!(fonts.font(FontId(1)), GARAMOND);
     }
 
     #[test]
     fn font_map_for_arrays() {
-        let fonts: [Font; 2] = [DEJA_VU.clone(), GARAMOND.clone()];
+        let fonts: [FontRef<'static>; 2] = [DEJA_VU.clone(), GARAMOND.clone()];
         assert_eq_font!(fonts.font(FontId(0)), DEJA_VU);
         assert_eq_font!(fonts.font(FontId(1)), GARAMOND);
     }
 
     #[test]
     fn font_map_for_slices() {
-        let fonts: &[Font] = &[DEJA_VU.clone(), GARAMOND.clone()][..];
+        let fonts: &[FontRef<'static>] = &[DEJA_VU.clone(), GARAMOND.clone()][..];
         assert_eq_font!(fonts.font(FontId(0)), DEJA_VU);
         assert_eq_font!(fonts.font(FontId(1)), GARAMOND);
     }
