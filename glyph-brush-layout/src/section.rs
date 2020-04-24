@@ -1,9 +1,6 @@
-use crate::{font::FontId};
-use std::f32;
+use crate::font::FontId;
 use ab_glyph::*;
-
-/// RGBA `[0, 1]` color data.
-pub type Color = [f32; 4];
+use std::f32;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SectionGeometry {
@@ -23,19 +20,17 @@ impl Default for SectionGeometry {
     }
 }
 
+/// Text to layout together using a font & scale.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SectionText<'a> {
     /// Text to render
     pub text: &'a str,
     /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
     pub scale: PxScale,
-    /// Rgba color of rendered text. Defaults to black.
-    pub color: Color,
     /// Font id to use for this section.
     ///
-    /// It must be known to the `GlyphBrush` it is being used with,
-    /// either `FontId::default()` or the return of
-    /// [`add_font`](struct.GlyphBrushBuilder.html#method.add_font).
+    /// It must be a valid id in the `FontMap` used for layout calls.
+    /// The default `FontId(0)` should always be valid.
     pub font_id: FontId,
 }
 
@@ -45,8 +40,20 @@ impl Default for SectionText<'static> {
         Self {
             text: "",
             scale: PxScale::from(16.0),
-            color: [0.0, 0.0, 0.0, 1.0],
             font_id: FontId::default(),
         }
     }
+}
+
+/// A positioned glyph with info relating to the `SectionText` from which it was derived.
+#[derive(Debug, Clone)]
+pub struct SectionGlyph {
+    /// A positioned glyph.
+    pub glyph: Glyph,
+    /// Font id.
+    pub font_id: FontId,
+    /// The `SectionText` index.
+    pub section_index: usize,
+    /// The character byte index from the `SectionText` text.
+    pub byte_index: usize,
 }

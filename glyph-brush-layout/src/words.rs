@@ -1,5 +1,5 @@
-use super::{Color, FontId, FontMap};
 use crate::{
+    SectionGlyph, FontMap,
     characters::{Character, Characters},
     linebreak::{LineBreak, LineBreaker},
     lines::Lines,
@@ -45,7 +45,7 @@ impl<F: Font> From<PxScaleFont<F>> for VMetrics {
 ///
 /// Glyphs are relatively positioned from (0, 0) in a left-top alignment style.
 pub(crate) struct Word {
-    pub glyphs: Vec<(Glyph, Color, FontId)>,
+    pub glyphs: Vec<SectionGlyph>,
     /// pixel advance width of word includes ending spaces/invisibles
     pub layout_width: f32,
     /// pixel advance width of word not including any trailing spaces/invisibles
@@ -100,11 +100,12 @@ where
         for Character {
             mut glyph,
             scale_font,
-            color,
             font_id,
             line_break,
             control,
             whitespace,
+            section_index,
+            byte_index,
         } in &mut self.characters
         {
             progress = true;
@@ -121,7 +122,12 @@ where
 
             if !control {
                 glyph.position = point(caret, 0.0);
-                glyphs.push((glyph, color, font_id));
+                glyphs.push(SectionGlyph {
+                    glyph,
+                    font_id,
+                    section_index,
+                    byte_index,
+                });
                 caret += advance_width;
 
                 if !whitespace {

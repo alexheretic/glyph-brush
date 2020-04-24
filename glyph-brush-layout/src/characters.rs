@@ -1,11 +1,11 @@
-use super::{Color, EolLineBreak, FontId, FontMap, SectionText};
+use super::{EolLineBreak, FontId, FontMap, SectionText};
 use crate::{
     linebreak::{LineBreak, LineBreaker},
     words::Words,
 };
 use ab_glyph::*;
 use std::{
-    iter::{FusedIterator, Iterator},
+    iter::{FusedIterator, Iterator, Enumerate},
     marker::PhantomData,
     mem, slice,
     str::CharIndices,
@@ -15,8 +15,6 @@ use std::{
 pub(crate) struct Character<'b, F: Font> {
     pub glyph: Glyph,
     pub scale_font: PxScaleFont<&'b F>,
-
-    pub color: Color,
     pub font_id: FontId,
     /// Line break proceeding this character.
     pub line_break: Option<LineBreak>,
@@ -24,6 +22,10 @@ pub(crate) struct Character<'b, F: Font> {
     pub control: bool,
     /// Equivalent to `char::is_whitespace()`.
     pub whitespace: bool,
+    /// Index of the `SectionText` this character is from.
+    pub section_index: usize,
+    /// Position of the char within the `SectionText` text.
+    pub byte_index: usize,
 }
 
 /// `Character` iterator
@@ -35,13 +37,14 @@ where
     FM: FontMap<F>,
 {
     font_map: &'b FM,
-    section_text: slice::Iter<'a, SectionText<'a>>,
+    section_text: Enumerate<slice::Iter<'a, SectionText<'a>>>,
     line_breaker: L,
     part_info: Option<PartInfo<'a>>,
     phantom: PhantomData<F>,
 }
 
 struct PartInfo<'a> {
+    section_index: usize,
     section: &'a SectionText<'a>,
     info_chars: CharIndices<'a>,
     line_breaks: Box<dyn Iterator<Item = LineBreak> + 'a>,
@@ -57,7 +60,7 @@ where
     /// Returns a new `Characters` iterator.
     pub(crate) fn new(
         font_map: &'b FM,
-        section_text: slice::Iter<'a, SectionText<'a>>,
+        section_text: Enumerate<slice::Iter<'a, SectionText<'a>>>,
         line_breaker: L,
     ) -> Self {
         Self {
@@ -86,17 +89,19 @@ where
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if self.part_info.is_none() {
-            let mut section;
+            let mut index_and_section;
             loop {
-                section = self.section_text.next()?;
-                if valid_section(&section) {
+                index_and_section = self.section_text.next()?;
+                if valid_section(&index_and_section.1) {
                     break;
                 }
             }
+            let (section_index, section) = index_and_section;
             let line_breaks = self.line_breaker.line_breaks(section.text);
             self.part_info = Some(PartInfo {
+                section_index,
                 section,
-                info_chars: section.text.char_indices(),
+                info_chars: index_and_section.1.text.char_indices(),
                 line_breaks,
                 next_break: None,
             });
@@ -104,10 +109,10 @@ where
 
         {
             let PartInfo {
+                section_index,
                 section:
                     SectionText {
                         scale,
-                        color,
                         font_id,
                         text,
                     },
@@ -141,11 +146,13 @@ where
                 return Some(Character {
                     glyph,
                     scale_font,
-                    color: *color,
                     font_id: *font_id,
                     line_break,
                     control: c.is_control(),
                     whitespace: c.is_whitespace(),
+
+                    section_index: *section_index,
+                    byte_index,
                 });
             }
         }

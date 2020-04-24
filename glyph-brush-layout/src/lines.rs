@@ -1,4 +1,4 @@
-use super::{Color, FontId, FontMap, HorizontalAlign, VerticalAlign};
+use super::{FontMap, HorizontalAlign, VerticalAlign, SectionGlyph};
 use crate::{linebreak::LineBreaker, words::*};
 use ab_glyph::*;
 use std::iter::{FusedIterator, Iterator, Peekable};
@@ -6,7 +6,7 @@ use std::iter::{FusedIterator, Iterator, Peekable};
 /// A line of `Word`s limited to a max width bound.
 #[derive(Default)]
 pub(crate) struct Line {
-    pub glyphs: Vec<(Glyph, Color, FontId)>,
+    pub glyphs: Vec<SectionGlyph>,
     pub max_v_metrics: VMetrics,
     pub rightmost: f32,
 }
@@ -23,7 +23,7 @@ impl Line {
         screen_position: (f32, f32),
         h_align: HorizontalAlign,
         v_align: VerticalAlign,
-    ) -> Vec<(Glyph, Color, FontId)> {
+    ) -> Vec<SectionGlyph> {
         if self.glyphs.is_empty() {
             return Vec::new();
         }
@@ -60,7 +60,7 @@ impl Line {
 
         self.glyphs
             .iter_mut()
-            .for_each(|(g, ..)| g.position += screen_pos);
+            .for_each(|sg| sg.glyph.position += screen_pos);
 
         self.glyphs
     }
@@ -117,18 +117,17 @@ where
                 caret.y += diff_y;
 
                 // modify all smaller lined glyphs to occupy the new larger line
-                for (glyph, ..) in &mut line.glyphs {
+                for SectionGlyph { glyph, .. } in &mut line.glyphs {
                     glyph.position.y += diff_y;
                 }
 
                 line.max_v_metrics = word.max_v_metrics;
             }
 
-            line.glyphs
-                .extend(word.glyphs.into_iter().map(|(mut g, color, font_id)| {
-                    g.position += caret;
-                    (g, color, font_id)
-                }));
+            line.glyphs.extend(word.glyphs.into_iter().map(|mut sg| {
+                sg.glyph.position += caret;
+                sg
+            }));
 
             caret.x += word.layout_width;
 

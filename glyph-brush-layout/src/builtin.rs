@@ -1,8 +1,8 @@
 use super::{
-    BuiltInLineBreaker, Color, FontId, FontMap, GlyphPositioner, LineBreaker, SectionGeometry,
-    SectionText,
+    BuiltInLineBreaker, FontMap, GlyphPositioner, LineBreaker,
+    SectionGeometry, SectionText,
 };
-use crate::{characters::Characters, GlyphChange};
+use crate::{characters::Characters, SectionGlyph, GlyphChange};
 use ab_glyph::*;
 use std::borrow::Cow;
 
@@ -141,8 +141,12 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
         font_map: &FM,
         geometry: &SectionGeometry,
         sections: &[SectionText<'_>],
-    ) -> Vec<(Glyph, Color, FontId)> {
+    ) -> Vec<SectionGlyph> {
         use crate::Layout::{SingleLine, Wrap};
+
+        if sections.is_empty() {
+            return Vec::new();
+        }
 
         let SectionGeometry {
             screen_position,
@@ -155,7 +159,7 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                 h_align,
                 v_align,
                 line_breaker,
-            } => Characters::new(font_map, sections.iter(), line_breaker)
+            } => Characters::new(font_map, sections.iter().enumerate(), line_breaker)
                 .words()
                 .lines(bound_w)
                 .next()
@@ -171,7 +175,7 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                 let mut caret = screen_position;
                 let v_align_top = v_align == VerticalAlign::Top;
 
-                let lines = Characters::new(font_map, sections.iter(), line_breaker)
+                let lines = Characters::new(font_map, sections.iter().enumerate(), line_breaker)
                     .words()
                     .lines(bound_w);
 
@@ -202,7 +206,8 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                             // let (min_x, max_x) = h_align.x_bounds(screen_position.0, bound_w);
                             // let (min_y, max_y) = v_align.y_bounds(screen_position.1, bound_h);
 
-                            out.iter_mut().for_each(|(g, ..)| g.position.y -= shift_up);
+                            out.iter_mut()
+                                .for_each(|sg| sg.glyph.position.y -= shift_up);
                         }
                     }
                 }
@@ -210,6 +215,25 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                 out
             }
         }
+
+        // let grouped = Vec::with_capacity(sections.len());
+        // let mut current_section_idx = 0;
+        // let mut current_section = PositionedSection::default();
+        // for SectionGlyph {
+        //     glyph,
+        //     font_id,
+        //     section_index,
+        //     byte_index,
+        // } in flat_glyphs
+        // {
+        //     if section_index != current_section_idx {
+        //         grouped.push(current_section);
+        //     }
+        //     current_section.font_id = font_id;
+        //     current_section.glyph_indices.push((byte_index, glyph));
+        // }
+        // grouped.push(current_section);
+        // grouped
     }
 
     fn bounds_rect(&self, geometry: &SectionGeometry) -> Rect {
@@ -241,12 +265,12 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
     #[allow(clippy::float_cmp)]
     fn recalculate_glyphs<F: Font, FM: FontMap<F>>(
         &self,
-        previous: Cow<'_, Vec<(Glyph, Color, FontId)>>,
+        previous: Cow<'_, Vec<SectionGlyph>>,
         change: GlyphChange,
         fonts: &FM,
         geometry: &SectionGeometry,
         sections: &[SectionText<'_>],
-    ) -> Vec<(Glyph, Color, FontId)> {
+    ) -> Vec<SectionGlyph> {
         match change {
             GlyphChange::Geometry(old) if old.bounds == geometry.bounds => {
                 // position change
@@ -258,37 +282,37 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                 let mut glyphs = previous.into_owned();
                 glyphs
                     .iter_mut()
-                    .for_each(|(g, ..)| g.position += adjustment);
+                    .for_each(|sg| sg.glyph.position += adjustment);
                 glyphs
             }
-            GlyphChange::Color if !sections.is_empty() && !previous.is_empty() => {
-                let new_color = sections[0].color;
-                if sections.iter().all(|s| s.color == new_color) {
-                    // if only the color changed, but the new section only use a single color
-                    // we can simply set all the olds to the new color
-                    let mut glyphs = previous.into_owned();
-                    for (_, color, ..) in &mut glyphs {
-                        *color = new_color;
-                    }
-                    glyphs
-                } else {
-                    self.calculate_glyphs(fonts, geometry, sections)
-                }
-            }
-            GlyphChange::Alpha if !sections.is_empty() && !previous.is_empty() => {
-                let new_alpha = sections[0].color[3];
-                if sections.iter().all(|s| s.color[3] == new_alpha) {
-                    // if only the alpha changed, but the new section only uses a single alpha
-                    // we can simply set all the olds to the new alpha
-                    let mut glyphs = previous.into_owned();
-                    for (_, color, ..) in &mut glyphs {
-                        color[3] = new_alpha;
-                    }
-                    glyphs
-                } else {
-                    self.calculate_glyphs(fonts, geometry, sections)
-                }
-            }
+            // GlyphChange::Color if !sections.is_empty() && !previous.is_empty() => {
+            //     let new_color = sections[0].color;
+            //     if sections.iter().all(|s| s.color == new_color) {
+            //         // if only the color changed, but the new section only use a single color
+            //         // we can simply set all the olds to the new color
+            //         let mut glyphs = previous.into_owned();
+            //         for (_, color, ..) in &mut glyphs {
+            //             *color = new_color;
+            //         }
+            //         glyphs
+            //     } else {
+            //         self.calculate_glyphs(fonts, geometry, sections)
+            //     }
+            // }
+            // GlyphChange::Alpha if !sections.is_empty() && !previous.is_empty() => {
+            //     let new_alpha = sections[0].color[3];
+            //     if sections.iter().all(|s| s.color[3] == new_alpha) {
+            //         // if only the alpha changed, but the new section only uses a single alpha
+            //         // we can simply set all the olds to the new alpha
+            //         let mut glyphs = previous.into_owned();
+            //         for (_, color, ..) in &mut glyphs {
+            //             color[3] = new_alpha;
+            //         }
+            //         glyphs
+            //     } else {
+            //         self.calculate_glyphs(fonts, geometry, sections)
+            //     }
+            // }
             _ => self.calculate_glyphs(fonts, geometry, sections),
         }
     }
@@ -369,6 +393,7 @@ mod bounds_test {
 #[cfg(test)]
 mod layout_test {
     use super::*;
+    use crate::FontId;
     use crate::BuiltInLineBreaker::*;
     use approx::assert_relative_eq;
     use once_cell::sync::Lazy;
@@ -388,20 +413,20 @@ mod layout_test {
         'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R',
         'S', 'T', 'U', 'V', 'W', 'X', 'Q', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
         'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', ' ', ',',
-        '.', '提', '高', '代', '碼', '執', '行', '率', '❤', 'é', 'ß', '\'', '_'
+        '.', '提', '高', '代', '碼', '執', '行', '率', '❤', 'é', 'ß', '\'', '_',
     ];
 
     /// Turns glyphs into a string, uses `☐` to denote that it didn't work
-    fn glyphs_to_common_string<F>(glyphs: &[(Glyph, Color, FontId)], font: &F) -> String
+    fn glyphs_to_common_string<F>(glyphs: &[SectionGlyph], font: &F) -> String
     where
         F: Font,
     {
         glyphs
             .iter()
-            .map(|(g, ..)| {
+            .map(|sg| {
                 TEST_CHARS
                     .iter()
-                    .find(|cc| font.glyph_id(**cc) == g.id)
+                    .find(|cc| font.glyph_id(**cc) == sg.glyph.id)
                     .unwrap_or(&'☐')
             })
             .collect()
@@ -429,7 +454,7 @@ mod layout_test {
             _: &FM,
             _: &SectionGeometry,
             _: &[SectionText<'_>],
-        ) -> Vec<(Glyph, Color, FontId)> {
+        ) -> Vec<SectionGlyph> {
             <_>::default()
         }
 
@@ -493,8 +518,8 @@ mod layout_test {
 
         assert_glyph_order!(glyphs, "hello world");
 
-        assert_relative_eq!(glyphs[0].0.position.x, 0.0);
-        let last_glyph = &glyphs.last().unwrap().0;
+        assert_relative_eq!(glyphs[0].glyph.position.x, 0.0);
+        let last_glyph = &glyphs.last().unwrap().glyph;
         assert!(
             last_glyph.position.x > 0.0,
             "unexpected last position {:?}",
@@ -518,8 +543,8 @@ mod layout_test {
             );
 
         assert_glyph_order!(glyphs, "hello world");
-        let last_glyph = &glyphs.last().unwrap().0;
-        assert!(glyphs[0].0.position.x < last_glyph.position.x);
+        let last_glyph = &glyphs.last().unwrap().glyph;
+        assert!(glyphs[0].glyph.position.x < last_glyph.position.x);
         assert!(
             last_glyph.position.x <= 0.0,
             "unexpected last position {:?}",
@@ -548,19 +573,19 @@ mod layout_test {
 
         assert_glyph_order!(glyphs, "hello world");
         assert!(
-            glyphs[0].0.position.x < 0.0,
+            glyphs[0].glyph.position.x < 0.0,
             "unexpected first glyph position {:?}",
-            glyphs[0].0.position
+            glyphs[0].glyph.position
         );
 
-        let last_glyph = &glyphs.last().unwrap().0;
+        let last_glyph = &glyphs.last().unwrap().glyph;
         assert!(
             last_glyph.position.x > 0.0,
             "unexpected last glyph position {:?}",
             last_glyph.position
         );
 
-        let leftmost_x = glyphs[0].0.position.x;
+        let leftmost_x = glyphs[0].glyph.position.x;
         let sfont = A_FONT.as_scaled(20.0);
         let rightmost_x = last_glyph.position.x + sfont.h_advance(last_glyph.id);
         assert_relative_eq!(rightmost_x, -leftmost_x, epsilon = 1e-1);
@@ -581,11 +606,11 @@ mod layout_test {
             );
 
         assert_glyph_order!(glyphs, "hello");
-        assert_relative_eq!(glyphs[0].0.position.x, 0.0);
+        assert_relative_eq!(glyphs[0].glyph.position.x, 0.0);
         assert!(
-            glyphs[4].0.position.x > 0.0,
+            glyphs[4].glyph.position.x > 0.0,
             "unexpected last position {:?}",
-            glyphs[4].0.position
+            glyphs[4].glyph.position
         );
     }
 
@@ -605,8 +630,8 @@ mod layout_test {
         );
 
         assert_glyph_order!(glyphs, "hello ");
-        assert_relative_eq!(glyphs[0].0.position.x, 0.0);
-        let last_glyph = &glyphs.last().unwrap().0;
+        assert_relative_eq!(glyphs[0].glyph.position.x, 0.0);
+        let last_glyph = &glyphs.last().unwrap().glyph;
         assert!(
             last_glyph.position.x > 0.0,
             "unexpected last position {:?}",
@@ -627,8 +652,8 @@ mod layout_test {
         );
 
         assert_glyph_order!(glyphs, "hello what's ");
-        assert_relative_eq!(glyphs[0].0.position.x, 0.0);
-        let last_glyph = &glyphs.last().unwrap().0;
+        assert_relative_eq!(glyphs[0].glyph.position.x, 0.0);
+        let last_glyph = &glyphs.last().unwrap().glyph;
         assert!(
             last_glyph.position.x > 0.0,
             "unexpected last position {:?}",
@@ -654,7 +679,7 @@ mod layout_test {
             );
 
         assert_glyph_order!(glyphs, "hell");
-        assert_relative_eq!(glyphs[0].0.position.x, 0.0);
+        assert_relative_eq!(glyphs[0].glyph.position.x, 0.0);
     }
 
     #[test]
@@ -679,11 +704,11 @@ mod layout_test {
             "Autumn moonlighta worm digs silentlyinto the chestnut."
         );
         assert!(
-            glyphs[16].0.position.y > glyphs[0].0.position.y,
+            glyphs[16].glyph.position.y > glyphs[0].glyph.position.y,
             "second line should be lower than first"
         );
         assert!(
-            glyphs[36].0.position.y > glyphs[16].0.position.y,
+            glyphs[36].glyph.position.y > glyphs[16].glyph.position.y,
             "third line should be lower than second"
         );
     }
@@ -716,9 +741,9 @@ mod layout_test {
         );
 
         for g in glyphs {
-            println!("{:?}", (g.0.scale, g.0.position));
+            println!("{:?}", (g.glyph.scale, g.glyph.position));
             // all glyphs should have the same ascent drawing position
-            let y_pos = g.0.position.y;
+            let y_pos = g.glyph.position.y;
             assert_relative_eq!(y_pos, A_FONT.as_scaled(40.0).ascent());
         }
     }
@@ -750,18 +775,21 @@ mod layout_test {
 
         let y_ords: HashSet<OrderedFloat<f32>> = glyphs
             .iter()
-            .map(|g| OrderedFloat(g.0.position.y))
+            .map(|g| OrderedFloat(g.glyph.position.y))
             .collect();
 
         println!("Y ords: {:?}", y_ords);
         assert_eq!(y_ords.len(), 3, "expected 3 distinct lines");
 
-        assert_glyph_order!(glyphs, "Autumn moonlight, a worm digs silently into the chestnut.");
+        assert_glyph_order!(
+            glyphs,
+            "Autumn moonlight, a worm digs silently into the chestnut."
+        );
 
-        let line_2_glyph = &glyphs[18].0;
-        let line_3_glyph = &&glyphs[39].0;
+        let line_2_glyph = &glyphs[18].glyph;
+        let line_3_glyph = &&glyphs[39].glyph;
         assert_eq!(line_2_glyph.id, A_FONT.glyph_id('a'));
-        assert!(line_2_glyph.position.y > glyphs[0].0.position.y);
+        assert!(line_2_glyph.position.y > glyphs[0].glyph.position.y);
 
         assert_eq!(line_3_glyph.id, A_FONT.glyph_id('i'));
         assert!(line_3_glyph.position.y > line_2_glyph.position.y);
@@ -791,11 +819,11 @@ mod layout_test {
         );
 
         assert_glyph_order!(glyphs, "\u{2764}\u{2764}\u{e9}\u{2764}\u{2764}");
-        assert_relative_eq!(glyphs[0].0.position.x, 0.0);
+        assert_relative_eq!(glyphs[0].glyph.position.x, 0.0);
         assert!(
-            glyphs[4].0.position.x > 0.0,
+            glyphs[4].glyph.position.x > 0.0,
             "unexpected last position {:?}",
-            glyphs[4].0.position
+            glyphs[4].glyph.position
         );
     }
 
@@ -827,7 +855,7 @@ mod layout_test {
 
         let y_ords: HashSet<OrderedFloat<f32>> = glyphs
             .iter()
-            .map(|g| OrderedFloat(g.0.position.y))
+            .map(|g| OrderedFloat(g.glyph.position.y))
             .collect();
 
         assert_eq!(y_ords.len(), 2, "Y ords: {:?}", y_ords);
@@ -835,8 +863,8 @@ mod layout_test {
         let first_line_y = y_ords.iter().min().unwrap();
         let second_line_y = y_ords.iter().max().unwrap();
 
-        assert_relative_eq!(glyphs[0].0.position.y, first_line_y);
-        assert_relative_eq!(glyphs[4].0.position.y, second_line_y);
+        assert_relative_eq!(glyphs[0].glyph.position.y, first_line_y);
+        assert_relative_eq!(glyphs[4].glyph.position.y, second_line_y);
     }
 
     #[test]
@@ -865,8 +893,8 @@ mod layout_test {
 
         assert_glyph_order!(recalc, "hello world");
 
-        assert_relative_eq!(recalc[0].0.position.x, 0.0);
-        let last_glyph = &recalc.last().unwrap().0;
+        assert_relative_eq!(recalc[0].glyph.position.x, 0.0);
+        let last_glyph = &recalc.last().unwrap().glyph;
         assert!(
             last_glyph.position.x > 0.0,
             "unexpected last position {:?}",
@@ -891,7 +919,7 @@ mod layout_test {
             }],
         );
 
-        let original_y = glyphs[0].0.position.y;
+        let original_y = glyphs[0].glyph.position.y;
 
         let recalc = Layout::default().recalculate_glyphs(
             Cow::Owned(glyphs),
@@ -910,9 +938,9 @@ mod layout_test {
 
         assert_glyph_order!(recalc, "hello world");
 
-        assert_relative_eq!(recalc[0].0.position.x, 0.0);
-        assert_relative_eq!(recalc[0].0.position.y, original_y + 50.0);
-        let last_glyph = &recalc.last().unwrap().0;
+        assert_relative_eq!(recalc[0].glyph.position.x, 0.0);
+        assert_relative_eq!(recalc[0].glyph.position.y, original_y + 50.0);
+        let last_glyph = &recalc.last().unwrap().glyph;
         assert!(
             last_glyph.position.x > 0.0,
             "unexpected last position {:?}",
@@ -920,90 +948,90 @@ mod layout_test {
         );
     }
 
-    #[test]
-    fn recalculate_colors() {
-        const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
-        const BLUE: [f32; 4] = [0.0, 0.0, 1.0, 1.0];
+    // #[test]
+    // fn recalculate_colors() {
+    //     const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
+    //     const BLUE: [f32; 4] = [0.0, 0.0, 1.0, 1.0];
+    //
+    //     let glyphs = Layout::default().calculate_glyphs(
+    //         &*FONT_MAP,
+    //         &SectionGeometry::default(),
+    //         &[SectionText {
+    //             text: "hello world",
+    //             color: RED,
+    //             ..<_>::default()
+    //         }],
+    //     );
+    //
+    //     assert_glyph_order!(glyphs, "hello world");
+    //     assert_eq!(glyphs[2].1, RED);
+    //
+    //     let recalc = Layout::default().recalculate_glyphs(
+    //         Cow::Owned(glyphs),
+    //         GlyphChange::Color,
+    //         &*FONT_MAP,
+    //         &SectionGeometry::default(),
+    //         &[SectionText {
+    //             text: "hello world",
+    //             color: BLUE,
+    //             ..<_>::default()
+    //         }],
+    //     );
+    //
+    //     assert_glyph_order!(recalc, "hello world");
+    //     assert_eq!(recalc[2].1, BLUE);
+    // }
 
-        let glyphs = Layout::default().calculate_glyphs(
-            &*FONT_MAP,
-            &SectionGeometry::default(),
-            &[SectionText {
-                text: "hello world",
-                color: RED,
-                ..<_>::default()
-            }],
-        );
-
-        assert_glyph_order!(glyphs, "hello world");
-        assert_eq!(glyphs[2].1, RED);
-
-        let recalc = Layout::default().recalculate_glyphs(
-            Cow::Owned(glyphs),
-            GlyphChange::Color,
-            &*FONT_MAP,
-            &SectionGeometry::default(),
-            &[SectionText {
-                text: "hello world",
-                color: BLUE,
-                ..<_>::default()
-            }],
-        );
-
-        assert_glyph_order!(recalc, "hello world");
-        assert_eq!(recalc[2].1, BLUE);
-    }
-
-    #[test]
-    fn recalculate_alpha() {
-        const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
-        const RED_HALF_ALPHA: [f32; 4] = [1.0, 0.0, 0.0, 0.5];
-
-        const YELLOW: [f32; 4] = [1.0, 1.0, 0.0, 1.0];
-        const YELLOW_HALF_ALPHA: [f32; 4] = [1.0, 1.0, 0.0, 0.5];
-
-        let glyphs = Layout::default().calculate_glyphs(
-            &*FONT_MAP,
-            &SectionGeometry::default(),
-            &[
-                SectionText {
-                    text: "hello",
-                    color: RED,
-                    ..<_>::default()
-                },
-                SectionText {
-                    text: " world",
-                    color: YELLOW,
-                    ..<_>::default()
-                },
-            ],
-        );
-
-        assert_glyph_order!(glyphs, "hello world");
-        assert_eq!(glyphs[2].1, RED);
-
-        let recalc = Layout::default().recalculate_glyphs(
-            Cow::Owned(glyphs),
-            GlyphChange::Alpha,
-            &*FONT_MAP,
-            &SectionGeometry::default(),
-            &[
-                SectionText {
-                    text: "hello",
-                    color: RED_HALF_ALPHA,
-                    ..<_>::default()
-                },
-                SectionText {
-                    text: " world",
-                    color: YELLOW_HALF_ALPHA,
-                    ..<_>::default()
-                },
-            ],
-        );
-
-        assert_glyph_order!(recalc, "hello world");
-        assert_eq!(recalc[2].1, RED_HALF_ALPHA);
-    }
+    // #[test]
+    // fn recalculate_alpha() {
+    //     const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
+    //     const RED_HALF_ALPHA: [f32; 4] = [1.0, 0.0, 0.0, 0.5];
+    //
+    //     const YELLOW: [f32; 4] = [1.0, 1.0, 0.0, 1.0];
+    //     const YELLOW_HALF_ALPHA: [f32; 4] = [1.0, 1.0, 0.0, 0.5];
+    //
+    //     let glyphs = Layout::default().calculate_glyphs(
+    //         &*FONT_MAP,
+    //         &SectionGeometry::default(),
+    //         &[
+    //             SectionText {
+    //                 text: "hello",
+    //                 color: RED,
+    //                 ..<_>::default()
+    //             },
+    //             SectionText {
+    //                 text: " world",
+    //                 color: YELLOW,
+    //                 ..<_>::default()
+    //             },
+    //         ],
+    //     );
+    //
+    //     assert_glyph_order!(glyphs, "hello world");
+    //     assert_eq!(glyphs[2].1, RED);
+    //
+    //     let recalc = Layout::default().recalculate_glyphs(
+    //         Cow::Owned(glyphs),
+    //         GlyphChange::Alpha,
+    //         &*FONT_MAP,
+    //         &SectionGeometry::default(),
+    //         &[
+    //             SectionText {
+    //                 text: "hello",
+    //                 color: RED_HALF_ALPHA,
+    //                 ..<_>::default()
+    //             },
+    //             SectionText {
+    //                 text: " world",
+    //                 color: YELLOW_HALF_ALPHA,
+    //                 ..<_>::default()
+    //             },
+    //         ],
+    //     );
+    //
+    //     assert_glyph_order!(recalc, "hello world");
+    //     assert_eq!(recalc[2].1, RED_HALF_ALPHA);
+    // }
 
     /// Chinese sentance squeezed into a vertical pipe meaning each character is on
     /// a seperate line.
@@ -1027,13 +1055,13 @@ mod layout_test {
 
         let x_positions: HashSet<_> = glyphs
             .iter()
-            .map(|g| OrderedFloat(g.0.position.x))
+            .map(|g| OrderedFloat(g.glyph.position.x))
             .collect();
         assert_eq!(x_positions, std::iter::once(OrderedFloat(0.0)).collect());
 
         let y_positions: HashSet<_> = glyphs
             .iter()
-            .map(|g| OrderedFloat(g.0.position.y))
+            .map(|g| OrderedFloat(g.glyph.position.y))
             .collect();
 
         assert_eq!(y_positions.len(), 7, "{:?}", y_positions);
