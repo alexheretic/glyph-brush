@@ -24,7 +24,7 @@
 //!         SectionText {
 //!             text: "hello ",
 //!             scale: PxScale::from(20.0),
-//!             ..SectionText::default()
+//!             font_id: FontId(0),
 //!         },
 //!         SectionText {
 //!             text: "glyph_brush_layout",
@@ -92,6 +92,7 @@ pub trait GlyphPositioner: Hash {
     ///
     /// The default implementation simply calls `calculate_glyphs` so must be implemented
     /// to provide benefits as such benefits are spefic to the internal layout logic.
+    // TODO remove now color is gone?
     fn recalculate_glyphs<F: Font, FM: FontMap<F>>(
         &self,
         previous: Cow<'_, Vec<SectionGlyph>>,
