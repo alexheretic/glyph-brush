@@ -4,7 +4,7 @@ use ab_glyph::*;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub struct FontId(pub usize);
 
-/// Mapper of [`FontId`](struct.FontId.html) -> [`Font`](rusttype/struct.Font.html)
+/// Mapper of [`FontId`](struct.FontId.html) -> [`Font`](ab_glyph/struct.Font.html)
 pub trait FontMap<F: Font> {
     fn font(&self, id: FontId) -> &F;
 }

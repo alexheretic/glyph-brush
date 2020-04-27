@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# run CI-like set of tests
+set -eu
+
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "$dir"
+
+echo "==> test"
+cargo test
+cargo test --benches
+echo "==> rustfmt"
+cargo +nightly fmt -- --check

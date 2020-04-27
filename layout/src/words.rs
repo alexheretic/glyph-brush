@@ -1,8 +1,8 @@
 use crate::{
-    SectionGlyph, FontMap,
     characters::{Character, Characters},
     linebreak::{LineBreak, LineBreaker},
     lines::Lines,
+    FontMap, SectionGlyph,
 };
 use ab_glyph::*;
 use std::iter::{FusedIterator, Iterator};

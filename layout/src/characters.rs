@@ -5,7 +5,7 @@ use crate::{
 };
 use ab_glyph::*;
 use std::{
-    iter::{FusedIterator, Iterator, Enumerate},
+    iter::{Enumerate, FusedIterator, Iterator},
     marker::PhantomData,
     mem, slice,
     str::CharIndices,

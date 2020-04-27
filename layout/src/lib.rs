@@ -1,4 +1,4 @@
-//! Text layout for [rusttype](https://gitlab.redox-os.org/redox-os/rusttype).
+//! Text layout for [ab_glyph](https://github.com/alexheretic/ab-glyph).
 //!
 //! # Example
 //!
@@ -9,7 +9,7 @@
 //! let dejavu = FontRef::try_from_slice(&include_bytes!("../../fonts/DejaVuSans.ttf")[..])?;
 //! let garamond = FontRef::try_from_slice(&include_bytes!("../../fonts/GaramondNo8-Reg.ttf")[..])?;
 //!
-//! // Simple vec font mapping: FontId(0) -> deja vu sans, FontId(1) -> garamond
+//! // Simple font mapping: FontId(0) -> deja vu sans, FontId(1) -> garamond
 //! let fonts = &[dejavu, garamond];
 //!
 //! // Layout "hello glyph_brush_layout" on an unbounded line with the second
@@ -59,10 +59,9 @@ mod lines;
 mod section;
 mod words;
 
-pub use self::{builtin::*, font::*, linebreak::*};
-pub use self::section::*;
-use std::borrow::Cow;
+pub use self::{builtin::*, font::*, linebreak::*, section::*};
 use ::ab_glyph::*;
+use std::borrow::Cow;
 
 /// Re-exported rusttype types.
 pub mod ab_glyph {

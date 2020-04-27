@@ -1,8 +1,7 @@
 use super::{
-    BuiltInLineBreaker, FontMap, GlyphPositioner, LineBreaker,
-    SectionGeometry, SectionText,
+    BuiltInLineBreaker, FontMap, GlyphPositioner, LineBreaker, SectionGeometry, SectionText,
 };
-use crate::{characters::Characters, SectionGlyph, GlyphChange};
+use crate::{characters::Characters, GlyphChange, SectionGlyph};
 use ab_glyph::*;
 use std::borrow::Cow;
 
@@ -393,8 +392,7 @@ mod bounds_test {
 #[cfg(test)]
 mod layout_test {
     use super::*;
-    use crate::FontId;
-    use crate::BuiltInLineBreaker::*;
+    use crate::{BuiltInLineBreaker::*, FontId};
     use approx::assert_relative_eq;
     use once_cell::sync::Lazy;
     use ordered_float::OrderedFloat;
@@ -1047,7 +1045,6 @@ mod layout_test {
                 text: "提高代碼執行率",
                 scale: PxScale::from(20.0),
                 font_id: FontId(1),
-                ..<_>::default()
             }],
         );
 

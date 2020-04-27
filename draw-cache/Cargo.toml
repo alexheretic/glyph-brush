@@ -1,0 +1,23 @@
+[package]
+name = "glyph_brush_draw_cache"
+version = "0.1.0"
+authors = ["Alex Butler <alexheretic@gmail.com>"]
+edition = "2018"
+description = "Texture draw cache for ab_glyph"
+repository = "https://github.com/alexheretic/glyph-brush"
+keywords = ["font", "ttf", "truetype", "gfx", "text"]
+license = "Apache-2.0"
+readme="README.md"
+
+[dependencies]
+glyph_brush_layout = { version = "*", path = "../layout" }
+linked-hash-map = "0.5"
+rustc-hash = "1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+crossbeam-deque = "0.7"
+crossbeam-utils = "0.7"
+num_cpus = "1.0"
+
+[dev-dependencies]
+approx = { version = "0.3", default-features = false }
