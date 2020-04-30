@@ -66,7 +66,7 @@ pub struct OwnedSectionText<C> {
     /// either `FontId::default()` or the return of
     /// [`add_font`](struct.GlyphBrushBuilder.html#method.add_font).
     pub font_id: FontId,
-    custom: C
+    pub custom: C
 }
 
 impl<C: Default> Default for OwnedSectionText<C> {
