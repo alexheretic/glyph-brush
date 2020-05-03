@@ -2,7 +2,7 @@ use gfx::{
     format::{Depth, Srgba8},
     Device,
 };
-use gfx_glyph::*;
+use gfx_glyph::{ab_glyph::*, *};
 use glutin::{
     event::{Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
@@ -94,7 +94,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     screen_position: (width / 2.0, 100.0),
                     bounds: (width, height - 100.0),
                     text: "On top",
-                    scale: Scale::uniform(95.0),
+                    scale: PxScale::from(95.0),
                     color: [0.8, 0.8, 0.8, 1.0],
                     font_id: italic_font,
                     layout: Layout::default().h_align(HorizontalAlign::Center),
@@ -106,7 +106,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 glyph_brush.queue(Section {
                     bounds: (width, height),
                     text: &include_str!("lipsum.txt").replace("\n\n", "").repeat(10),
-                    scale: Scale::uniform(30.0),
+                    scale: PxScale::from(30.0),
                     color: [0.05, 0.05, 0.1, 1.0],
                     z: 1.0,
                     ..Section::default()

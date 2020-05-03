@@ -2,6 +2,7 @@ use crate::{
     default_transform, GlyphBrush, RawAndFormat, RawDepthStencilView, RawRenderTargetView,
 };
 use std::{hash::BuildHasher, marker::PhantomData};
+use glyph_brush::ab_glyph::*;
 
 /// Short-lived builder for drawing glyphs, constructed from [`GlyphBrush::use_queue`](struct.GlyphBrush.html#method.use_queue).
 ///
@@ -28,16 +29,17 @@ use std::{hash::BuildHasher, marker::PhantomData};
 /// # }
 /// ```
 #[must_use]
-pub struct DrawBuilder<'a, 'font, R: gfx::Resources, F: gfx::Factory<R>, H, DV> {
-    pub(crate) brush: &'a mut GlyphBrush<'font, R, F, H>,
+pub struct DrawBuilder<'a, F, R: gfx::Resources, GF: gfx::Factory<R>, H, DV> {
+    pub(crate) brush: &'a mut GlyphBrush<F, R, GF, H>,
     pub(crate) transform: Option<[[f32; 4]; 4]>,
     pub(crate) depth_target: Option<&'a DV>,
 }
 
-impl<'a, 'font, R, F, H, DV> DrawBuilder<'a, 'font, R, F, H, DV>
+impl<'a, F, R, GF, H, DV> DrawBuilder<'a, F, R, GF, H, DV>
 where
+    F: Font,
     R: gfx::Resources,
-    F: gfx::Factory<R>,
+    GF: gfx::Factory<R>,
     H: BuildHasher,
 {
     /// Use a custom position transform (e.g. a projection) replacing the [`default_transform`](fn.default_transform.html).
@@ -117,7 +119,7 @@ where
     /// # }
     /// ```
     #[inline]
-    pub fn depth_target<D>(self, depth: &'a D) -> DrawBuilder<'a, 'font, R, F, H, D> {
+    pub fn depth_target<D>(self, depth: &'a D) -> DrawBuilder<'a, F, R, GF, H, D> {
         let Self {
             brush, transform, ..
         } = self;
@@ -129,10 +131,11 @@ where
     }
 }
 
-impl<'a, R, F, H, DV> DrawBuilder<'a, '_, R, F, H, DV>
+impl<'a, F, R, GF, H, DV> DrawBuilder<'a, F, R, GF, H, DV>
 where
+    F: Font + Sync,
     R: gfx::Resources,
-    F: gfx::Factory<R>,
+    GF: gfx::Factory<R>,
     H: BuildHasher,
     DV: RawAndFormat<Raw = RawDepthStencilView<R>>,
 {
@@ -215,10 +218,11 @@ impl<R: gfx::Resources> RawAndFormat for NoDepth<R> {
     }
 }
 
-impl<'a, R, F, H> DrawBuilder<'a, '_, R, F, H, ()>
+impl<'a, F, R, GF, H> DrawBuilder<'a, F, R, GF, H, ()>
 where
+    F: Font + Sync,
     R: gfx::Resources,
-    F: gfx::Factory<R>,
+    GF: gfx::Factory<R>,
     H: BuildHasher,
 {
     #[inline]

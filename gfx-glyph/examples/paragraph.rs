@@ -188,7 +188,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                 let (width, height, ..) = main_color.get_dimensions();
                 let (width, height) = (f32::from(width), f32::from(height));
-                let scale = Scale::uniform(font_size * window_ctx.window().scale_factor() as f32);
+                let scale = ab_glyph::PxScale::from(font_size * window_ctx.window().scale_factor() as f32);
 
                 // The section is all the info needed for the glyph brush to render a 'section' of text.
                 // Use `..Section::default()` to skip the bits you don't care about
@@ -200,9 +200,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                     color: [0.9, 0.3, 0.3, 1.0],
                     ..Section::default()
                 };
-
-                // bounds of a section can be fetched with `pixel_bounds`
-                let _bounds: Option<Rect<i32>> = glyph_brush.pixel_bounds(section);
 
                 // Adds a section & layout to the queue for the next call to `use_queue().draw(..)`, this
                 // can be called multiple times for different sections that want to use the same

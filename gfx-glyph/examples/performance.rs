@@ -2,7 +2,7 @@ use gfx::{
     format::{Depth, Srgba8},
     Device,
 };
-use gfx_glyph::*;
+use gfx_glyph::{ab_glyph::*, *};
 use glutin::{
     event::{ElementState, Event, KeyboardInput, MouseScrollDelta, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
@@ -119,7 +119,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                 let (width, height, ..) = main_color.get_dimensions();
                 let (width, height) = (f32::from(width), f32::from(height));
-                let scale = Scale::uniform(font_size * window_ctx.window().scale_factor() as f32);
+                let scale = PxScale::from(font_size * window_ctx.window().scale_factor() as f32);
 
                 // The section is all the info needed for the glyph brush to render a 'section' of text
                 // can use `..Section::default()` to skip the bits you don't care about

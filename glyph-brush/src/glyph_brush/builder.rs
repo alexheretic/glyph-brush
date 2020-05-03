@@ -56,13 +56,6 @@ impl GlyphBrushBuilder<()> {
     }
 
     /// Create a new builder without any fonts.
-    ///
-    /// **Warning:** A [`GlyphBrush`] built without fonts will panic if you try to use it as it
-    /// will have no default `FontId(0)` to use.
-    /// Use [`GlyphBrush.add_font`] before queueing any text sections in order to avoid panicking.
-    ///
-    /// [`GlyphBrush`]: struct.GlyphBrush.html
-    /// [`GlyphBrush.add_font`]: ../glyph_brush/struct.GlyphBrush.html#method.add_font
     pub fn without_fonts() -> Self {
         GlyphBrushBuilder {
             font_data: Vec::new(),
@@ -299,7 +292,7 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
 ///
 /// # Example
 /// ```
-/// use glyph_brush::*;
+/// use glyph_brush::{ab_glyph::*, *};
 /// use std::hash::BuildHasher;
 ///
 /// # pub struct DownstreamGlyphBrush;
@@ -308,7 +301,7 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
 ///     some_config: bool,
 /// }
 ///
-/// impl<'a, H: BuildHasher> DownstreamGlyphBrushBuilder<'a, H> {
+/// impl<F: Font, H: BuildHasher> DownstreamGlyphBrushBuilder<'a, H> {
 ///     delegate_glyph_brush_builder_fns!(inner);
 ///
 ///     /// Sets some downstream configuration
@@ -341,17 +334,7 @@ macro_rules! delegate_glyph_brush_builder_fns {
         /// Adds additional fonts to the one added in [`using_font`](#method.using_font) /
         /// [`using_font_bytes`](#method.using_font_bytes).
         /// Returns a [`FontId`](struct.FontId.html) to reference this font.
-        pub fn add_font_bytes<B: Into<$crate::rusttype::SharedBytes<'a>>>(
-            &mut self,
-            font_data: B,
-        ) -> $crate::FontId {
-            self.$inner.add_font_bytes(font_data)
-        }
-
-        /// Adds additional fonts to the one added in [`using_font`](#method.using_font) /
-        /// [`using_font_bytes`](#method.using_font_bytes).
-        /// Returns a [`FontId`](struct.FontId.html) to reference this font.
-        pub fn add_font(&mut self, font_data: $crate::rusttype::Font<'a>) -> $crate::FontId {
+        pub fn add_font(&mut self, font_data: F) -> $crate::FontId {
             self.$inner.add_font(font_data)
         }
 

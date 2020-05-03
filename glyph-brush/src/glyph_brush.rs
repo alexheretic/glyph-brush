@@ -82,7 +82,7 @@ impl<F, V, H> fmt::Debug for GlyphBrush<F, V, H> {
 
 impl<F, V, H> GlyphCruncher<F> for GlyphBrush<F, V, H>
 where
-    F: Font + Sync,
+    F: Font,
     V: Clone + 'static,
     H: BuildHasher,
 {
@@ -179,7 +179,7 @@ where
 
 impl<F, V, H> GlyphBrush<F, V, H>
 where
-    F: Font + Sync,
+    F: Font,
     V: Clone + 'static,
     H: BuildHasher,
 {
@@ -340,6 +340,135 @@ where
         section_hash.full
     }
 
+    /// Rebuilds the logical texture cache with new dimensions. Should be avoided if possible.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use glyph_brush::*;
+    /// # let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
+    /// # let mut glyph_brush: GlyphBrush<'_, ()> = GlyphBrushBuilder::using_font_bytes(dejavu).build();
+    /// glyph_brush.resize_texture(512, 512);
+    /// ```
+    pub fn resize_texture(&mut self, new_width: u32, new_height: u32) {
+        self.texture_cache
+            .to_builder()
+            .dimensions(new_width, new_height)
+            .rebuild(&mut self.texture_cache);
+
+        self.last_draw = LastDrawInfo::default();
+
+        // invalidate any previous cache position data
+        for glyphed in self.calculate_glyph_cache.values_mut() {
+            glyphed.invalidate_texture_positions();
+        }
+    }
+
+    /// Returns the logical texture cache pixel dimensions `(width, height)`.
+    pub fn texture_dimensions(&self) -> (u32, u32) {
+        self.texture_cache.dimensions()
+    }
+
+    fn cleanup_frame(&mut self) {
+        if self.cache_glyph_positioning {
+            // clear section_buffer & trim calculate_glyph_cache to active sections
+            let active = mem::take(&mut self.keep_in_cache);
+            self.calculate_glyph_cache
+                .retain(|key, _| active.contains(key));
+            mem::replace(&mut self.keep_in_cache, active);
+
+            self.keep_in_cache.clear();
+
+            self.section_buffer.clear();
+        } else {
+            self.section_buffer.clear();
+            self.calculate_glyph_cache.clear();
+            self.keep_in_cache.clear();
+        }
+
+        mem::swap(
+            &mut self.last_frame_seq_id_sections,
+            &mut self.frame_seq_id_sections,
+        );
+        self.frame_seq_id_sections.clear();
+
+        mem::swap(&mut self.last_pre_positioned, &mut self.pre_positioned);
+        self.pre_positioned.clear();
+    }
+
+    // /// Adds an additional font to the one(s) initially added on build.
+    // ///
+    // /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
+    // ///
+    // /// # Example
+    // ///
+    // /// ```
+    // /// use glyph_brush::{GlyphBrush, GlyphBrushBuilder, Section};
+    // /// # type Vertex = ();
+    // ///
+    // /// // dejavu is built as default `FontId(0)`
+    // /// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
+    // /// let mut glyph_brush: GlyphBrush<'_, Vertex> =
+    // ///     GlyphBrushBuilder::using_font_bytes(dejavu).build();
+    // ///
+    // /// // some time later, add another font referenced by a new `FontId`
+    // /// let open_sans_italic: &[u8] = include_bytes!("../../fonts/OpenSans-Italic.ttf");
+    // /// let open_sans_italic_id = glyph_brush.add_font_bytes(open_sans_italic);
+    // /// ```
+    // pub fn add_font_bytes<'a: 'font, B: Into<SharedBytes<'a>>>(&mut self, font_data: B) -> FontId {
+    //     self.add_font(Font::from_bytes(font_data.into()).unwrap())
+    // }
+
+    /// Adds an additional font to the one(s) initially added on build.
+    ///
+    /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
+    pub fn add_font(&mut self, font_data: F) -> FontId {
+        self.fonts.push(font_data);
+        FontId(self.fonts.len() - 1)
+    }
+
+    /// Retains the section in the cache as if it had been used in the last draw-frame.
+    ///
+    /// Should not generally be necessary, see [caching behaviour](#caching-behaviour).
+    pub fn keep_cached_custom_layout<'a, S, G>(&mut self, section: S, custom_layout: &G)
+    where
+        S: Into<Cow<'a, VariedSection<'a>>>,
+        G: GlyphPositioner,
+    {
+        if !self.cache_glyph_positioning {
+            return;
+        }
+        let section = section.into();
+        if cfg!(debug_assertions) {
+            for text in &section.text {
+                assert!(self.fonts.len() > text.0.font_id.0, "Invalid font id");
+            }
+        }
+
+        let section_hash = SectionHashDetail::new(&self.section_hasher, &section, custom_layout);
+        self.keep_in_cache.insert(section_hash.full);
+    }
+
+    /// Retains the section in the cache as if it had been used in the last draw-frame.
+    ///
+    /// Should not generally be necessary, see [caching behaviour](#caching-behaviour).
+    pub fn keep_cached<'a, S>(&mut self, section: S)
+    where
+        S: Into<Cow<'a, VariedSection<'a>>>,
+    {
+        let section = section.into();
+        let layout = section.layout;
+        self.keep_cached_custom_layout(section, &layout);
+    }
+}
+
+// `Font + Sync` stuff
+impl<F, V, H> GlyphBrush<F, V, H>
+where
+    F: Font + Sync,
+    V: Clone + 'static,
+    H: BuildHasher,
+{
     /// Processes all queued sections, calling texture update logic when necessary &
     /// returning a `BrushAction`.
     /// See [`queue`](struct.GlyphBrush.html#method.queue).
@@ -461,127 +590,6 @@ where
 
         self.cleanup_frame();
         Ok(result)
-    }
-
-    /// Rebuilds the logical texture cache with new dimensions. Should be avoided if possible.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use glyph_brush::*;
-    /// # let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-    /// # let mut glyph_brush: GlyphBrush<'_, ()> = GlyphBrushBuilder::using_font_bytes(dejavu).build();
-    /// glyph_brush.resize_texture(512, 512);
-    /// ```
-    pub fn resize_texture(&mut self, new_width: u32, new_height: u32) {
-        self.texture_cache
-            .to_builder()
-            .dimensions(new_width, new_height)
-            .rebuild(&mut self.texture_cache);
-
-        self.last_draw = LastDrawInfo::default();
-
-        // invalidate any previous cache position data
-        for glyphed in self.calculate_glyph_cache.values_mut() {
-            glyphed.invalidate_texture_positions();
-        }
-    }
-
-    /// Returns the logical texture cache pixel dimensions `(width, height)`.
-    pub fn texture_dimensions(&self) -> (u32, u32) {
-        self.texture_cache.dimensions()
-    }
-
-    fn cleanup_frame(&mut self) {
-        if self.cache_glyph_positioning {
-            // clear section_buffer & trim calculate_glyph_cache to active sections
-            let active = mem::take(&mut self.keep_in_cache);
-            self.calculate_glyph_cache
-                .retain(|key, _| active.contains(key));
-            mem::replace(&mut self.keep_in_cache, active);
-
-            self.keep_in_cache.clear();
-
-            self.section_buffer.clear();
-        } else {
-            self.section_buffer.clear();
-            self.calculate_glyph_cache.clear();
-            self.keep_in_cache.clear();
-        }
-
-        mem::swap(
-            &mut self.last_frame_seq_id_sections,
-            &mut self.frame_seq_id_sections,
-        );
-        self.frame_seq_id_sections.clear();
-
-        mem::swap(&mut self.last_pre_positioned, &mut self.pre_positioned);
-        self.pre_positioned.clear();
-    }
-
-    // /// Adds an additional font to the one(s) initially added on build.
-    // ///
-    // /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
-    // ///
-    // /// # Example
-    // ///
-    // /// ```
-    // /// use glyph_brush::{GlyphBrush, GlyphBrushBuilder, Section};
-    // /// # type Vertex = ();
-    // ///
-    // /// // dejavu is built as default `FontId(0)`
-    // /// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-    // /// let mut glyph_brush: GlyphBrush<'_, Vertex> =
-    // ///     GlyphBrushBuilder::using_font_bytes(dejavu).build();
-    // ///
-    // /// // some time later, add another font referenced by a new `FontId`
-    // /// let open_sans_italic: &[u8] = include_bytes!("../../fonts/OpenSans-Italic.ttf");
-    // /// let open_sans_italic_id = glyph_brush.add_font_bytes(open_sans_italic);
-    // /// ```
-    // pub fn add_font_bytes<'a: 'font, B: Into<SharedBytes<'a>>>(&mut self, font_data: B) -> FontId {
-    //     self.add_font(Font::from_bytes(font_data.into()).unwrap())
-    // }
-
-    /// Adds an additional font to the one(s) initially added on build.
-    ///
-    /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
-    pub fn add_font(&mut self, font_data: F) -> FontId {
-        self.fonts.push(font_data);
-        FontId(self.fonts.len() - 1)
-    }
-
-    /// Retains the section in the cache as if it had been used in the last draw-frame.
-    ///
-    /// Should not generally be necessary, see [caching behaviour](#caching-behaviour).
-    pub fn keep_cached_custom_layout<'a, S, G>(&mut self, section: S, custom_layout: &G)
-    where
-        S: Into<Cow<'a, VariedSection<'a>>>,
-        G: GlyphPositioner,
-    {
-        if !self.cache_glyph_positioning {
-            return;
-        }
-        let section = section.into();
-        if cfg!(debug_assertions) {
-            for text in &section.text {
-                assert!(self.fonts.len() > text.0.font_id.0, "Invalid font id");
-            }
-        }
-
-        let section_hash = SectionHashDetail::new(&self.section_hasher, &section, custom_layout);
-        self.keep_in_cache.insert(section_hash.full);
-    }
-
-    /// Retains the section in the cache as if it had been used in the last draw-frame.
-    ///
-    /// Should not generally be necessary, see [caching behaviour](#caching-behaviour).
-    pub fn keep_cached<'a, S>(&mut self, section: S)
-    where
-        S: Into<Cow<'a, VariedSection<'a>>>,
-    {
-        let section = section.into();
-        let layout = section.layout;
-        self.keep_cached_custom_layout(section, &layout);
     }
 }
 
