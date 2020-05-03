@@ -1,8 +1,8 @@
 use crate::{
     default_transform, GlyphBrush, RawAndFormat, RawDepthStencilView, RawRenderTargetView,
 };
-use std::{hash::BuildHasher, marker::PhantomData};
 use glyph_brush::ab_glyph::*;
+use std::{hash::BuildHasher, marker::PhantomData};
 
 /// Short-lived builder for drawing glyphs, constructed from [`GlyphBrush::use_queue`](struct.GlyphBrush.html#method.use_queue).
 ///

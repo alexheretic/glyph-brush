@@ -300,39 +300,31 @@ where
                     .cloned()
                     .and_then(|hash| {
                         let change = hash.diff(section_hash);
-                        if let GlyphChange::Unknown = change {
+                        if let SectionChange::Layout(GlyphChange::Unknown) = change {
                             return None;
                         }
 
                         let recalced = if self.keep_in_cache.contains(&hash.full) {
                             let cached = self.calculate_glyph_cache.get(&hash.full)?;
-                            layout.recalculate_glyphs(
-                                cached.positioned.glyphs.iter().map(|(sg, ..)| sg.clone()),
-                                change,
+                            change.recalculate_glyphs(
+                                layout,
+                                cached.positioned.glyphs.iter().cloned(),
                                 &self.fonts,
                                 &geometry,
                                 &section.text,
                             )
                         } else {
                             let old = self.calculate_glyph_cache.remove(&hash.full)?;
-                            layout.recalculate_glyphs(
-                                old.positioned.glyphs.into_iter().map(|(sg, ..)| sg),
-                                change,
+                            change.recalculate_glyphs(
+                                layout,
+                                old.positioned.glyphs.into_iter(),
                                 &self.fonts,
                                 &geometry,
                                 &section.text,
                             )
                         };
 
-                        Some(
-                            recalced
-                                .into_iter()
-                                .map(|sg| {
-                                    let color = section.text[sg.section_index].1;
-                                    (sg, color)
-                                })
-                                .collect(),
-                        )
+                        Some(recalced)
                     });
 
                 self.calculate_glyph_cache.insert(
@@ -719,18 +711,68 @@ impl SectionHashDetail {
     }
 
     /// They're different, but how?
-    fn diff(self, other: SectionHashDetail) -> GlyphChange {
+    fn diff(self, other: SectionHashDetail) -> SectionChange {
         if self.test_alpha_color == other.test_alpha_color {
-            return GlyphChange::Geometry(self.geometry);
+            return SectionChange::Layout(GlyphChange::Geometry(self.geometry));
         } else if self.geometry == other.geometry {
             // if self.text_color == other.text_color {
-            //     return GlyphChange::Alpha;
-            // } else if self.text == other.text {
-            //     // color and alpha may have changed
-            //     return GlyphChange::Color;
-            // }
+            //     return SectionChange::Alpha;
+            if self.text == other.text {
+                // color and alpha may have changed
+                return SectionChange::Color;
+            }
         }
-        GlyphChange::Unknown
+        SectionChange::Layout(GlyphChange::Unknown)
+    }
+}
+
+#[derive(Debug)]
+pub(crate) enum SectionChange {
+    /// Only the colors have changed (including alpha).
+    Color,
+    /// A `GlyphChange`.
+    Layout(GlyphChange),
+}
+
+impl SectionChange {
+    #[inline]
+    pub(crate) fn recalculate_glyphs<F, FM, P, L>(
+        self,
+        layout: &L,
+        previous: P,
+        fonts: &FM,
+        geometry: &SectionGeometry,
+        sections: &[(SectionText, Color)],
+    ) -> Vec<(SectionGlyph, Color)>
+    where
+        F: Font,
+        FM: FontMap<F>,
+        P: IntoIterator<Item = (SectionGlyph, Color)>,
+        L: GlyphPositioner,
+    {
+        match self {
+            SectionChange::Layout(inner) => layout
+                .recalculate_glyphs(
+                    previous.into_iter().map(|(sg, _)| sg),
+                    inner,
+                    fonts,
+                    geometry,
+                    sections,
+                )
+                .into_iter()
+                .map(|sg| {
+                    let color = sections[sg.section_index].1;
+                    (sg, color)
+                })
+                .collect(),
+            SectionChange::Color => previous
+                .into_iter()
+                .map(|(sg, _)| {
+                    let new_color = sections[sg.section_index].1;
+                    (sg, new_color)
+                })
+                .collect(),
+        }
     }
 }
 
@@ -853,8 +895,10 @@ mod hash_diff_test {
         ));
 
         match diff {
-            GlyphChange::Geometry(geo) => assert_eq!(geo, hash_deets.geometry),
-            _ => assert_matches!(diff, GlyphChange::Geometry(..)),
+            SectionChange::Layout(GlyphChange::Geometry(geo)) => {
+                assert_eq!(geo, hash_deets.geometry)
+            }
+            _ => assert_matches!(diff, SectionChange::Layout(GlyphChange::Geometry(..))),
         }
     }
 
@@ -872,8 +916,7 @@ mod hash_diff_test {
             &section.layout,
         ));
 
-        // assert_matches!(diff, GlyphChange::Color);
-        assert_matches!(diff, GlyphChange::Unknown);
+        assert_matches!(diff, SectionChange::Color);
     }
 
     #[test]
@@ -892,27 +935,25 @@ mod hash_diff_test {
             &section.layout,
         ));
 
-        // assert_matches!(diff, GlyphChange::Color);
-        assert_matches!(diff, GlyphChange::Unknown);
+        assert_matches!(diff, SectionChange::Color);
     }
 
-    #[test]
-    fn change_alpha() {
-        let build_hasher = DefaultSectionHasher::default();
-        let mut section = section();
-        let hash_deets = SectionHashDetail::new(&build_hasher, &section, &section.layout);
-
-        section.text[1].1[3] -= 0.1;
-
-        let diff = hash_deets.diff(SectionHashDetail::new(
-            &build_hasher,
-            &section,
-            &section.layout,
-        ));
-
-        // assert_matches!(diff, GlyphChange::Alpha);
-        assert_matches!(diff, GlyphChange::Unknown);
-    }
+    // #[test]
+    // fn change_alpha() {
+    //     let build_hasher = DefaultSectionHasher::default();
+    //     let mut section = section();
+    //     let hash_deets = SectionHashDetail::new(&build_hasher, &section, &section.layout);
+    //
+    //     section.text[1].1[3] -= 0.1;
+    //
+    //     let diff = hash_deets.diff(SectionHashDetail::new(
+    //         &build_hasher,
+    //         &section,
+    //         &section.layout,
+    //     ));
+    //
+    //     assert_matches!(diff, SectionChange::Alpha);
+    // }
 
     #[test]
     fn change_text() {
@@ -928,6 +969,6 @@ mod hash_diff_test {
             &section.layout,
         ));
 
-        assert_matches!(diff, GlyphChange::Unknown);
+        assert_matches!(diff, SectionChange::Layout(GlyphChange::Unknown));
     }
 }

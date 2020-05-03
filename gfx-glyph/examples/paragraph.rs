@@ -188,7 +188,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                 let (width, height, ..) = main_color.get_dimensions();
                 let (width, height) = (f32::from(width), f32::from(height));
-                let scale = ab_glyph::PxScale::from(font_size * window_ctx.window().scale_factor() as f32);
+                let scale =
+                    ab_glyph::PxScale::from(font_size * window_ctx.window().scale_factor() as f32);
 
                 // The section is all the info needed for the glyph brush to render a 'section' of text.
                 // Use `..Section::default()` to skip the bits you don't care about
