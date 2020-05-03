@@ -77,14 +77,14 @@ impl<F, H> GlyphBrushBuilder<F, H> {
     ///
     /// # Example
     /// ```
-    /// # use glyph_brush::{*, rusttype::*};
+    /// # use glyph_brush::{*, ab_glyph::*};
     /// # type Vertex = ();
-    /// # let open_sans = Font::from_bytes(&include_bytes!("../../../fonts/DejaVuSans.ttf")[..]).unwrap();
+    /// # let open_sans = FontRef::try_from_slice(&include_bytes!("../../fonts/DejaVuSans.ttf")[..]).unwrap();
     /// # let deja_vu_sans = open_sans.clone();
-    /// let two_font_brush: GlyphBrush<'_, Vertex>
+    /// let two_font_brush: GlyphBrush<FontRef<'static>, Vertex>
     ///     = GlyphBrushBuilder::using_fonts(vec![open_sans, deja_vu_sans]).build();
     ///
-    /// let one_font_brush: GlyphBrush<'_, Vertex> = two_font_brush
+    /// let one_font_brush: GlyphBrush<FontRef<'static>, Vertex> = two_font_brush
     ///     .to_builder()
     ///     .replace_fonts(|mut fonts| {
     ///         // remove open_sans, leaving just deja_vu as FontId(0)

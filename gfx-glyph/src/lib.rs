@@ -190,6 +190,59 @@ impl<F, R: gfx::Resources, GF: gfx::Factory<R>, H> fmt::Debug for GlyphBrush<F, 
     }
 }
 
+impl<'a, R, GF, H> GlyphBrush<FontRef<'a>, R, GF, H>
+where
+    R: gfx::Resources,
+    GF: gfx::Factory<R>,
+    H: BuildHasher,
+{
+    /// Adds an additional font to the one(s) initially added on build.
+    ///
+    /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use gfx_glyph::{GlyphBrushBuilder, Section};
+    /// # use old_school_gfx_glutin_ext::*;
+    /// # let event_loop = glutin::event_loop::EventLoop::new();
+    /// # let window_builder = glutin::window::WindowBuilder::new();
+    /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
+    /// #     glutin::ContextBuilder::new()
+    /// #         .build_windowed(window_builder, &event_loop)
+    /// #         .unwrap()
+    /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
+    /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
+    ///
+    /// // dejavu is built as default `FontId(0)`
+    /// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
+    /// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build(gfx_factory.clone());
+    ///
+    /// // some time later, add another font referenced by a new `FontId`
+    /// let open_sans_italic: &[u8] = include_bytes!("../../fonts/OpenSans-Italic.ttf");
+    /// let open_sans_italic_id = glyph_brush.add_font_bytes(open_sans_italic);
+    /// # glyph_brush.use_queue().draw(&mut gfx_encoder, &gfx_color).unwrap();
+    /// # let _ = open_sans_italic_id;
+    /// ```
+    pub fn add_font_bytes(&mut self, font_data: &'a [u8]) -> FontId {
+        self.glyph_brush.add_font_bytes(font_data)
+    }
+}
+
+impl<F, R, GF, H> GlyphBrush<F, R, GF, H>
+where
+    R: gfx::Resources,
+    GF: gfx::Factory<R>,
+    H: BuildHasher,
+{
+    /// Adds an additional font to the one(s) initially added on build.
+    ///
+    /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
+    pub fn add_font(&mut self, font: F) -> FontId {
+        self.glyph_brush.add_font(font)
+    }
+}
+
 impl<F, R, GF, H> GlyphCruncher<F> for GlyphBrush<F, R, GF, H>
 where
     F: Font,
@@ -544,45 +597,6 @@ where
             base_vertex: 0,
             instances: None,
         }
-    }
-
-    /// Adds an additional font to the one(s) initially added on build.
-    ///
-    /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use gfx_glyph::{GlyphBrushBuilder, Section};
-    /// # use old_school_gfx_glutin_ext::*;
-    /// # let event_loop = glutin::event_loop::EventLoop::new();
-    /// # let window_builder = glutin::window::WindowBuilder::new();
-    /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
-    /// #     glutin::ContextBuilder::new()
-    /// #         .build_windowed(window_builder, &event_loop)
-    /// #         .unwrap()
-    /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
-    /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
-    ///
-    /// // dejavu is built as default `FontId(0)`
-    /// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-    /// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build(gfx_factory.clone());
-    ///
-    /// // some time later, add another font referenced by a new `FontId`
-    /// let open_sans_italic: &[u8] = include_bytes!("../../fonts/OpenSans-Italic.ttf");
-    /// let open_sans_italic_id = glyph_brush.add_font_bytes(open_sans_italic);
-    /// # glyph_brush.use_queue().draw(&mut gfx_encoder, &gfx_color).unwrap();
-    /// # let _ = open_sans_italic_id;
-    /// ```
-    // pub fn add_font_bytes<'a>(&mut self, font_data: &'a [u8]) -> FontId {
-    //     self.glyph_brush.add_font_bytes(font_data)
-    // }
-
-    /// Adds an additional font to the one(s) initially added on build.
-    ///
-    /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
-    pub fn add_font(&mut self, font_data: F) -> FontId {
-        self.glyph_brush.add_font(font_data)
     }
 }
 

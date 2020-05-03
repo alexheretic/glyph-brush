@@ -17,15 +17,14 @@ pub type Color = [f32; 4];
 ///
 /// let section = VariedSection {
 ///     text: vec![
-///         SectionText {
+///         (SectionText {
 ///             text: "I looked around and it was ",
 ///             ..SectionText::default()
-///         },
-///         SectionText {
+///         }, [0.0, 0.0, 0.0, 1.0]),
+///         (SectionText {
 ///             text: "RED",
-///             color: [1.0, 0.0, 0.0, 1.0],
 ///             ..SectionText::default()
-///         },
+///         },  [1.0, 0.0, 0.0, 1.0]),
 ///     ],
 ///     ..VariedSection::default()
 /// };

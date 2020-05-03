@@ -177,6 +177,41 @@ where
     }
 }
 
+impl<'a, V, H: BuildHasher> GlyphBrush<FontRef<'a>, V, H> {
+    /// Adds an additional font to the one(s) initially added on build.
+    ///
+    /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use glyph_brush::{ab_glyph::FontRef, GlyphBrush, GlyphBrushBuilder, Section};
+    /// # type Vertex = ();
+    ///
+    /// // dejavu is built as default `FontId(0)`
+    /// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
+    /// let mut glyph_brush: GlyphBrush<FontRef<'static>, Vertex> =
+    ///     GlyphBrushBuilder::using_font_bytes(dejavu).build();
+    ///
+    /// // some time later, add another font referenced by a new `FontId`
+    /// let open_sans_italic: &[u8] = include_bytes!("../../fonts/OpenSans-Italic.ttf");
+    /// let open_sans_italic_id = glyph_brush.add_font_bytes(open_sans_italic);
+    /// ```
+    pub fn add_font_bytes(&mut self, font_data: &'a [u8]) -> FontId {
+        self.add_font(FontRef::try_from_slice(font_data).unwrap())
+    }
+}
+
+impl<F, V, H: BuildHasher> GlyphBrush<F, V, H> {
+    /// Adds an additional font to the one(s) initially added on build.
+    ///
+    /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
+    pub fn add_font(&mut self, font_data: F) -> FontId {
+        self.fonts.push(font_data);
+        FontId(self.fonts.len() - 1)
+    }
+}
+
 impl<F, V, H> GlyphBrush<F, V, H>
 where
     F: Font,
@@ -396,37 +431,6 @@ where
         self.pre_positioned.clear();
     }
 
-    // /// Adds an additional font to the one(s) initially added on build.
-    // ///
-    // /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
-    // ///
-    // /// # Example
-    // ///
-    // /// ```
-    // /// use glyph_brush::{GlyphBrush, GlyphBrushBuilder, Section};
-    // /// # type Vertex = ();
-    // ///
-    // /// // dejavu is built as default `FontId(0)`
-    // /// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-    // /// let mut glyph_brush: GlyphBrush<'_, Vertex> =
-    // ///     GlyphBrushBuilder::using_font_bytes(dejavu).build();
-    // ///
-    // /// // some time later, add another font referenced by a new `FontId`
-    // /// let open_sans_italic: &[u8] = include_bytes!("../../fonts/OpenSans-Italic.ttf");
-    // /// let open_sans_italic_id = glyph_brush.add_font_bytes(open_sans_italic);
-    // /// ```
-    // pub fn add_font_bytes<'a: 'font, B: Into<SharedBytes<'a>>>(&mut self, font_data: B) -> FontId {
-    //     self.add_font(Font::from_bytes(font_data.into()).unwrap())
-    // }
-
-    /// Adds an additional font to the one(s) initially added on build.
-    ///
-    /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
-    pub fn add_font(&mut self, font_data: F) -> FontId {
-        self.fonts.push(font_data);
-        FontId(self.fonts.len() - 1)
-    }
-
     /// Retains the section in the cache as if it had been used in the last draw-frame.
     ///
     /// Should not generally be necessary, see [caching behaviour](#caching-behaviour).
@@ -600,14 +604,14 @@ impl<F: Font + Clone, V, H: BuildHasher + Clone> GlyphBrush<F, V, H> {
     /// # Example
     ///
     /// ```
-    /// # use glyph_brush::{*, rusttype::*};
+    /// # use glyph_brush::{*, ab_glyph::*};
     /// # type Vertex = ();
-    /// # let sans = Font::from_bytes(&include_bytes!("../../fonts/DejaVuSans.ttf")[..]).unwrap();
-    /// let glyph_brush: GlyphBrush<'_, Vertex> = GlyphBrushBuilder::using_font(sans)
+    /// # let sans = FontRef::try_from_slice(&include_bytes!("../../fonts/DejaVuSans.ttf")[..]).unwrap();
+    /// let glyph_brush: GlyphBrush<FontRef<'static>, Vertex> = GlyphBrushBuilder::using_font(sans)
     ///     .initial_cache_size((128, 128))
     ///     .build();
     ///
-    /// let new_brush: GlyphBrush<'_, Vertex> = glyph_brush.to_builder().build();
+    /// let new_brush: GlyphBrush<FontRef<'static>, Vertex> = glyph_brush.to_builder().build();
     /// assert_eq!(new_brush.texture_dimensions(), (128, 128));
     /// ```
     pub fn to_builder(&self) -> GlyphBrushBuilder<F, H> {

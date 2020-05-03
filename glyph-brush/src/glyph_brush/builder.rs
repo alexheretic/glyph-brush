@@ -12,7 +12,7 @@ use std::hash::BuildHasher;
 /// # type Vertex = ();
 ///
 /// let dejavu: &[u8] = include_bytes!("../../../fonts/DejaVuSans.ttf");
-/// let mut glyph_brush: GlyphBrush<'_, Vertex> =
+/// let mut glyph_brush: GlyphBrush<FontRef<'static>, Vertex> =
 ///     GlyphBrushBuilder::using_font_bytes(dejavu).build();
 /// ```
 pub struct GlyphBrushBuilder<F, H = DefaultSectionHasher> {
@@ -80,14 +80,14 @@ impl<F, H> GlyphBrushBuilder<F, H> {
     ///
     /// # Example
     /// ```
-    /// # use glyph_brush::{*, rusttype::*};
+    /// # use glyph_brush::{*, ab_glyph::*};
     /// # type Vertex = ();
-    /// # let open_sans = Font::from_bytes(&include_bytes!("../../../fonts/DejaVuSans.ttf")[..]).unwrap();
+    /// # let open_sans = FontRef::try_from_slice(&include_bytes!("../../../fonts/DejaVuSans.ttf")[..]).unwrap();
     /// # let deja_vu_sans = open_sans.clone();
-    /// let two_font_brush: GlyphBrush<'_, Vertex>
+    /// let two_font_brush: GlyphBrush<FontRef<'static>, Vertex>
     ///     = GlyphBrushBuilder::using_fonts(vec![open_sans, deja_vu_sans]).build();
     ///
-    /// let one_font_brush: GlyphBrush<'_, Vertex> = two_font_brush
+    /// let one_font_brush: GlyphBrush<FontRef<'static>, Vertex> = two_font_brush
     ///     .to_builder()
     ///     .replace_fonts(|mut fonts| {
     ///         // remove open_sans, leaving just deja_vu as FontId(0)
@@ -263,10 +263,10 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
     ///
     /// # Example
     /// ```
-    /// # use glyph_brush::{*, rusttype::*};
-    /// # let sans = Font::from_bytes(&include_bytes!("../../../fonts/DejaVuSans.ttf")[..]).unwrap();
+    /// # use glyph_brush::{*, ab_glyph::*};
+    /// # let sans = FontRef::try_from_slice(&include_bytes!("../../../fonts/DejaVuSans.ttf")[..]).unwrap();
     /// # type Vertex = ();
-    /// let mut glyph_brush: GlyphBrush<'_, Vertex> = GlyphBrushBuilder::using_font(sans).build();
+    /// let mut glyph_brush: GlyphBrush<FontRef<'static>, Vertex> = GlyphBrushBuilder::using_font(sans).build();
     /// assert_eq!(glyph_brush.texture_dimensions(), (256, 256));
     ///
     /// // Use a new builder to rebuild the brush with a smaller initial cache size
@@ -296,12 +296,12 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
 /// use std::hash::BuildHasher;
 ///
 /// # pub struct DownstreamGlyphBrush;
-/// pub struct DownstreamGlyphBrushBuilder<'a, H> {
-///     inner: glyph_brush::GlyphBrushBuilder<'a, H>,
+/// pub struct DownstreamGlyphBrushBuilder<F, H> {
+///     inner: glyph_brush::GlyphBrushBuilder<F, H>,
 ///     some_config: bool,
 /// }
 ///
-/// impl<F: Font, H: BuildHasher> DownstreamGlyphBrushBuilder<'a, H> {
+/// impl<F: Font, H: BuildHasher> DownstreamGlyphBrushBuilder<F, H> {
 ///     delegate_glyph_brush_builder_fns!(inner);
 ///
 ///     /// Sets some downstream configuration
