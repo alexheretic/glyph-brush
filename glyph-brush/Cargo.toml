@@ -28,5 +28,5 @@ matches = "0.1"
 criterion = "0.3"
 
 [[bench]]
-name = "bench"
+name = "glyph_brush"
 harness = false
