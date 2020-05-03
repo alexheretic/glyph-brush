@@ -1,4 +1,4 @@
-use super::{EolLineBreak, FontId, FontMap, SectionText};
+use super::{AsSectionText, EolLineBreak, FontId, FontMap, SectionText};
 use crate::{
     linebreak::{LineBreak, LineBreaker},
     words::Words,
@@ -29,15 +29,16 @@ pub(crate) struct Character<'b, F: Font> {
 }
 
 /// `Character` iterator
-pub(crate) struct Characters<'a, 'b, L, F, FM>
+pub(crate) struct Characters<'a, 'b, L, F, FM, S>
 where
     F: 'a + 'b,
     L: LineBreaker,
     F: Font,
     FM: FontMap<F>,
+    S: AsSectionText,
 {
     font_map: &'b FM,
-    section_text: Enumerate<slice::Iter<'a, SectionText<'a>>>,
+    section_text: Enumerate<slice::Iter<'a, S>>,
     line_breaker: L,
     part_info: Option<PartInfo<'a>>,
     phantom: PhantomData<F>,
@@ -51,16 +52,17 @@ struct PartInfo<'a> {
     next_break: Option<LineBreak>,
 }
 
-impl<'a, 'b, L, F, FM> Characters<'a, 'b, L, F, FM>
+impl<'a, 'b, L, F, FM, S> Characters<'a, 'b, L, F, FM, S>
 where
     L: LineBreaker,
     F: Font,
     FM: FontMap<F>,
+    S: AsSectionText,
 {
     /// Returns a new `Characters` iterator.
     pub(crate) fn new(
         font_map: &'b FM,
-        section_text: Enumerate<slice::Iter<'a, SectionText<'a>>>,
+        section_text: Enumerate<slice::Iter<'a, S>>,
         line_breaker: L,
     ) -> Self {
         Self {
@@ -73,16 +75,17 @@ where
     }
 
     /// Wraps into a `Words` iterator.
-    pub(crate) fn words(self) -> Words<'a, 'b, L, F, FM> {
+    pub(crate) fn words(self) -> Words<'a, 'b, L, F, FM, S> {
         Words { characters: self }
     }
 }
 
-impl<'b, L, F, FM> Iterator for Characters<'_, 'b, L, F, FM>
+impl<'b, L, F, FM, S> Iterator for Characters<'_, 'b, L, F, FM, S>
 where
     L: LineBreaker,
     F: Font,
     FM: FontMap<F>,
+    S: AsSectionText,
 {
     type Item = Character<'b, F>;
 
@@ -91,7 +94,8 @@ where
         if self.part_info.is_none() {
             let mut index_and_section;
             loop {
-                index_and_section = self.section_text.next()?;
+                let (index, s) = self.section_text.next()?;
+                index_and_section = (index, s.as_section_text());
                 if valid_section(&index_and_section.1) {
                     break;
                 }
@@ -162,11 +166,12 @@ where
     }
 }
 
-impl<'font, L, F, FM> FusedIterator for Characters<'_, '_, L, F, FM>
+impl<'font, L, F, FM, S> FusedIterator for Characters<'_, '_, L, F, FM, S>
 where
     L: LineBreaker,
     F: Font,
     FM: FontMap<F>,
+    S: AsSectionText,
 {
 }
 

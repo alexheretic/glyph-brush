@@ -1,5 +1,6 @@
-use crate::{DefaultSectionHasher, Font, FontId, GlyphBrush, SharedBytes};
-use full_rusttype::gpu_cache::{Cache, CacheBuilder};
+use crate::{DefaultSectionHasher, Font, FontId, GlyphBrush};
+use glyph_brush_layout::ab_glyph::*;
+use glyph_brush_draw_cache::*;
 use std::hash::BuildHasher;
 
 /// Builder for a [`GlyphBrush`](struct.GlyphBrush.html).
@@ -14,47 +15,44 @@ use std::hash::BuildHasher;
 /// let mut glyph_brush: GlyphBrush<'_, Vertex> =
 ///     GlyphBrushBuilder::using_font_bytes(dejavu).build();
 /// ```
-pub struct GlyphBrushBuilder<'a, H = DefaultSectionHasher> {
-    pub font_data: Vec<Font<'a>>,
+pub struct GlyphBrushBuilder<F, H = DefaultSectionHasher> {
+    pub font_data: Vec<F>,
     pub cache_glyph_positioning: bool,
     pub cache_glyph_drawing: bool,
     pub section_hasher: H,
-    pub gpu_cache_builder: CacheBuilder,
+    pub gpu_cache_builder: DrawCacheBuilder,
     _private_construction: (),
 }
 
-impl<'a> GlyphBrushBuilder<'a> {
+impl GlyphBrushBuilder<()> {
     /// Create a new builder with a single font's data that will be used to render glyphs.
     /// Referenced with `FontId(0)`, which is default.
-    pub fn using_font_bytes<B: Into<SharedBytes<'a>>>(font_0_data: B) -> Self {
-        Self::using_font(Font::from_bytes(font_0_data).unwrap())
+    pub fn using_font_bytes<'a>(font_0_data: &'a [u8]) -> GlyphBrushBuilder<FontRef<'a>> {
+        Self::using_fonts_bytes(std::iter::once(font_0_data))
     }
 
     /// Create a new builder with multiple fonts' data.
-    pub fn using_fonts_bytes<B, V>(font_data: V) -> Self
+    pub fn using_fonts_bytes<'a, V>(font_data: V) -> GlyphBrushBuilder<FontRef<'a>>
     where
-        B: Into<SharedBytes<'a>>,
-        V: IntoIterator<Item = B>,
+        V: IntoIterator<Item = &'a [u8]>,
     {
         Self::using_fonts(
             font_data
                 .into_iter()
-                .map(|data| Font::from_bytes(data).unwrap())
+                .map(|data| FontRef::try_from_slice(data).unwrap())
                 .collect::<Vec<_>>(),
         )
     }
 
     /// Create a new builder with a single font that will be used to render glyphs.
     /// Referenced with `FontId(0)`, which is default.
-    pub fn using_font(font_0: Font<'a>) -> Self {
+    pub fn using_font<F: Font>(font_0: F) -> GlyphBrushBuilder<F> {
         Self::using_fonts(vec![font_0])
     }
 
     /// Create a new builder with multiple fonts.
-    pub fn using_fonts<V: Into<Vec<Font<'a>>>>(fonts: V) -> Self {
-        let mut builder = Self::without_fonts();
-        builder.font_data = fonts.into();
-        builder
+    pub fn using_fonts<F: Font, V: Into<Vec<F>>>(fonts: V) -> GlyphBrushBuilder<F> {
+        Self::without_fonts().replace_fonts(|_| fonts)
     }
 
     /// Create a new builder without any fonts.
@@ -71,7 +69,7 @@ impl<'a> GlyphBrushBuilder<'a> {
             cache_glyph_positioning: true,
             cache_glyph_drawing: true,
             section_hasher: DefaultSectionHasher::default(),
-            gpu_cache_builder: Cache::builder()
+            gpu_cache_builder: DrawCache::builder()
                 .dimensions(256, 256)
                 .scale_tolerance(0.5)
                 .position_tolerance(0.1)
@@ -81,24 +79,7 @@ impl<'a> GlyphBrushBuilder<'a> {
     }
 }
 
-impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
-    /// Adds additional fonts to the one added in [`using_font`](#method.using_font) /
-    /// [`using_font_bytes`](#method.using_font_bytes).
-    /// Returns a [`FontId`](struct.FontId.html) to reference this font.
-    pub fn add_font_bytes<B: Into<SharedBytes<'a>>>(&mut self, font_data: B) -> FontId {
-        self.font_data
-            .push(Font::from_bytes(font_data.into()).unwrap());
-        FontId(self.font_data.len() - 1)
-    }
-
-    /// Adds additional fonts to the one added in [`using_font`](#method.using_font) /
-    /// [`using_font_bytes`](#method.using_font_bytes).
-    /// Returns a [`FontId`](struct.FontId.html) to reference this font.
-    pub fn add_font(&mut self, font_data: Font<'a>) -> FontId {
-        self.font_data.push(font_data);
-        FontId(self.font_data.len() - 1)
-    }
-
+impl<F, H> GlyphBrushBuilder<F, H> {
     /// Consume all builder fonts a replace with new fonts returned by the input function.
     ///
     /// Generally only makes sense when wanting to change fonts after calling
@@ -125,13 +106,39 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     /// assert_eq!(one_font_brush.fonts().len(), 1);
     /// assert_eq!(two_font_brush.fonts().len(), 2);
     /// ```
-    pub fn replace_fonts<V, F>(mut self, font_fn: F) -> Self
+    pub fn replace_fonts<F2: Font, V, NF>(self, font_fn: NF) -> GlyphBrushBuilder<F2, H>
     where
-        V: Into<Vec<Font<'a>>>,
-        F: FnOnce(Vec<Font<'a>>) -> V,
+        V: Into<Vec<F2>>,
+        NF: FnOnce(Vec<F>) -> V,
     {
-        self.font_data = font_fn(self.font_data).into();
-        self
+        let font_data = font_fn(self.font_data).into();
+        GlyphBrushBuilder {
+            font_data,
+            cache_glyph_positioning: self.cache_glyph_positioning,
+            cache_glyph_drawing: self.cache_glyph_drawing,
+            section_hasher: self.section_hasher,
+            gpu_cache_builder: self.gpu_cache_builder,
+            _private_construction: (),
+        }
+    }
+}
+
+impl<'a, H: BuildHasher> GlyphBrushBuilder<FontRef<'a>, H> {
+    /// Adds additional fonts to the one added in [`using_font`](#method.using_font) /
+    /// [`using_font_bytes`](#method.using_font_bytes).
+    /// Returns a [`FontId`](struct.FontId.html) to reference this font.
+    pub fn add_font_bytes(&mut self, font_data: &'a [u8]) -> FontId {
+        self.add_font(FontRef::try_from_slice(font_data).unwrap())
+    }
+}
+
+impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
+    /// Adds additional fonts to the one added in [`using_font`](#method.using_font) /
+    /// [`using_font_bytes`](#method.using_font_bytes).
+    /// Returns a [`FontId`](struct.FontId.html) to reference this font.
+    pub fn add_font(&mut self, font_data: F) -> FontId {
+        self.font_data.push(font_data);
+        FontId(self.font_data.len() - 1)
     }
 
     /// Initial size of 2D texture used as a gpu cache, pixels (width, height).
@@ -222,7 +229,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     ///     // ...
     /// # ;
     /// ```
-    pub fn section_hasher<T: BuildHasher>(self, section_hasher: T) -> GlyphBrushBuilder<'a, T> {
+    pub fn section_hasher<T: BuildHasher>(self, section_hasher: T) -> GlyphBrushBuilder<F, T> {
         GlyphBrushBuilder {
             section_hasher,
             font_data: self.font_data,
@@ -234,7 +241,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     }
 
     /// Builds a `GlyphBrush` using the input gfx factory
-    pub fn build<V>(self) -> GlyphBrush<'a, V, H> {
+    pub fn build<V>(self) -> GlyphBrush<F, V, H> {
         GlyphBrush {
             fonts: self.font_data,
             texture_cache: self.gpu_cache_builder.build(),
@@ -273,7 +280,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     /// glyph_brush.to_builder().initial_cache_size((64, 64)).rebuild(&mut glyph_brush);
     /// assert_eq!(glyph_brush.texture_dimensions(), (64, 64));
     /// ```
-    pub fn rebuild<V>(self, brush: &mut GlyphBrush<'a, V, H>) {
+    pub fn rebuild<V>(self, brush: &mut GlyphBrush<F, V, H>) {
         std::mem::replace(brush, self.build());
     }
 }

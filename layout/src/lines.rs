@@ -1,4 +1,4 @@
-use super::{FontMap, HorizontalAlign, SectionGlyph, VerticalAlign};
+use super::{FontMap, HorizontalAlign, SectionGlyph, VerticalAlign, AsSectionText};
 use crate::{linebreak::LineBreaker, words::*};
 use ab_glyph::*;
 use std::iter::{FusedIterator, Iterator, Peekable};
@@ -72,21 +72,23 @@ impl Line {
 ///
 /// Note: Will always have at least one word, if possible, even if the word itself
 /// breaks the `width_bound`.
-pub(crate) struct Lines<'a, 'b, L, F, FM>
+pub(crate) struct Lines<'a, 'b, L, F, FM, S>
 where
     L: LineBreaker,
     F: Font,
     FM: FontMap<F>,
+    S: AsSectionText,
 {
-    pub(crate) words: Peekable<Words<'a, 'b, L, F, FM>>,
+    pub(crate) words: Peekable<Words<'a, 'b, L, F, FM, S>>,
     pub(crate) width_bound: f32,
 }
 
-impl<L, F, FM> Iterator for Lines<'_, '_, L, F, FM>
+impl<L, F, FM, S> Iterator for Lines<'_, '_, L, F, FM, S>
 where
     L: LineBreaker,
     F: Font,
     FM: FontMap<F>,
+    S: AsSectionText,
 {
     type Item = Line;
 
@@ -140,10 +142,11 @@ where
     }
 }
 
-impl<L, F, FM> FusedIterator for Lines<'_, '_, L, F, FM>
+impl<L, F, FM, S> FusedIterator for Lines<'_, '_, L, F, FM, S>
 where
     L: LineBreaker,
     F: Font,
     FM: FontMap<F>,
+    S: AsSectionText,
 {
 }

@@ -2,6 +2,8 @@ use super::{owned_section::*, *};
 use ordered_float::OrderedFloat;
 use std::{borrow::Cow, f32, hash::*};
 
+pub type Color = [f32; 4];
+
 /// An object that contains all the info to render a varied section of text. That is one including
 /// many parts with differing fonts/scales/colors bowing to a single layout.
 ///
@@ -40,7 +42,7 @@ pub struct VariedSection<'a> {
     /// see [`queue_custom_layout`](struct.GlyphBrush.html#method.queue_custom_layout)
     pub layout: Layout<BuiltInLineBreaker>,
     /// Text to render, rendered next to one another according the layout.
-    pub text: Vec<SectionText<'a>>,
+    pub text: Vec<(SectionText<'a>, Color)>,
 }
 
 impl Default for VariedSection<'static> {
@@ -95,12 +97,11 @@ impl Hash for VariedSection<'_> {
 }
 
 #[inline]
-fn hash_section_text<H: Hasher>(state: &mut H, text: &[SectionText]) {
-    for t in text {
+fn hash_section_text<H: Hasher>(state: &mut H, text: &[(SectionText, Color)]) {
+    for (t, color) in text {
         let SectionText {
             text,
             scale,
-            color,
             font_id,
         } = *t;
 
@@ -124,7 +125,7 @@ impl<'text> VariedSection<'text> {
             bounds: self.bounds,
             z: self.z,
             layout: self.layout,
-            text: self.text.iter().map(OwnedSectionText::from).collect(),
+            text: self.text.iter().map(|(t, color)| (t.into(), *color)).collect(),
         }
     }
 
@@ -184,7 +185,7 @@ pub struct Section<'a> {
     /// Max (width, height) bounds, in pixels from top-left. Defaults to unbounded.
     pub bounds: (f32, f32),
     /// Font scale. Defaults to 16
-    pub scale: Scale,
+    pub scale: PxScale,
     /// Rgba color of rendered text. Defaults to black.
     pub color: [f32; 4],
     /// Z values for use in depth testing. Defaults to 0.0
@@ -207,7 +208,7 @@ impl Default for Section<'static> {
             text: "",
             screen_position: (0.0, 0.0),
             bounds: (f32::INFINITY, f32::INFINITY),
-            scale: Scale::uniform(16.0),
+            scale: PxScale::from(16.0),
             color: [0.0, 0.0, 0.0, 1.0],
             z: 0.0,
             layout: Layout::default(),
@@ -230,12 +231,11 @@ impl<'a> From<&Section<'a>> for VariedSection<'a> {
         } = *s;
 
         VariedSection {
-            text: vec![SectionText {
+            text: vec![(SectionText {
                 text,
                 scale,
-                color,
                 font_id,
-            }],
+            }, color)],
             screen_position,
             bounds,
             z,
@@ -265,7 +265,7 @@ impl<'a> From<&Section<'a>> for Cow<'a, VariedSection<'a>> {
 pub(crate) struct HashableVariedSectionParts<'a> {
     geometry: [OrderedFloat<f32>; 4],
     z: OrderedFloat<f32>,
-    text: &'a [SectionText<'a>],
+    text: &'a [(SectionText<'a>, Color)],
 }
 
 impl HashableVariedSectionParts<'_> {
@@ -281,7 +281,7 @@ impl HashableVariedSectionParts<'_> {
 
     #[inline]
     pub fn hash_text_no_color<H: Hasher>(&self, state: &mut H) {
-        for t in self.text {
+        for (t, _) in self.text {
             let SectionText {
                 text,
                 scale,
@@ -297,16 +297,14 @@ impl HashableVariedSectionParts<'_> {
 
     #[inline]
     pub fn hash_alpha<H: Hasher>(&self, state: &mut H) {
-        for t in self.text {
-            OrderedFloat(t.color[3]).hash(state);
+        for (_, color) in self.text {
+            OrderedFloat(color[3]).hash(state);
         }
     }
 
     #[inline]
     pub fn hash_color<H: Hasher>(&self, state: &mut H) {
-        for t in self.text {
-            let color = t.color;
-
+        for (_, color) in self.text {
             let ord_floats: &[OrderedFloat<_>] =
                 &[color[0].into(), color[1].into(), color[2].into()];
 

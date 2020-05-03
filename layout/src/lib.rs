@@ -61,7 +61,6 @@ mod words;
 
 pub use self::{builtin::*, font::*, linebreak::*, section::*};
 use ::ab_glyph::*;
-use std::borrow::Cow;
 
 /// Re-exported rusttype types.
 pub mod ab_glyph {
@@ -76,11 +75,11 @@ use std::hash::Hash;
 pub trait GlyphPositioner: Hash {
     /// Calculate a sequence of positioned glyphs to render. Custom implementations should
     /// return the same result when called with the same arguments to allow layout caching.
-    fn calculate_glyphs<F: Font, FM: FontMap<F>>(
+    fn calculate_glyphs<F: Font, FM: FontMap<F>, S: AsSectionText>(
         &self,
         fonts: &FM,
         geometry: &SectionGeometry,
-        sections: &[SectionText<'_>],
+        sections: &[S],
     ) -> Vec<SectionGlyph>;
 
     /// Return a screen rectangle according to the requested render position and bounds
@@ -92,14 +91,20 @@ pub trait GlyphPositioner: Hash {
     /// The default implementation simply calls `calculate_glyphs` so must be implemented
     /// to provide benefits as such benefits are spefic to the internal layout logic.
     // TODO remove now color is gone?
-    fn recalculate_glyphs<F: Font, FM: FontMap<F>>(
+    fn recalculate_glyphs<F, FM, S, P>(
         &self,
-        previous: Cow<'_, Vec<SectionGlyph>>,
+        previous: P,
         change: GlyphChange,
         fonts: &FM,
         geometry: &SectionGeometry,
-        sections: &[SectionText<'_>],
-    ) -> Vec<SectionGlyph> {
+        sections: &[S],
+    ) -> Vec<SectionGlyph>
+    where
+        F: Font,
+        FM: FontMap<F>,
+        S: AsSectionText,
+        P: IntoIterator<Item = SectionGlyph>,
+    {
         let _ = (previous, change);
         self.calculate_glyphs(fonts, geometry, sections)
     }

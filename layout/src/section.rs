@@ -45,15 +45,44 @@ impl Default for SectionText<'static> {
     }
 }
 
+pub trait AsSectionText {
+    fn as_section_text(&self) -> &SectionText<'_>;
+}
+
+impl AsSectionText for SectionText<'_> {
+    #[inline]
+    fn as_section_text(&self) -> &SectionText<'_> {
+        self
+    }
+}
+impl AsSectionText for &SectionText<'_> {
+    #[inline]
+    fn as_section_text(&self) -> &SectionText<'_> {
+        self
+    }
+}
+impl<T> AsSectionText for (SectionText<'_>, T) {
+    #[inline]
+    fn as_section_text(&self) -> &SectionText<'_> {
+        &self.0
+    }
+}
+impl<T> AsSectionText for &(SectionText<'_>, T) {
+    #[inline]
+    fn as_section_text(&self) -> &SectionText<'_> {
+        &self.0
+    }
+}
+
 /// A positioned glyph with info relating to the `SectionText` from which it was derived.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct SectionGlyph {
-    /// A positioned glyph.
-    pub glyph: Glyph,
-    /// Font id.
-    pub font_id: FontId,
     /// The `SectionText` index.
     pub section_index: usize,
     /// The character byte index from the `SectionText` text.
     pub byte_index: usize,
+    /// A positioned glyph.
+    pub glyph: Glyph,
+    /// Font id.
+    pub font_id: FontId,
 }

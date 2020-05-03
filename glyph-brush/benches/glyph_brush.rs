@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
-use glyph_brush::{rusttype::*, *};
+use glyph_brush::{ab_glyph::*, *};
 use std::{borrow::Cow, f32};
 
 const TEST_FONT: &[u8] = include_bytes!("../../fonts/DejaVuSansMono.ttf");
@@ -534,35 +534,33 @@ fn continually_modify_alpha_of_1_of_3(c: &mut Criterion) {
         vec![
             VariedSection {
                 text: vec![
-                    SectionText {
+                    (SectionText {
                         text: "Heading\n",
-                        color: [1.0, 1.0, 0.0, alpha],
                         ..<_>::default()
-                    },
-                    SectionText {
+                    }, [1.0, 1.0, 0.0, alpha]),
+                    (SectionText {
                         text,
-                        color: [1.0, 1.0, 1.0, alpha],
                         ..<_>::default()
-                    },
+                    }, [1.0, 1.0, 0.0, alpha]),
                 ],
                 bounds: (600.0, f32::INFINITY),
                 ..<_>::default()
             },
             VariedSection {
-                text: vec![SectionText {
+                text: vec![(SectionText {
                     text,
                     ..<_>::default()
-                }],
+                }, [0.0, 0.0, 0.0, 1.0])],
                 screen_position: (600.0, 0.0),
                 bounds: (600.0, f32::INFINITY),
                 layout: Layout::default().h_align(HorizontalAlign::Center),
                 ..<_>::default()
             },
             VariedSection {
-                text: vec![SectionText {
+                text: vec![(SectionText {
                     text,
                     ..<_>::default()
-                }],
+                }, [0.0, 0.0, 0.0, 1.0])],
                 screen_position: (1200.0, 0.0),
                 bounds: (600.0, f32::INFINITY),
                 layout: Layout::default().h_align(HorizontalAlign::Right),
@@ -623,7 +621,7 @@ fn continually_modify_position_of_1_of_3(c: &mut Criterion) {
 fn bench_variants<'a, S: 'a>(
     b: &mut Bencher,
     variants: &'a [std::vec::Vec<S>],
-    glyph_brush: &mut GlyphBrush<'_, [f32; 13]>,
+    glyph_brush: &mut GlyphBrush<FontRef<'static>, [f32; 13]>,
 ) where
     &'a S: Into<Cow<'a, VariedSection<'a>>>,
 {

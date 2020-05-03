@@ -1,9 +1,8 @@
 use super::{
-    BuiltInLineBreaker, FontMap, GlyphPositioner, LineBreaker, SectionGeometry, SectionText,
+    BuiltInLineBreaker, FontMap, GlyphPositioner, LineBreaker, SectionGeometry, AsSectionText
 };
 use crate::{characters::Characters, GlyphChange, SectionGlyph};
 use ab_glyph::*;
-use std::borrow::Cow;
 
 /// Built-in [`GlyphPositioner`](trait.GlyphPositioner.html) implementations.
 ///
@@ -135,11 +134,11 @@ impl<L: LineBreaker> Layout<L> {
 }
 
 impl<L: LineBreaker> GlyphPositioner for Layout<L> {
-    fn calculate_glyphs<F: Font, FM: FontMap<F>>(
+    fn calculate_glyphs<F: Font, FM: FontMap<F>, S: AsSectionText>(
         &self,
         font_map: &FM,
         geometry: &SectionGeometry,
-        sections: &[SectionText<'_>],
+        sections: &[S],
     ) -> Vec<SectionGlyph> {
         use crate::Layout::{SingleLine, Wrap};
 
@@ -262,14 +261,20 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
     }
 
     #[allow(clippy::float_cmp)]
-    fn recalculate_glyphs<F: Font, FM: FontMap<F>>(
+    fn recalculate_glyphs<F, FM, S, P>(
         &self,
-        previous: Cow<'_, Vec<SectionGlyph>>,
+        previous: P,
         change: GlyphChange,
         fonts: &FM,
         geometry: &SectionGeometry,
-        sections: &[SectionText<'_>],
-    ) -> Vec<SectionGlyph> {
+        sections: &[S],
+    ) -> Vec<SectionGlyph>
+    where
+        F: Font,
+        FM: FontMap<F>,
+        S: AsSectionText,
+        P: IntoIterator<Item = SectionGlyph>,
+    {
         match change {
             GlyphChange::Geometry(old) if old.bounds == geometry.bounds => {
                 // position change
@@ -278,7 +283,7 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                     geometry.screen_position.1 - old.screen_position.1,
                 );
 
-                let mut glyphs = previous.into_owned();
+                let mut glyphs: Vec<_> = previous.into_iter().collect();
                 glyphs
                     .iter_mut()
                     .for_each(|sg| sg.glyph.position += adjustment);
@@ -447,11 +452,11 @@ mod layout_test {
     #[derive(Hash)]
     enum SimpleCustomGlyphPositioner {}
     impl GlyphPositioner for SimpleCustomGlyphPositioner {
-        fn calculate_glyphs<F: Font, FM: FontMap<F>>(
+        fn calculate_glyphs<F: Font, FM: FontMap<F>, S: AsSectionText>(
             &self,
             _: &FM,
             _: &SectionGeometry,
-            _: &[SectionText<'_>],
+            _: &[S],
         ) -> Vec<SectionGlyph> {
             <_>::default()
         }
@@ -878,7 +883,7 @@ mod layout_test {
         );
 
         let recalc = Layout::default().recalculate_glyphs(
-            Cow::Owned(glyphs),
+            glyphs,
             GlyphChange::Unknown,
             &*FONT_MAP,
             &SectionGeometry::default(),
@@ -913,14 +918,14 @@ mod layout_test {
             &[SectionText {
                 text: "hello world",
                 scale: PxScale::from(20.0),
-                ..SectionText::default()
+                font_id: FontId(0),
             }],
         );
 
         let original_y = glyphs[0].glyph.position.y;
 
         let recalc = Layout::default().recalculate_glyphs(
-            Cow::Owned(glyphs),
+            glyphs,
             GlyphChange::Geometry(geometry_1),
             &*FONT_MAP,
             &SectionGeometry {

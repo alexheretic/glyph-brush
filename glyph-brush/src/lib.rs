@@ -39,7 +39,7 @@ mod section;
 pub use crate::{glyph_brush::*, glyph_calculator::*, owned_section::*, section::*};
 pub use glyph_brush_layout::*;
 
-use glyph_brush_layout::rusttype::*;
+use glyph_brush_layout::ab_glyph::*;
 
 /// A "practically collision free" `Section` hasher
 #[cfg(not(target_arch = "wasm32"))]
@@ -55,14 +55,14 @@ fn default_section_hasher() {
     let section_a = Section {
         text: "Hovered Tile: Some((0, 0))",
         screen_position: (5.0, 60.0),
-        scale: Scale { x: 20.0, y: 20.0 },
+        scale: PxScale::from(20.0),
         color: [1.0, 1.0, 1.0, 1.0],
         ..<_>::default()
     };
     let section_b = Section {
         text: "Hovered Tile: Some((1, 0))",
         screen_position: (5.0, 60.0),
-        scale: Scale { x: 20.0, y: 20.0 },
+        scale: PxScale::from(20.0),
         color: [1.0, 1.0, 1.0, 1.0],
         ..<_>::default()
     };

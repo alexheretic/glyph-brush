@@ -13,7 +13,7 @@ use glutin::{
     event_loop::ControlFlow,
     Api, GlProfile, GlRequest,
 };
-use glyph_brush::{rusttype::*, *};
+use glyph_brush::{ab_glyph::*, *};
 use std::{
     env,
     ffi::CString,
@@ -225,7 +225,7 @@ fn main() -> Res<()> {
                 let width = dimensions.width as f32;
                 let height = dimensions.height as _;
                 let scale =
-                    Scale::uniform((font_size * window_ctx.window().scale_factor() as f32).round());
+                    PxScale::from((font_size * window_ctx.window().scale_factor() as f32).round());
 
                 glyph_brush.queue(Section {
                     text: &text,
@@ -269,8 +269,8 @@ fn main() -> Res<()> {
                             gl::TexSubImage2D(
                                 gl::TEXTURE_2D,
                                 0,
-                                rect.min.x as _,
-                                rect.min.y as _,
+                                rect.min[0] as _,
+                                rect.min[1] as _,
                                 rect.width() as _,
                                 rect.height() as _,
                                 gl::RED,

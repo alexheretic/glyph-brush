@@ -1,6 +1,7 @@
 mod geometry;
 
-use geometry::*;
+pub use geometry::Rectangle;
+
 use glyph_brush_layout::{ab_glyph::*, FontId, FontMap};
 use linked_hash_map::LinkedHashMap;
 use rustc_hash::{FxHashMap, FxHasher};
@@ -124,16 +125,16 @@ impl PaddingAware for Rectangle<u32> {
     }
 }
 
-/// Builder & rebuilder for `Cache`.
+/// Builder & rebuilder for `DrawCache`.
 ///
 /// # Example
 ///
 /// ```
-/// use glyph_brush_draw_cache::Cache;
+/// use glyph_brush_draw_cache::DrawCache;
 ///
 /// // Create a cache with all default values set explicitly
-/// // equivalent to `Cache::builder().build()`
-/// let default_cache = Cache::builder()
+/// // equivalent to `DrawCache::builder().build()`
+/// let default_cache = DrawCache::builder()
 ///     .dimensions(256, 256)
 ///     .scale_tolerance(0.1)
 ///     .position_tolerance(0.1)
@@ -143,10 +144,10 @@ impl PaddingAware for Rectangle<u32> {
 ///     .build();
 ///
 /// // Create a cache with all default values, except with a dimension of 1024x1024
-/// let bigger_cache = Cache::builder().dimensions(1024, 1024).build();
+/// let bigger_cache = DrawCache::builder().dimensions(1024, 1024).build();
 /// ```
 #[derive(Debug, Clone)]
-pub struct CacheBuilder {
+pub struct DrawCacheBuilder {
     dimensions: (u32, u32),
     scale_tolerance: f32,
     position_tolerance: f32,
@@ -155,7 +156,7 @@ pub struct CacheBuilder {
     multithread: bool,
 }
 
-impl Default for CacheBuilder {
+impl Default for DrawCacheBuilder {
     fn default() -> Self {
         Self {
             dimensions: (256, 256),
@@ -168,7 +169,7 @@ impl Default for CacheBuilder {
     }
 }
 
-impl CacheBuilder {
+impl DrawCacheBuilder {
     /// `width` & `height` dimensions of the 2D texture that will hold the
     /// cache contents on the GPU.
     ///
@@ -179,8 +180,8 @@ impl CacheBuilder {
     /// # Example (set to default value)
     ///
     /// ```
-    /// # use glyph_brush_draw_cache::Cache;
-    /// let cache = Cache::builder().dimensions(256, 256).build();
+    /// # use glyph_brush_draw_cache::DrawCache;
+    /// let cache = DrawCache::builder().dimensions(256, 256).build();
     /// ```
     pub fn dimensions(mut self, width: u32, height: u32) -> Self {
         self.dimensions = (width, height);
@@ -206,8 +207,8 @@ impl CacheBuilder {
     /// # Example (set to default value)
     ///
     /// ```
-    /// # use glyph_brush_draw_cache::Cache;
-    /// let cache = Cache::builder().scale_tolerance(0.1).build();
+    /// # use glyph_brush_draw_cache::DrawCache;
+    /// let cache = DrawCache::builder().scale_tolerance(0.1).build();
     /// ```
     pub fn scale_tolerance<V: Into<f32>>(mut self, scale_tolerance: V) -> Self {
         self.scale_tolerance = scale_tolerance.into();
@@ -236,8 +237,8 @@ impl CacheBuilder {
     /// # Example (set to default value)
     ///
     /// ```
-    /// # use glyph_brush_draw_cache::Cache;
-    /// let cache = Cache::builder().position_tolerance(0.1).build();
+    /// # use glyph_brush_draw_cache::DrawCache;
+    /// let cache = DrawCache::builder().position_tolerance(0.1).build();
     /// ```
     pub fn position_tolerance<V: Into<f32>>(mut self, position_tolerance: V) -> Self {
         self.position_tolerance = position_tolerance.into();
@@ -252,8 +253,8 @@ impl CacheBuilder {
     /// # Example (set to default value)
     ///
     /// ```
-    /// # use glyph_brush_draw_cache::Cache;
-    /// let cache = Cache::builder().pad_glyphs(true).build();
+    /// # use glyph_brush_draw_cache::DrawCache;
+    /// let cache = DrawCache::builder().pad_glyphs(true).build();
     /// ```
     pub fn pad_glyphs(mut self, pad_glyphs: bool) -> Self {
         self.pad_glyphs = pad_glyphs;
@@ -267,8 +268,8 @@ impl CacheBuilder {
     /// # Example (set to default value)
     ///
     /// ```
-    /// # use glyph_brush_draw_cache::Cache;
-    /// let cache = Cache::builder().align_4x4(false).build();
+    /// # use glyph_brush_draw_cache::DrawCache;
+    /// let cache = DrawCache::builder().align_4x4(false).build();
     /// ```
     pub fn align_4x4(mut self, align_4x4: bool) -> Self {
         self.align_4x4 = align_4x4;
@@ -286,8 +287,8 @@ impl CacheBuilder {
     /// # Example (set to default value)
     ///
     /// ```
-    /// # use glyph_brush_draw_cache::Cache;
-    /// let cache = Cache::builder().multithread(true).build();
+    /// # use glyph_brush_draw_cache::DrawCache;
+    /// let cache = DrawCache::builder().multithread(true).build();
     /// ```
     pub fn multithread(mut self, multithread: bool) -> Self {
         self.multithread = multithread;
@@ -321,11 +322,11 @@ impl CacheBuilder {
     /// # Example
     ///
     /// ```
-    /// # use glyph_brush_draw_cache::Cache;
-    /// let cache = Cache::builder().build();
+    /// # use glyph_brush_draw_cache::DrawCache;
+    /// let cache = DrawCache::builder().build();
     /// ```
-    pub fn build(self) -> Cache {
-        let CacheBuilder {
+    pub fn build(self) -> DrawCache {
+        let DrawCacheBuilder {
             dimensions: (width, height),
             scale_tolerance,
             position_tolerance,
@@ -334,7 +335,7 @@ impl CacheBuilder {
             multithread,
         } = self.validated();
 
-        Cache {
+        DrawCache {
             scale_tolerance,
             position_tolerance,
             width,
@@ -358,7 +359,7 @@ impl CacheBuilder {
         }
     }
 
-    /// Rebuilds a `Cache` with new attributes. All cached glyphs are cleared,
+    /// Rebuilds a `DrawCache` with new attributes. All cached glyphs are cleared,
     /// however the glyph queue is retained unmodified.
     ///
     /// # Panics
@@ -369,13 +370,13 @@ impl CacheBuilder {
     /// # Example
     ///
     /// ```
-    /// # use glyph_brush_draw_cache::Cache;
-    /// # let mut cache = Cache::builder().build();
+    /// # use glyph_brush_draw_cache::DrawCache;
+    /// # let mut cache = DrawCache::builder().build();
     /// // Rebuild the cache with different dimensions
     /// cache.to_builder().dimensions(768, 768).rebuild(&mut cache);
     /// ```
-    pub fn rebuild(self, cache: &mut Cache) {
-        let CacheBuilder {
+    pub fn rebuild(self, cache: &mut DrawCache) {
+        let DrawCacheBuilder {
             dimensions: (width, height),
             scale_tolerance,
             position_tolerance,
@@ -395,7 +396,7 @@ impl CacheBuilder {
     }
 }
 
-/// Returned from `Cache::rect_for`.
+/// Returned from `DrawCache::rect_for`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum CacheReadErr {
     /// Indicates that the requested glyph is not present in the cache, or
@@ -412,7 +413,7 @@ impl fmt::Display for CacheReadErr {
 }
 impl error::Error for CacheReadErr {}
 
-/// Returned from `Cache::cache_queued`.
+/// Returned from `DrawCache::cache_queued`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum CacheWriteErr {
     /// At least one of the queued glyphs is too big to fit into the cache, even
@@ -464,7 +465,7 @@ fn normalised_offset_from_position(position: Point) -> Point {
 
 /// An implementation of a dynamic GPU glyph cache. See the module documentation
 /// for more information.
-pub struct Cache {
+pub struct DrawCache {
     scale_tolerance: f32,
     position_tolerance: f32,
     width: u32,
@@ -481,11 +482,11 @@ pub struct Cache {
     multithread: bool,
 }
 
-impl Cache {
-    /// Returns a default `CacheBuilder`.
+impl DrawCache {
+    /// Returns a default `DrawCacheBuilder`.
     #[inline]
-    pub fn builder() -> CacheBuilder {
-        CacheBuilder::default()
+    pub fn builder() -> DrawCacheBuilder {
+        DrawCacheBuilder::default()
     }
 
     /// Returns the current scale tolerance for the cache.
@@ -526,9 +527,9 @@ impl Cache {
         self.queue.clear();
     }
 
-    /// Returns a `CacheBuilder` with this cache's attributes.
-    pub fn to_builder(&self) -> CacheBuilder {
-        CacheBuilder {
+    /// Returns a `DrawCacheBuilder` with this cache's attributes.
+    pub fn to_builder(&self) -> DrawCacheBuilder {
+        DrawCacheBuilder {
             dimensions: (self.width, self.height),
             position_tolerance: self.position_tolerance,
             scale_tolerance: self.scale_tolerance,
@@ -967,7 +968,7 @@ mod test {
     fn cache_test() {
         let font = FontRef::try_from_slice(FONT).unwrap();
 
-        let mut cache = Cache::builder()
+        let mut cache = DrawCache::builder()
             .dimensions(32, 32)
             .scale_tolerance(0.1)
             .position_tolerance(0.1)
@@ -1010,7 +1011,7 @@ mod test {
         let large_left = gid.with_scale_and_position(10.05, point(0.0, 0.0));
         let large_right = gid.with_scale_and_position(10.05, point(-0.2, 0.0));
 
-        let mut cache = Cache::builder()
+        let mut cache = DrawCache::builder()
             .dimensions(32, 32)
             .scale_tolerance(0.1)
             .position_tolerance(0.1)
@@ -1034,7 +1035,7 @@ mod test {
         let font = FontRef::try_from_slice(FONT).unwrap();
         let gid = font.glyph_id('l');
 
-        let cache = Cache::builder()
+        let cache = DrawCache::builder()
             .scale_tolerance(0.2)
             .position_tolerance(0.5)
             .build();
@@ -1061,7 +1062,7 @@ mod test {
 
     #[test]
     fn cache_to_builder() {
-        let cache = CacheBuilder {
+        let cache = DrawCacheBuilder {
             dimensions: (32, 64),
             scale_tolerance: 0.2,
             position_tolerance: 0.3,
@@ -1071,7 +1072,7 @@ mod test {
         }
         .build();
 
-        let to_builder: CacheBuilder = cache.to_builder();
+        let to_builder: DrawCacheBuilder = cache.to_builder();
 
         assert_eq!(to_builder.dimensions, (32, 64));
         assert_relative_eq!(to_builder.scale_tolerance, 0.2);
@@ -1083,7 +1084,7 @@ mod test {
 
     #[test]
     fn builder_rebuild() {
-        let mut cache = Cache::builder()
+        let mut cache = DrawCache::builder()
             .dimensions(32, 64)
             .scale_tolerance(0.2)
             .position_tolerance(0.3)
@@ -1098,7 +1099,7 @@ mod test {
 
         cache.queue_glyph(0, font.glyph_id('a').with_scale(25.0));
 
-        Cache::builder()
+        DrawCache::builder()
             .dimensions(64, 128)
             .scale_tolerance(0.05)
             .position_tolerance(0.15)
@@ -1129,7 +1130,7 @@ mod test {
         let font = FontRef::try_from_slice(FONT).unwrap();
         let fontmap = &[&font];
 
-        let mut cache = Cache::builder()
+        let mut cache = DrawCache::builder()
             .dimensions(36, 27)
             .scale_tolerance(0.1)
             .position_tolerance(0.1)
@@ -1176,7 +1177,7 @@ mod test {
     }
 
     fn align_4x4_helper(align_4x4: bool, expected_width: u32, expected_height: u32) {
-        let mut cache = Cache::builder()
+        let mut cache = DrawCache::builder()
             .dimensions(64, 64)
             .align_4x4(align_4x4)
             .build();
