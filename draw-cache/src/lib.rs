@@ -2,7 +2,7 @@ mod geometry;
 
 pub use geometry::Rectangle;
 
-use glyph_brush_layout::{ab_glyph::*, FontId, FontMap};
+use ab_glyph::*;
 use linked_hash_map::LinkedHashMap;
 #[cfg(not(target_arch = "wasm32"))]
 use rayon::prelude::*;
@@ -11,6 +11,7 @@ use std::{
     collections::{HashMap, HashSet},
     error, fmt,
     hash::BuildHasherDefault,
+    ops,
     sync::Arc,
 };
 
@@ -78,7 +79,7 @@ impl ByteArray2d {
     }
 }
 
-impl std::ops::Index<(usize, usize)> for ByteArray2d {
+impl ops::Index<(usize, usize)> for ByteArray2d {
     type Output = u8;
 
     #[inline]
@@ -87,7 +88,7 @@ impl std::ops::Index<(usize, usize)> for ByteArray2d {
     }
 }
 
-impl std::ops::IndexMut<(usize, usize)> for ByteArray2d {
+impl ops::IndexMut<(usize, usize)> for ByteArray2d {
     #[inline]
     fn index_mut(&mut self, (row, col): (usize, usize)) -> &mut u8 {
         let vec_index = self.get_vec_index(row, col);
@@ -578,16 +579,17 @@ impl DrawCache {
     /// previously cached glyph textures.
     pub fn cache_queued<F, FM, U>(
         &mut self,
-        fonts: &FM,
+        font_slice: &FM,
         mut uploader: U,
     ) -> Result<CachedBy, CacheWriteErr>
     where
-        F: Font,
-        FM: FontMap<F> + Sync,
+        F: Font + Sync,
+        FM: AsRef<[F]>,
         U: FnMut(Rectangle<u32>, &[u8]),
     {
         let mut queue_success = true;
         let from_empty = self.all_glyphs.is_empty();
+        let fonts = font_slice.as_ref();
 
         {
             let (mut in_use_rows, uncached_glyphs) = {
@@ -622,16 +624,14 @@ impl DrawCache {
                 uncached_glyphs
                     .into_par_iter()
                     .filter_map(|(info, glyph)| {
-                        let font = fonts.font(FontId(info.font_id));
-                        Some((info, font.outline_glyph(glyph.clone())?))
+                        Some((info, fonts[info.font_id].outline_glyph(glyph.clone())?))
                     })
                     .collect()
             } else {
                 uncached_glyphs
                     .into_iter()
                     .filter_map(|(info, glyph)| {
-                        let font = fonts.font(FontId(info.font_id));
-                        Some((info, font.outline_glyph(glyph.clone())?))
+                        Some((info, fonts[info.font_id].outline_glyph(glyph.clone())?))
                     })
                     .collect()
             };
@@ -639,8 +639,7 @@ impl DrawCache {
             let mut uncached_outlined: Vec<_> = uncached_glyphs
                 .into_iter()
                 .filter_map(|(info, glyph)| {
-                    let font = fonts.font(FontId(info.font_id));
-                    Some((info, font.outline_glyph(glyph.clone())?))
+                    Some((info, fonts[info.font_id].outline_glyph(glyph.clone())?))
                 })
                 .collect();
 
@@ -880,7 +879,7 @@ impl DrawCache {
         } else {
             // clear the cache then try again with optimal packing
             self.clear();
-            self.cache_queued(fonts, uploader)
+            self.cache_queued(font_slice, uploader)
                 .map(|_| CachedBy::Reordering)
         }
     }
