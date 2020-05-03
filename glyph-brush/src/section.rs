@@ -125,7 +125,11 @@ impl<'text> VariedSection<'text> {
             bounds: self.bounds,
             z: self.z,
             layout: self.layout,
-            text: self.text.iter().map(|(t, color)| (t.into(), *color)).collect(),
+            text: self
+                .text
+                .iter()
+                .map(|(t, color)| (t.into(), *color))
+                .collect(),
         }
     }
 
@@ -231,11 +235,14 @@ impl<'a> From<&Section<'a>> for VariedSection<'a> {
         } = *s;
 
         VariedSection {
-            text: vec![(SectionText {
-                text,
-                scale,
-                font_id,
-            }, color)],
+            text: vec![(
+                SectionText {
+                    text,
+                    scale,
+                    font_id,
+                },
+                color,
+            )],
             screen_position,
             bounds,
             z,

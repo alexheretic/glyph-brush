@@ -4,17 +4,20 @@ pub use geometry::Rectangle;
 
 use glyph_brush_layout::{ab_glyph::*, FontId, FontMap};
 use linked_hash_map::LinkedHashMap;
+#[cfg(not(target_arch = "wasm32"))]
+use rayon::prelude::*;
 use rustc_hash::{FxHashMap, FxHasher};
 use std::{
     collections::{HashMap, HashSet},
     error, fmt,
     hash::BuildHasherDefault,
+    sync::Arc,
 };
-
-type FxBuildHasher = BuildHasherDefault<FxHasher>;
 
 /// (Texture coordinates, pixel coordinates)
 pub type TextureCoords = (Rect, Rect);
+
+type FxBuildHasher = BuildHasherDefault<FxHasher>;
 
 /// Indicates where a glyph texture is stored in the cache
 /// (row position, glyph index in row)
@@ -301,7 +304,7 @@ impl DrawCacheBuilder {
         let scale_tolerance = self.scale_tolerance.max(0.001);
         let position_tolerance = self.position_tolerance.max(0.001);
         #[cfg(not(target_arch = "wasm32"))]
-        let multithread = self.multithread && num_cpus::get() > 1;
+        let multithread = self.multithread && rayon::current_num_threads() > 1;
         Self {
             scale_tolerance,
             position_tolerance,
@@ -580,17 +583,20 @@ impl DrawCache {
     ) -> Result<CachedBy, CacheWriteErr>
     where
         F: Font,
-        FM: FontMap<F>,
+        FM: FontMap<F> + Sync,
         U: FnMut(Rectangle<u32>, &[u8]),
     {
         let mut queue_success = true;
         let from_empty = self.all_glyphs.is_empty();
 
         {
-            let (mut in_use_rows, mut uncached_glyphs) = {
+            let (mut in_use_rows, uncached_glyphs) = {
                 let mut in_use_rows =
                     HashSet::with_capacity_and_hasher(self.rows.len(), FxBuildHasher::default());
-                let mut uncached_glyphs = Vec::with_capacity(self.queue.len());
+                let mut uncached_glyphs = HashMap::with_capacity_and_hasher(
+                    self.queue.len(),
+                    BuildHasherDefault::<FxHasher>::default(),
+                );
 
                 // divide glyphs into texture rows where a matching glyph texture
                 // already exists & glyphs where new textures must be cached
@@ -599,7 +605,7 @@ impl DrawCache {
                     if let Some((row, ..)) = self.all_glyphs.get(&glyph_info) {
                         in_use_rows.insert(*row);
                     } else {
-                        uncached_glyphs.push((glyph, glyph_info));
+                        uncached_glyphs.insert(glyph_info, glyph);
                     }
                 }
 
@@ -610,30 +616,47 @@ impl DrawCache {
                 self.rows.get_refresh(row);
             }
 
+            // outline
+            #[cfg(not(target_arch = "wasm32"))]
+            let mut uncached_outlined: Vec<_> = if self.multithread && uncached_glyphs.len() > 1 {
+                uncached_glyphs
+                    .into_par_iter()
+                    .filter_map(|(info, glyph)| {
+                        let font = fonts.font(FontId(info.font_id));
+                        Some((info, font.outline_glyph(glyph.clone())?))
+                    })
+                    .collect()
+            } else {
+                uncached_glyphs
+                    .into_iter()
+                    .filter_map(|(info, glyph)| {
+                        let font = fonts.font(FontId(info.font_id));
+                        Some((info, font.outline_glyph(glyph.clone())?))
+                    })
+                    .collect()
+            };
+            #[cfg(target_arch = "wasm32")]
+            let mut uncached_outlined: Vec<_> = uncached_glyphs
+                .into_iter()
+                .filter_map(|(info, glyph)| {
+                    let font = fonts.font(FontId(info.font_id));
+                    Some((info, font.outline_glyph(glyph.clone())?))
+                })
+                .collect();
+
             // tallest first gives better packing
             // can use 'sort_unstable' as order of equal elements is unimportant
-            uncached_glyphs.sort_unstable_by(|(ga, _), (gb, _)| {
-                gb.scale
-                    .y
-                    .partial_cmp(&ga.scale.y)
+            uncached_outlined.sort_unstable_by(|(_, ga), (_, gb)| {
+                gb.bounds()
+                    .height()
+                    .partial_cmp(&ga.bounds().height())
                     .unwrap_or(core::cmp::Ordering::Equal)
             });
 
-            self.all_glyphs.reserve(uncached_glyphs.len());
-            let mut draw_and_upload = Vec::with_capacity(uncached_glyphs.len());
+            self.all_glyphs.reserve(uncached_outlined.len());
+            let mut draw_and_upload = Vec::with_capacity(uncached_outlined.len());
 
-            'per_glyph: for (glyph, glyph_info) in uncached_glyphs {
-                // glyph may match a texture cached by a previous iteration
-                if self.all_glyphs.contains_key(&glyph_info) {
-                    continue;
-                }
-
-                // Not cached, so add it
-                let font = fonts.font(FontId(glyph_info.font_id));
-                let outlined = match font.outline_glyph(glyph.clone()) {
-                    Some(o) => o,
-                    None => continue,
-                };
+            'per_glyph: for (glyph_info, outlined) in uncached_outlined {
                 let bounds = outlined.bounds();
 
                 let (unaligned_width, unaligned_height) = {
@@ -746,7 +769,7 @@ impl DrawCache {
                     max: [row.width + unaligned_width, row_top + unaligned_height],
                 };
 
-                draw_and_upload.push((aligned_tex_coords, outlined));
+                let g = outlined.glyph();
 
                 // add the glyph to the row
                 row.glyphs.push(GlyphTexInfo {
@@ -754,17 +777,19 @@ impl DrawCache {
                     tex_coords: unaligned_tex_coords,
                     bounds_minus_position_over_scale: Rect {
                         min: point(
-                            (bounds.min.x - glyph.position.x) / glyph.scale.x,
-                            (bounds.min.y - glyph.position.y) / glyph.scale.y,
+                            (bounds.min.x - g.position.x) / g.scale.x,
+                            (bounds.min.y - g.position.y) / g.scale.y,
                         ),
                         max: point(
-                            (bounds.max.x - glyph.position.x) / glyph.scale.x,
-                            (bounds.max.y - glyph.position.y) / glyph.scale.y,
+                            (bounds.max.x - g.position.x) / g.scale.x,
+                            (bounds.max.y - g.position.y) / g.scale.y,
                         ),
                     },
                 });
                 row.width += aligned_width;
                 in_use_rows.insert(row_top);
+
+                draw_and_upload.push((aligned_tex_coords, outlined));
 
                 self.all_glyphs
                     .insert(glyph_info, (row_top, row.glyphs.len() as u32 - 1));
@@ -783,53 +808,54 @@ impl DrawCache {
                             sync::mpsc::{self, TryRecvError},
                         };
 
-                        let rasterize_queue = crossbeam_deque::Injector::new();
+                        let rasterize_queue = Arc::new(crossbeam_deque::Injector::new());
                         let (to_main, from_stealers) = mpsc::channel();
                         let pad_glyphs = self.pad_glyphs;
 
                         for el in draw_and_upload {
                             rasterize_queue.push(el);
                         }
-                        crossbeam_utils::thread::scope(|scope| {
-                            for _ in 0..num_cpus::get().min(glyph_count).saturating_sub(1) {
-                                let rasterize_queue = &rasterize_queue;
-                                let to_main = to_main.clone();
-                                scope.spawn(move |_| loop {
-                                    match rasterize_queue.steal() {
-                                        Steal::Success((tex_coords, glyph)) => {
-                                            let pixels = draw_glyph(tex_coords, &glyph, pad_glyphs);
-                                            to_main.send((tex_coords, pixels)).unwrap();
-                                        }
-                                        Steal::Empty => break,
-                                        Steal::Retry => {}
-                                    }
-                                });
-                            }
-                            mem::drop(to_main);
 
-                            let mut workers_finished = false;
-                            loop {
+                        for _ in 0..rayon::current_num_threads()
+                            .min(glyph_count)
+                            .saturating_sub(1)
+                        {
+                            let rasterize_queue = Arc::clone(&rasterize_queue);
+                            let to_main = to_main.clone();
+                            rayon::spawn(move || loop {
                                 match rasterize_queue.steal() {
                                     Steal::Success((tex_coords, glyph)) => {
                                         let pixels = draw_glyph(tex_coords, &glyph, pad_glyphs);
-                                        uploader(tex_coords, pixels.as_slice());
+                                        to_main.send((tex_coords, pixels)).unwrap();
                                     }
-                                    Steal::Empty if workers_finished => break,
-                                    Steal::Empty | Steal::Retry => {}
+                                    Steal::Empty => break,
+                                    Steal::Retry => {}
                                 }
+                            });
+                        }
+                        mem::drop(to_main);
 
-                                while !workers_finished {
-                                    match from_stealers.try_recv() {
-                                        Ok((tex_coords, pixels)) => {
-                                            uploader(tex_coords, pixels.as_slice())
-                                        }
-                                        Err(TryRecvError::Disconnected) => workers_finished = true,
-                                        Err(TryRecvError::Empty) => break,
+                        let mut workers_finished = false;
+                        loop {
+                            match rasterize_queue.steal() {
+                                Steal::Success((tex_coords, glyph)) => {
+                                    let pixels = draw_glyph(tex_coords, &glyph, pad_glyphs);
+                                    uploader(tex_coords, pixels.as_slice());
+                                }
+                                Steal::Empty if workers_finished => break,
+                                Steal::Empty | Steal::Retry => {}
+                            }
+
+                            while !workers_finished {
+                                match from_stealers.try_recv() {
+                                    Ok((tex_coords, pixels)) => {
+                                        uploader(tex_coords, pixels.as_slice())
                                     }
+                                    Err(TryRecvError::Disconnected) => workers_finished = true,
+                                    Err(TryRecvError::Empty) => break,
                                 }
                             }
-                        })
-                        .unwrap();
+                        }
                     } else {
                         // single thread rasterization
                         for (tex_coords, outlined) in draw_and_upload {

@@ -88,23 +88,27 @@ const TEST_STR: &str = include_str!("lipsum.txt");
 
 /// Benchmark using a single font at "don't care" position tolerance
 fn bench_high_position_tolerance(c: &mut Criterion) {
-    let font_id = 0;
-    let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
-    let mut cache = DrawCache::builder()
-        .dimensions(1024, 1024)
-        .scale_tolerance(0.1)
-        .position_tolerance(1.0)
-        .build();
-
     c.bench_function("high_position_tolerance", |b| {
+        let font_id = 0;
+        let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
+        let mut cache = DrawCache::builder()
+            .dimensions(1024, 1024)
+            .scale_tolerance(0.1)
+            .position_tolerance(1.0)
+            .build();
+
+        let space_id = &FONTS[font_id].glyph_id(' ');
+
         b.iter(|| {
             for glyph in &glyphs {
                 cache.queue_glyph(font_id, glyph.clone());
             }
 
-            cache.cache_queued(&*FONTS, |_, _| {}).expect("cache_queued");
+            cache
+                .cache_queued(&*FONTS, |_, _| {})
+                .expect("cache_queued");
 
-            for (index, glyph) in glyphs.iter().enumerate() {
+            for (index, glyph) in glyphs.iter().enumerate().filter(|(_, g)| g.id != *space_id) {
                 let rect = cache.rect_for(font_id, glyph);
                 assert!(
                     rect.is_ok(),
@@ -120,19 +124,23 @@ fn bench_high_position_tolerance(c: &mut Criterion) {
 
 /// Benchmark using a single ttf with default tolerances
 fn bench_ttf_font(c: &mut Criterion) {
-    let font_id = 0;
-    let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
-    let mut cache = DrawCache::builder().dimensions(1024, 1024).build();
-
     c.bench_function("single_ttf", |b| {
+        let font_id = 0;
+        let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
+        let mut cache = DrawCache::builder().dimensions(1024, 1024).build();
+
+        let space_id = &FONTS[font_id].glyph_id(' ');
+
         b.iter(|| {
             for glyph in &glyphs {
                 cache.queue_glyph(font_id, glyph.clone());
             }
 
-            cache.cache_queued(&*FONTS, |_, _| {}).expect("cache_queued");
+            cache
+                .cache_queued(&*FONTS, |_, _| {})
+                .expect("cache_queued");
 
-            for (index, glyph) in glyphs.iter().enumerate() {
+            for (index, glyph) in glyphs.iter().enumerate().filter(|(_, g)| g.id != *space_id) {
                 let rect = cache.rect_for(font_id, glyph);
                 assert!(
                     rect.is_ok(),
@@ -148,19 +156,23 @@ fn bench_ttf_font(c: &mut Criterion) {
 
 /// Benchmark using a single ttf with default tolerances
 fn bench_otf_font(c: &mut Criterion) {
-    let font_id = 2;
-    let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
-    let mut cache = DrawCache::builder().dimensions(1024, 1024).build();
-
     c.bench_function("single_otf", |b| {
+        let font_id = 2;
+        let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
+        let mut cache = DrawCache::builder().dimensions(1024, 1024).build();
+
+        let space_id = &FONTS[font_id].glyph_id(' ');
+
         b.iter(|| {
             for glyph in &glyphs {
                 cache.queue_glyph(font_id, glyph.clone());
             }
 
-            cache.cache_queued(&*FONTS, |_, _| {}).expect("cache_queued");
+            cache
+                .cache_queued(&*FONTS, |_, _| {})
+                .expect("cache_queued");
 
-            for (index, glyph) in glyphs.iter().enumerate() {
+            for (index, glyph) in glyphs.iter().enumerate().filter(|(_, g)| g.id != *space_id) {
                 let rect = cache.rect_for(font_id, glyph);
                 assert!(
                     rect.is_ok(),
@@ -176,23 +188,23 @@ fn bench_otf_font(c: &mut Criterion) {
 
 /// Benchmark using multiple fonts with default tolerances
 fn bench_multi_font(c: &mut Criterion) {
-    // Use a smaller amount of the test string, to offset the extra font-glyph
-    // bench load
-    let up_to_index = TEST_STR
-        .char_indices()
-        .nth(TEST_STR.chars().count() / FONTS.len())
-        .unwrap()
-        .0;
-    let string = &TEST_STR[..up_to_index];
-
-    let font_glyphs: Vec<_> = FONTS
-        .iter()
-        .enumerate()
-        .map(|(id, font)| (id, test_glyphs(font, string)))
-        .collect();
-    let mut cache = DrawCache::builder().dimensions(1024, 1024).build();
-
     c.bench_function("mutli_font", |b| {
+        // Use a smaller amount of the test string, to offset the extra font-glyph
+        // bench load
+        let up_to_index = TEST_STR
+            .char_indices()
+            .nth(TEST_STR.chars().count() / FONTS.len())
+            .unwrap()
+            .0;
+        let string = &TEST_STR[..up_to_index];
+
+        let font_glyphs: Vec<_> = FONTS
+            .iter()
+            .enumerate()
+            .map(|(id, font)| (id, test_glyphs(font, string)))
+            .collect();
+        let mut cache = DrawCache::builder().dimensions(1024, 1024).build();
+
         b.iter(|| {
             for &(font_id, ref glyphs) in &font_glyphs {
                 for glyph in glyphs {
@@ -200,10 +212,14 @@ fn bench_multi_font(c: &mut Criterion) {
                 }
             }
 
-            cache.cache_queued(&*FONTS, |_, _| {}).expect("cache_queued");
+            cache
+                .cache_queued(&*FONTS, |_, _| {})
+                .expect("cache_queued");
 
             for &(font_id, ref glyphs) in &font_glyphs {
-                for (index, glyph) in glyphs.iter().enumerate() {
+                let space_id = &FONTS[font_id].glyph_id(' ');
+
+                for (index, glyph) in glyphs.iter().enumerate().filter(|(_, g)| g.id != *space_id) {
                     let rect = cache.rect_for(font_id, glyph);
                     assert!(
                         rect.is_ok(),
@@ -222,18 +238,17 @@ fn bench_multi_font(c: &mut Criterion) {
 /// Benchmark using multiple fonts with default tolerances, clears the
 /// cache each run to test the population "first run" performance
 fn bench_multi_font_population(c: &mut Criterion) {
-    // Use a much smaller amount of the test string, to offset the extra font-glyph
-    // bench load & much slower performance of fresh population each run
-    let up_to_index = TEST_STR.char_indices().nth(70).unwrap().0;
-    let string = &TEST_STR[..up_to_index];
-
-    let font_glyphs: Vec<_> = FONTS
-        .iter()
-        .enumerate()
-        .map(|(id, font)| (id, test_glyphs(font, string)))
-        .collect();
-
     c.bench_function("multi_font_population", |b| {
+        // Use a much smaller amount of the test string, to offset the extra font-glyph
+        // bench load & much slower performance of fresh population each run
+        let up_to_index = TEST_STR.char_indices().nth(70).unwrap().0;
+        let string = &TEST_STR[..up_to_index];
+        let font_glyphs: Vec<_> = FONTS
+            .iter()
+            .enumerate()
+            .map(|(id, font)| (id, test_glyphs(font, string)))
+            .collect();
+
         b.iter(|| {
             let mut cache = DrawCache::builder().dimensions(1024, 1024).build();
 
@@ -243,10 +258,13 @@ fn bench_multi_font_population(c: &mut Criterion) {
                 }
             }
 
-            cache.cache_queued(&*FONTS, |_, _| {}).expect("cache_queued");
+            cache
+                .cache_queued(&*FONTS, |_, _| {})
+                .expect("cache_queued");
 
             for &(font_id, ref glyphs) in &font_glyphs {
-                for (index, glyph) in glyphs.iter().enumerate() {
+                let space_id = &FONTS[font_id].glyph_id(' ');
+                for (index, glyph) in glyphs.iter().enumerate().filter(|(_, g)| g.id != *space_id) {
                     let rect = cache.rect_for(font_id, glyph);
                     assert!(
                         rect.is_ok(),
@@ -308,10 +326,13 @@ fn bench_moving_text(c: &mut Criterion) {
                 }
             }
 
-            cache.cache_queued(&*FONTS, |_, _| {}).expect("cache_queued");
+            cache
+                .cache_queued(&*FONTS, |_, _| {})
+                .expect("cache_queued");
 
             for &(font_id, ref glyphs) in glyphs {
-                for (index, glyph) in glyphs.iter().enumerate() {
+                let space_id = &FONTS[font_id].glyph_id(' ');
+                for (index, glyph) in glyphs.iter().enumerate().filter(|(_, g)| g.id != *space_id) {
                     let rect = cache.rect_for(font_id, glyph);
                     assert!(
                         rect.is_ok(),
@@ -360,10 +381,13 @@ fn bench_resizing(c: &mut Criterion) {
 
             cache.to_builder().dimensions(512, 512).rebuild(&mut cache);
 
-            cache.cache_queued(&*FONTS, mock_gpu_upload).expect("should fit now");
+            cache
+                .cache_queued(&*FONTS, mock_gpu_upload)
+                .expect("should fit now");
 
             for &(font_id, ref glyphs) in &font_glyphs {
-                for (index, glyph) in glyphs.iter().enumerate() {
+                let space_id = &FONTS[font_id].glyph_id(' ');
+                for (index, glyph) in glyphs.iter().enumerate().filter(|(_, g)| g.id != *space_id) {
                     let rect = cache.rect_for(font_id, glyph);
                     assert!(
                         rect.is_ok(),
@@ -427,10 +451,15 @@ fn bench_moving_text_thrashing(c: &mut Criterion) {
                     }
                 }
 
-                cache.cache_queued(&*FONTS, mock_gpu_upload).expect("cache_queued");
+                cache
+                    .cache_queued(&*FONTS, mock_gpu_upload)
+                    .expect("cache_queued");
 
                 for &(font_id, ref glyphs) in glyphs {
-                    for (index, glyph) in glyphs.iter().enumerate() {
+                    let space_id = &FONTS[font_id].glyph_id(' ');
+                    for (index, glyph) in
+                        glyphs.iter().enumerate().filter(|(_, g)| g.id != *space_id)
+                    {
                         let rect = cache.rect_for(font_id, glyph);
                         assert!(
                             rect.is_ok(),

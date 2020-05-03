@@ -534,33 +534,45 @@ fn continually_modify_alpha_of_1_of_3(c: &mut Criterion) {
         vec![
             VariedSection {
                 text: vec![
-                    (SectionText {
-                        text: "Heading\n",
-                        ..<_>::default()
-                    }, [1.0, 1.0, 0.0, alpha]),
-                    (SectionText {
-                        text,
-                        ..<_>::default()
-                    }, [1.0, 1.0, 0.0, alpha]),
+                    (
+                        SectionText {
+                            text: "Heading\n",
+                            ..<_>::default()
+                        },
+                        [1.0, 1.0, 0.0, alpha],
+                    ),
+                    (
+                        SectionText {
+                            text,
+                            ..<_>::default()
+                        },
+                        [1.0, 1.0, 0.0, alpha],
+                    ),
                 ],
                 bounds: (600.0, f32::INFINITY),
                 ..<_>::default()
             },
             VariedSection {
-                text: vec![(SectionText {
-                    text,
-                    ..<_>::default()
-                }, [0.0, 0.0, 0.0, 1.0])],
+                text: vec![(
+                    SectionText {
+                        text,
+                        ..<_>::default()
+                    },
+                    [0.0, 0.0, 0.0, 1.0],
+                )],
                 screen_position: (600.0, 0.0),
                 bounds: (600.0, f32::INFINITY),
                 layout: Layout::default().h_align(HorizontalAlign::Center),
                 ..<_>::default()
             },
             VariedSection {
-                text: vec![(SectionText {
-                    text,
-                    ..<_>::default()
-                }, [0.0, 0.0, 0.0, 1.0])],
+                text: vec![(
+                    SectionText {
+                        text,
+                        ..<_>::default()
+                    },
+                    [0.0, 0.0, 0.0, 1.0],
+                )],
                 screen_position: (1200.0, 0.0),
                 bounds: (600.0, f32::INFINITY),
                 layout: Layout::default().h_align(HorizontalAlign::Right),

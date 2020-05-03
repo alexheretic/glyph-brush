@@ -1,4 +1,4 @@
-use super::{FontMap, HorizontalAlign, SectionGlyph, VerticalAlign, AsSectionText};
+use super::{AsSectionText, FontMap, HorizontalAlign, SectionGlyph, VerticalAlign};
 use crate::{linebreak::LineBreaker, words::*};
 use ab_glyph::*;
 use std::iter::{FusedIterator, Iterator, Peekable};

@@ -80,8 +80,9 @@ impl<F, V, H> fmt::Debug for GlyphBrush<F, V, H> {
     }
 }
 
-impl<F: Font, V, H> GlyphCruncher<F> for GlyphBrush<F, V, H>
+impl<F, V, H> GlyphCruncher<F> for GlyphBrush<F, V, H>
 where
+    F: Font + Sync,
     V: Clone + 'static,
     H: BuildHasher,
 {
@@ -178,7 +179,7 @@ where
 
 impl<F, V, H> GlyphBrush<F, V, H>
 where
-    F: Font,
+    F: Font + Sync,
     V: Clone + 'static,
     H: BuildHasher,
 {
@@ -418,10 +419,7 @@ where
             }
 
             if some_text {
-                match self
-                    .texture_cache
-                    .cache_queued(&self.fonts, update_texture)
-                {
+                match self.texture_cache.cache_queued(&self.fonts, update_texture) {
                     Ok(CachedBy::Adding) => {}
                     Ok(CachedBy::Reordering) => {
                         for glyphed in self.calculate_glyph_cache.values_mut() {

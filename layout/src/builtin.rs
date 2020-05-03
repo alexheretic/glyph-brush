@@ -1,5 +1,5 @@
 use super::{
-    BuiltInLineBreaker, FontMap, GlyphPositioner, LineBreaker, SectionGeometry, AsSectionText
+    AsSectionText, BuiltInLineBreaker, FontMap, GlyphPositioner, LineBreaker, SectionGeometry,
 };
 use crate::{characters::Characters, GlyphChange, SectionGlyph};
 use ab_glyph::*;
@@ -200,12 +200,29 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                                 caret.1 - screen_position.1
                             };
 
-                            // TODO filter out out-of-bounds glyphs?
-                            // let (min_x, max_x) = h_align.x_bounds(screen_position.0, bound_w);
-                            // let (min_y, max_y) = v_align.y_bounds(screen_position.1, bound_h);
+                            let (min_x, max_x) = h_align.x_bounds(screen_position.0, bound_w);
+                            let (min_y, max_y) = v_align.y_bounds(screen_position.1, bound_h);
 
-                            out.iter_mut()
-                                .for_each(|sg| sg.glyph.position.y -= shift_up);
+                            out = out
+                                .drain(..)
+                                .filter_map(|mut sg| {
+                                    // shift into position
+                                    sg.glyph.position.y -= shift_up;
+
+                                    // filter away out-of-bounds glyphs
+                                    let sfont = font_map.font(sg.font_id).as_scaled(sg.glyph.scale);
+                                    let h_advance = sfont.h_advance(sg.glyph.id);
+                                    let h_side_bearing = sfont.h_side_bearing(sg.glyph.id);
+                                    let height = sfont.height();
+
+                                    Some(sg).filter(|sg| {
+                                        sg.glyph.position.x - h_side_bearing <= max_x
+                                            && sg.glyph.position.x + h_advance >= min_x
+                                            && sg.glyph.position.y - height <= max_y
+                                            && sg.glyph.position.y + height >= min_y
+                                    })
+                                })
+                                .collect();
                         }
                     }
                 }
@@ -213,25 +230,6 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                 out
             }
         }
-
-        // let grouped = Vec::with_capacity(sections.len());
-        // let mut current_section_idx = 0;
-        // let mut current_section = PositionedSection::default();
-        // for SectionGlyph {
-        //     glyph,
-        //     font_id,
-        //     section_index,
-        //     byte_index,
-        // } in flat_glyphs
-        // {
-        //     if section_index != current_section_idx {
-        //         grouped.push(current_section);
-        //     }
-        //     current_section.font_id = font_id;
-        //     current_section.glyph_indices.push((byte_index, glyph));
-        // }
-        // grouped.push(current_section);
-        // grouped
     }
 
     fn bounds_rect(&self, geometry: &SectionGeometry) -> Rect {
@@ -397,7 +395,7 @@ mod bounds_test {
 #[cfg(test)]
 mod layout_test {
     use super::*;
-    use crate::{BuiltInLineBreaker::*, FontId};
+    use crate::{BuiltInLineBreaker::*, FontId, SectionText};
     use approx::assert_relative_eq;
     use once_cell::sync::Lazy;
     use ordered_float::OrderedFloat;

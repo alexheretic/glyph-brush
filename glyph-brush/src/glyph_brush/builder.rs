@@ -1,6 +1,6 @@
 use crate::{DefaultSectionHasher, Font, FontId, GlyphBrush};
-use glyph_brush_layout::ab_glyph::*;
 use glyph_brush_draw_cache::*;
+use glyph_brush_layout::ab_glyph::*;
 use std::hash::BuildHasher;
 
 /// Builder for a [`GlyphBrush`](struct.GlyphBrush.html).

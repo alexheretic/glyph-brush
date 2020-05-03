@@ -35,7 +35,11 @@ impl OwnedVariedSection {
             bounds: self.bounds,
             z: self.z,
             layout: self.layout,
-            text: self.text.iter().map(|(t, color)| (t.into(), *color)).collect(),
+            text: self
+                .text
+                .iter()
+                .map(|(t, color)| (t.into(), *color))
+                .collect(),
         }
     }
 }
