@@ -53,20 +53,19 @@
 //! ```
 mod builtin;
 mod characters;
-mod font;
 mod linebreak;
 mod lines;
 mod section;
 mod words;
-
-pub use self::{builtin::*, font::*, linebreak::*, section::*};
-use ::ab_glyph::*;
+mod font;
 
 /// Re-exported rusttype types.
 pub mod ab_glyph {
     pub use ab_glyph::*;
 }
+pub use self::{builtin::*, linebreak::*, section::*, font::*};
 
+use ::ab_glyph::*;
 use std::hash::Hash;
 
 /// Logic to calculate glyph positioning using [`Font`](struct.Font.html),
@@ -75,15 +74,14 @@ use std::hash::Hash;
 pub trait GlyphPositioner: Hash {
     /// Calculate a sequence of positioned glyphs to render. Custom implementations should
     /// return the same result when called with the same arguments to allow layout caching.
-    fn calculate_glyphs<F, FM, S>(
+    fn calculate_glyphs<F, S>(
         &self,
-        fonts: &FM,
+        fonts: &[F],
         geometry: &SectionGeometry,
         sections: &[S],
     ) -> Vec<SectionGlyph>
     where
         F: Font,
-        FM: FontMap<F>,
         S: ToSectionText;
 
     /// Return a screen rectangle according to the requested render position and bounds
@@ -94,18 +92,16 @@ pub trait GlyphPositioner: Hash {
     ///
     /// The default implementation simply calls `calculate_glyphs` so must be implemented
     /// to provide benefits as such benefits are spefic to the internal layout logic.
-    // TODO remove now color is gone?
-    fn recalculate_glyphs<F, FM, S, P>(
+    fn recalculate_glyphs<F, S, P>(
         &self,
         previous: P,
         change: GlyphChange,
-        fonts: &FM,
+        fonts: &[F],
         geometry: &SectionGeometry,
         sections: &[S],
     ) -> Vec<SectionGlyph>
     where
         F: Font,
-        FM: FontMap<F>,
         S: ToSectionText,
         P: IntoIterator<Item = SectionGlyph>,
     {

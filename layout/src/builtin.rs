@@ -1,6 +1,4 @@
-use super::{
-    BuiltInLineBreaker, FontMap, GlyphPositioner, LineBreaker, SectionGeometry, ToSectionText,
-};
+use super::{BuiltInLineBreaker, GlyphPositioner, LineBreaker, SectionGeometry, ToSectionText};
 use crate::{characters::Characters, GlyphChange, SectionGlyph};
 use ab_glyph::*;
 
@@ -134,15 +132,14 @@ impl<L: LineBreaker> Layout<L> {
 }
 
 impl<L: LineBreaker> GlyphPositioner for Layout<L> {
-    fn calculate_glyphs<F, FM, S>(
+    fn calculate_glyphs<F, S>(
         &self,
-        fonts: &FM,
+        fonts: &[F],
         geometry: &SectionGeometry,
         sections: &[S],
     ) -> Vec<SectionGlyph>
     where
         F: Font,
-        FM: FontMap<F>,
         S: ToSectionText,
     {
         use crate::Layout::{SingleLine, Wrap};
@@ -160,7 +157,7 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                 line_breaker,
             } => Characters::new(
                 fonts,
-                sections.iter().map(|s| s.to_section_text()).enumerate(),
+                sections.iter().map(|s| s.to_section_text()),
                 line_breaker,
             )
             .words()
@@ -180,7 +177,7 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
 
                 let lines = Characters::new(
                     fonts,
-                    sections.iter().map(|s| s.to_section_text()).enumerate(),
+                    sections.iter().map(|s| s.to_section_text()),
                     line_breaker,
                 )
                 .words()
@@ -219,7 +216,7 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                                     sg.glyph.position.y -= shift_up;
 
                                     // filter away out-of-bounds glyphs
-                                    let sfont = fonts.font(sg.font_id).as_scaled(sg.glyph.scale);
+                                    let sfont = fonts[sg.font_id].as_scaled(sg.glyph.scale);
                                     let h_advance = sfont.h_advance(sg.glyph.id);
                                     let h_side_bearing = sfont.h_side_bearing(sg.glyph.id);
                                     let height = sfont.height();
@@ -268,17 +265,16 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
     }
 
     #[allow(clippy::float_cmp)]
-    fn recalculate_glyphs<F, FM, S, P>(
+    fn recalculate_glyphs<F, S, P>(
         &self,
         previous: P,
         change: GlyphChange,
-        fonts: &FM,
+        fonts: &[F],
         geometry: &SectionGeometry,
         sections: &[S],
     ) -> Vec<SectionGlyph>
     where
         F: Font,
-        FM: FontMap<F>,
         S: ToSectionText,
         P: IntoIterator<Item = SectionGlyph>,
     {
@@ -432,15 +428,14 @@ mod layout_test {
     enum SimpleCustomGlyphPositioner {}
 
     impl GlyphPositioner for SimpleCustomGlyphPositioner {
-        fn calculate_glyphs<F, FM, S>(
+        fn calculate_glyphs<F, S>(
             &self,
-            _fonts: &FM,
+            _fonts: &[F],
             _geometry: &SectionGeometry,
             _sections: &[S],
         ) -> Vec<SectionGlyph>
         where
             F: Font,
-            FM: FontMap<F>,
             S: ToSectionText,
         {
             <_>::default()

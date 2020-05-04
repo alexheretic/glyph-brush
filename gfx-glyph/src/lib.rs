@@ -54,7 +54,7 @@ mod draw_builder;
 
 pub use crate::{builder::*, draw_builder::*};
 pub use glyph_brush::{
-    ab_glyph, BuiltInLineBreaker, FontId, FontMap, GlyphCruncher, GlyphPositioner, HorizontalAlign,
+    ab_glyph, BuiltInLineBreaker, FontId, GlyphCruncher, GlyphPositioner, HorizontalAlign,
     Layout, LineBreak, LineBreaker, OwnedVariedSection, OwnedVariedSectionText, Section,
     SectionGeometry, SectionGlyphIter, SectionText, VariedSection, VariedSectionText,
     VerticalAlign,

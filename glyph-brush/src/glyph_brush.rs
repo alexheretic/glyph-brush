@@ -736,17 +736,16 @@ pub(crate) enum SectionChange {
 
 impl SectionChange {
     #[inline]
-    pub(crate) fn recalculate_glyphs<F, FM, P, L>(
+    pub(crate) fn recalculate_glyphs<F, P, L>(
         self,
         layout: &L,
         previous: P,
-        fonts: &FM,
+        fonts: &[F],
         geometry: &SectionGeometry,
         sections: &[VariedSectionText],
     ) -> Vec<(SectionGlyph, Color)>
     where
         F: Font,
-        FM: FontMap<F>,
         P: IntoIterator<Item = (SectionGlyph, Color)>,
         L: GlyphPositioner,
     {

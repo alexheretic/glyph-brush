@@ -1,7 +1,7 @@
-use super::{EolLineBreak, FontId, FontMap, SectionText};
 use crate::{
-    linebreak::{LineBreak, LineBreaker},
+    linebreak::{EolLineBreak, LineBreak, LineBreaker},
     words::Words,
+    FontId, SectionText,
 };
 use ab_glyph::*;
 use std::{
@@ -29,15 +29,14 @@ pub(crate) struct Character<'b, F: Font> {
 }
 
 /// `Character` iterator
-pub(crate) struct Characters<'a, 'b, L, F, FM, S>
+pub(crate) struct Characters<'a, 'b, L, F, S>
 where
     F: 'a + 'b,
     L: LineBreaker,
     F: Font,
-    FM: FontMap<F>,
     S: Iterator<Item = SectionText<'a>>,
 {
-    font_map: &'b FM,
+    fonts: &'b [F],
     section_text: Enumerate<S>,
     line_breaker: L,
     part_info: Option<PartInfo<'a>>,
@@ -52,18 +51,17 @@ struct PartInfo<'a> {
     next_break: Option<LineBreak>,
 }
 
-impl<'a, 'b, L, F, FM, S> Characters<'a, 'b, L, F, FM, S>
+impl<'a, 'b, L, F, S> Characters<'a, 'b, L, F, S>
 where
     L: LineBreaker,
     F: Font,
-    FM: FontMap<F>,
     S: Iterator<Item = SectionText<'a>>,
 {
     /// Returns a new `Characters` iterator.
-    pub(crate) fn new(font_map: &'b FM, section_text: Enumerate<S>, line_breaker: L) -> Self {
+    pub(crate) fn new(fonts: &'b [F], section_text: S, line_breaker: L) -> Self {
         Self {
-            font_map,
-            section_text,
+            fonts,
+            section_text: section_text.enumerate(),
             line_breaker,
             part_info: None,
             phantom: PhantomData,
@@ -71,16 +69,15 @@ where
     }
 
     /// Wraps into a `Words` iterator.
-    pub(crate) fn words(self) -> Words<'a, 'b, L, F, FM, S> {
+    pub(crate) fn words(self) -> Words<'a, 'b, L, F, S> {
         Words { characters: self }
     }
 }
 
-impl<'a, 'b, L, F, FM, S> Iterator for Characters<'a, 'b, L, F, FM, S>
+impl<'a, 'b, L, F, S> Iterator for Characters<'a, 'b, L, F, S>
 where
     L: LineBreaker,
     F: Font,
-    FM: FontMap<F>,
     S: Iterator<Item = SectionText<'a>>,
 {
     type Item = Character<'b, F>;
@@ -131,7 +128,7 @@ where
                     }
                 }
 
-                let scale_font: PxScaleFont<&'b F> = self.font_map.font(*font_id).as_scaled(*scale);
+                let scale_font: PxScaleFont<&'b F> = self.fonts[*font_id].as_scaled(*scale);
 
                 let glyph = scale_font.scaled_glyph(c);
 
@@ -161,11 +158,10 @@ where
     }
 }
 
-impl<'a, L, F, FM, S> FusedIterator for Characters<'a, '_, L, F, FM, S>
+impl<'a, L, F, S> FusedIterator for Characters<'a, '_, L, F, S>
 where
     L: LineBreaker,
     F: Font,
-    FM: FontMap<F>,
     S: Iterator<Item = SectionText<'a>>,
 {
 }

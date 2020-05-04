@@ -1,4 +1,4 @@
-use crate::font::FontId;
+use crate::FontId;
 use ab_glyph::*;
 use std::f32;
 

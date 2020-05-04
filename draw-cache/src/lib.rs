@@ -577,19 +577,17 @@ impl DrawCache {
     ///
     /// If successful returns a `CachedBy` that can indicate the validity of
     /// previously cached glyph textures.
-    pub fn cache_queued<F, FM, U>(
+    pub fn cache_queued<F, U>(
         &mut self,
-        font_slice: &FM,
+        fonts: &[F],
         mut uploader: U,
     ) -> Result<CachedBy, CacheWriteErr>
     where
         F: Font + Sync,
-        FM: AsRef<[F]>,
         U: FnMut(Rectangle<u32>, &[u8]),
     {
         let mut queue_success = true;
         let from_empty = self.all_glyphs.is_empty();
-        let fonts = font_slice.as_ref();
 
         {
             let (mut in_use_rows, uncached_glyphs) = {
@@ -879,7 +877,7 @@ impl DrawCache {
         } else {
             // clear the cache then try again with optimal packing
             self.clear();
-            self.cache_queued(font_slice, uploader)
+            self.cache_queued(fonts, uploader)
                 .map(|_| CachedBy::Reordering)
         }
     }
@@ -944,21 +942,6 @@ impl DrawCache {
             ) + glyph.position,
         };
 
-        // let local_bb = glyph
-        //     .unpositioned()
-        //     .clone()
-        //     .positioned(point(0.0, 0.0) + tex_offset)
-        //     .pixel_bounding_box()
-        //     .unwrap();
-        // let min_from_origin =
-        //     point(local_bb.min.x as f32, local_bb.min.y as f32) - (point(0.0, 0.0) + tex_offset);
-        // let ideal_min = min_from_origin + glyph.position;
-        // let min = point(ideal_min.x.round() as i32, ideal_min.y.round() as i32);
-        // let bb_offset = min - local_bb.min;
-        // let bb = Rect {
-        //     min,
-        //     max: local_bb.max + bb_offset,
-        // };
         Ok(Some((uv_rect, equivalent_bounds)))
     }
 }

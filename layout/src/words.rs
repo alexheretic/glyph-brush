@@ -2,7 +2,7 @@ use crate::{
     characters::{Character, Characters},
     linebreak::{LineBreak, LineBreaker},
     lines::Lines,
-    FontMap, SectionGlyph, SectionText,
+    SectionGlyph, SectionText,
 };
 use ab_glyph::*;
 use std::iter::{FusedIterator, Iterator};
@@ -56,24 +56,22 @@ pub(crate) struct Word {
 }
 
 /// `Word` iterator.
-pub(crate) struct Words<'a, 'b, L, F, FM, S>
+pub(crate) struct Words<'a, 'b, L, F, S>
 where
     L: LineBreaker,
     F: Font,
-    FM: FontMap<F>,
     S: Iterator<Item = SectionText<'a>>,
 {
-    pub(crate) characters: Characters<'a, 'b, L, F, FM, S>,
+    pub(crate) characters: Characters<'a, 'b, L, F, S>,
 }
 
-impl<'a, 'b, L, F, FM, S> Words<'a, 'b, L, F, FM, S>
+impl<'a, 'b, L, F, S> Words<'a, 'b, L, F, S>
 where
     L: LineBreaker,
     F: Font,
-    FM: FontMap<F>,
     S: Iterator<Item = SectionText<'a>>,
 {
-    pub(crate) fn lines(self, width_bound: f32) -> Lines<'a, 'b, L, F, FM, S> {
+    pub(crate) fn lines(self, width_bound: f32) -> Lines<'a, 'b, L, F, S> {
         Lines {
             words: self.peekable(),
             width_bound,
@@ -81,11 +79,10 @@ where
     }
 }
 
-impl<'a, 'b, L, F: 'b, FM, S> Iterator for Words<'a, 'b, L, F, FM, S>
+impl<'a, 'b, L, F: 'b, S> Iterator for Words<'a, 'b, L, F, S>
 where
     L: LineBreaker,
     F: Font,
-    FM: FontMap<F>,
     S: Iterator<Item = SectionText<'a>>,
 {
     type Item = Word;
@@ -161,11 +158,10 @@ where
     }
 }
 
-impl<'a, L, F, FM, S> FusedIterator for Words<'a, '_, L, F, FM, S>
+impl<'a, L, F, S> FusedIterator for Words<'a, '_, L, F, S>
 where
     L: LineBreaker,
     F: Font,
-    FM: FontMap<F>,
     S: Iterator<Item = SectionText<'a>>,
 {
 }
