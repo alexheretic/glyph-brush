@@ -308,7 +308,7 @@ where
                             let cached = self.calculate_glyph_cache.get(&hash.full)?;
                             change.recalculate_glyphs(
                                 layout,
-                                cached.positioned.glyphs.iter().cloned(),
+                                Cow::Borrowed(&cached.positioned.glyphs),
                                 &self.fonts,
                                 &geometry,
                                 &section.text,
@@ -317,7 +317,7 @@ where
                             let old = self.calculate_glyph_cache.remove(&hash.full)?;
                             change.recalculate_glyphs(
                                 layout,
-                                old.positioned.glyphs.into_iter(),
+                                Cow::Owned(old.positioned.glyphs),
                                 &self.fonts,
                                 &geometry,
                                 &section.text,
@@ -736,41 +736,59 @@ pub(crate) enum SectionChange {
 
 impl SectionChange {
     #[inline]
-    pub(crate) fn recalculate_glyphs<F, P, L>(
+    pub(crate) fn recalculate_glyphs<F, L>(
         self,
         layout: &L,
-        previous: P,
+        previous: Cow<'_, Vec<(SectionGlyph, Color)>>,
         fonts: &[F],
         geometry: &SectionGeometry,
         sections: &[VariedSectionText],
     ) -> Vec<(SectionGlyph, Color)>
     where
         F: Font,
-        P: IntoIterator<Item = (SectionGlyph, Color)>,
         L: GlyphPositioner,
     {
         match self {
-            SectionChange::Layout(inner) => layout
-                .recalculate_glyphs(
-                    previous.into_iter().map(|(sg, _)| sg),
-                    inner,
-                    fonts,
-                    geometry,
-                    sections,
-                )
-                .into_iter()
-                .map(|sg| {
-                    let color = sections[sg.section_index].color;
-                    (sg, color)
-                })
-                .collect(),
-            SectionChange::Color => previous
-                .into_iter()
-                .map(|(sg, _)| {
-                    let color = sections[sg.section_index].color;
-                    (sg, color)
-                })
-                .collect(),
+            SectionChange::Layout(inner) => {
+                let recalced = match previous {
+                    Cow::Borrowed(p) => layout.recalculate_glyphs(
+                        p.iter().map(|(sg, _)| sg).cloned(),
+                        inner,
+                        fonts,
+                        geometry,
+                        sections,
+                    ),
+                    Cow::Owned(p) => layout.recalculate_glyphs(
+                        p.into_iter().map(|(sg, _)| sg),
+                        inner,
+                        fonts,
+                        geometry,
+                        sections,
+                    ),
+                };
+                recalced
+                    .into_iter()
+                    .map(|sg| {
+                        let color = sections[sg.section_index].color;
+                        (sg, color)
+                    })
+                    .collect()
+            }
+            SectionChange::Color => match previous {
+                Cow::Borrowed(p) => p
+                    .iter()
+                    .map(|(sg, _)| {
+                        let color = sections[sg.section_index].color;
+                        (sg.clone(), color)
+                    })
+                    .collect(),
+                Cow::Owned(mut p) => {
+                    p.iter_mut().for_each(|(sg, color)| {
+                        *color = sections[sg.section_index].color;
+                    });
+                    p
+                }
+            },
         }
     }
 }
