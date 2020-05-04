@@ -45,7 +45,7 @@ type SectionHash = u64;
 /// This behaviour can be adjusted with
 /// [`GlyphBrushBuilder::gpu_cache_position_tolerance`]
 /// (struct.GlyphBrushBuilder.html#method.gpu_cache_position_tolerance).
-pub struct GlyphBrush<F, V, H = DefaultSectionHasher> {
+pub struct GlyphBrush<V, F = FontArc, H = DefaultSectionHasher> {
     fonts: Vec<F>,
     texture_cache: DrawCache,
     last_draw: LastDrawInfo,
@@ -74,34 +74,18 @@ pub struct GlyphBrush<F, V, H = DefaultSectionHasher> {
     pre_positioned: Vec<Glyphed<V>>,
 }
 
-impl<F, V, H> fmt::Debug for GlyphBrush<F, V, H> {
+impl<F, V, H> fmt::Debug for GlyphBrush<V, F, H> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "GlyphBrush")
     }
 }
 
-impl<F, V, H> GlyphCruncher<F> for GlyphBrush<F, V, H>
+impl<F, V, H> GlyphCruncher<F> for GlyphBrush<V, F, H>
 where
     F: Font,
     V: Clone + 'static,
     H: BuildHasher,
 {
-    // fn pixel_bounds_custom_layout<'a, S, L>(
-    //     &mut self,
-    //     section: S,
-    //     custom_layout: &L,
-    // ) -> Option<Rectangle<i32>>
-    // where
-    //     L: GlyphPositioner + Hash,
-    //     S: Into<Cow<'a, VariedSection<'a>>>,
-    // {
-    //     let section_hash = self.cache_glyphs(&section.into(), custom_layout);
-    //     self.keep_in_cache.insert(section_hash);
-    //     self.calculate_glyph_cache[&section_hash]
-    //         .positioned
-    //         .pixel_bounds()
-    // }
-
     fn glyphs_custom_layout<'a, 'b, S, L>(
         &'b mut self,
         section: S,
@@ -177,42 +161,17 @@ where
     }
 }
 
-impl<'a, V, H: BuildHasher> GlyphBrush<FontRef<'a>, V, H> {
+impl<F, V, H: BuildHasher> GlyphBrush<V, F, H> {
     /// Adds an additional font to the one(s) initially added on build.
     ///
     /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use glyph_brush::{ab_glyph::FontRef, GlyphBrush, GlyphBrushBuilder, Section};
-    /// # type Vertex = ();
-    ///
-    /// // dejavu is built as default `FontId(0)`
-    /// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-    /// let mut glyph_brush: GlyphBrush<FontRef<'static>, Vertex> =
-    ///     GlyphBrushBuilder::using_font_bytes(dejavu).build();
-    ///
-    /// // some time later, add another font referenced by a new `FontId`
-    /// let open_sans_italic: &[u8] = include_bytes!("../../fonts/OpenSans-Italic.ttf");
-    /// let open_sans_italic_id = glyph_brush.add_font_bytes(open_sans_italic);
-    /// ```
-    pub fn add_font_bytes(&mut self, font_data: &'a [u8]) -> FontId {
-        self.add_font(FontRef::try_from_slice(font_data).unwrap())
-    }
-}
-
-impl<F, V, H: BuildHasher> GlyphBrush<F, V, H> {
-    /// Adds an additional font to the one(s) initially added on build.
-    ///
-    /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
-    pub fn add_font(&mut self, font_data: F) -> FontId {
-        self.fonts.push(font_data);
+    pub fn add_font<I: Into<F>>(&mut self, font_data: I) -> FontId {
+        self.fonts.push(font_data.into());
         FontId(self.fonts.len() - 1)
     }
 }
 
-impl<F, V, H> GlyphBrush<F, V, H>
+impl<F, V, H> GlyphBrush<V, F, H>
 where
     F: Font,
     V: Clone + 'static,
@@ -459,7 +418,7 @@ where
 }
 
 // `Font + Sync` stuff
-impl<F, V, H> GlyphBrush<F, V, H>
+impl<F, V, H> GlyphBrush<V, F, H>
 where
     F: Font + Sync,
     V: Clone + 'static,
@@ -589,7 +548,7 @@ where
     }
 }
 
-impl<F: Font + Clone, V, H: BuildHasher + Clone> GlyphBrush<F, V, H> {
+impl<F: Font + Clone, V, H: BuildHasher + Clone> GlyphBrush<V, F, H> {
     /// Return a [`GlyphBrushBuilder`](struct.GlyphBrushBuilder.html) prefilled with the
     /// properties of this `GlyphBrush`.
     ///

@@ -9,8 +9,9 @@ const SMALL_LIPSUM: &str = include_str!("small_lipsum.txt");
 
 fn render_3_medium_sections_fully(c: &mut Criterion) {
     let _ = env_logger::try_init();
+    let font = FontRef::try_from_slice(TEST_FONT).unwrap();
 
-    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT).build();
+    let mut glyph_brush = GlyphBrushBuilder::using_font(font).build();
 
     let sections = &[
         Section {
@@ -49,8 +50,9 @@ fn render_3_medium_sections_fully(c: &mut Criterion) {
 // Note: 'no_cache' here refers to the glyph positioning/drawing caches (not the gpu cache)
 fn no_cache_render_3_medium_sections_fully(c: &mut Criterion) {
     let _ = env_logger::try_init();
+    let font = FontRef::try_from_slice(TEST_FONT).unwrap();
 
-    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
+    let mut glyph_brush = GlyphBrushBuilder::using_font(font)
         .cache_glyph_positioning(false)
         .cache_glyph_drawing(false)
         .build();
@@ -91,8 +93,9 @@ fn no_cache_render_3_medium_sections_fully(c: &mut Criterion) {
 
 fn render_1_large_section_partially(c: &mut Criterion) {
     let _ = env_logger::try_init();
+    let font = FontRef::try_from_slice(TEST_FONT).unwrap();
 
-    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT).build();
+    let mut glyph_brush = GlyphBrushBuilder::using_font(font).build();
 
     let section = Section {
         text: LOTS_OF_LIPSUM,
@@ -113,8 +116,9 @@ fn render_1_large_section_partially(c: &mut Criterion) {
 // Note: 'no_cache' here refers to the glyph positioning/drawing caches (not the gpu cache)
 fn no_cache_render_1_large_section_partially(c: &mut Criterion) {
     let _ = env_logger::try_init();
+    let font = FontRef::try_from_slice(TEST_FONT).unwrap();
 
-    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
+    let mut glyph_brush = GlyphBrushBuilder::using_font(font)
         .cache_glyph_positioning(false)
         .cache_glyph_drawing(false)
         .build();
@@ -137,8 +141,9 @@ fn no_cache_render_1_large_section_partially(c: &mut Criterion) {
 
 fn render_v_center_1_large_section_partially(c: &mut Criterion) {
     let _ = env_logger::try_init();
+    let font = FontRef::try_from_slice(TEST_FONT).unwrap();
 
-    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT).build();
+    let mut glyph_brush = GlyphBrushBuilder::using_font(font).build();
 
     let section = Section {
         text: LOTS_OF_LIPSUM,
@@ -160,8 +165,9 @@ fn render_v_center_1_large_section_partially(c: &mut Criterion) {
 
 fn no_cache_render_v_center_1_large_section_partially(c: &mut Criterion) {
     let _ = env_logger::try_init();
+    let font = FontRef::try_from_slice(TEST_FONT).unwrap();
 
-    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
+    let mut glyph_brush = GlyphBrushBuilder::using_font(font)
         .cache_glyph_positioning(false)
         .cache_glyph_drawing(false)
         .build();
@@ -186,8 +192,9 @@ fn no_cache_render_v_center_1_large_section_partially(c: &mut Criterion) {
 
 fn render_v_bottom_1_large_section_partially(c: &mut Criterion) {
     let _ = env_logger::try_init();
+    let font = FontRef::try_from_slice(TEST_FONT).unwrap();
 
-    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT).build();
+    let mut glyph_brush = GlyphBrushBuilder::using_font(font).build();
 
     let section = Section {
         text: LOTS_OF_LIPSUM,
@@ -210,8 +217,9 @@ fn render_v_bottom_1_large_section_partially(c: &mut Criterion) {
 // Note: 'no_cache' here refers to the glyph positioning/drawing caches (not the gpu cache)
 fn no_cache_render_v_bottom_1_large_section_partially(c: &mut Criterion) {
     let _ = env_logger::try_init();
+    let font = FontRef::try_from_slice(TEST_FONT).unwrap();
 
-    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
+    let mut glyph_brush = GlyphBrushBuilder::using_font(font)
         .cache_glyph_positioning(false)
         .cache_glyph_drawing(false)
         .build();
@@ -236,8 +244,9 @@ fn no_cache_render_v_bottom_1_large_section_partially(c: &mut Criterion) {
 
 fn render_100_small_sections_fully(c: &mut Criterion) {
     let _ = env_logger::try_init();
+    let font = FontRef::try_from_slice(TEST_FONT).unwrap();
 
-    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT).build();
+    let mut glyph_brush = GlyphBrushBuilder::using_font(font).build();
 
     let mut sections = vec![];
     for i in 0..100 {
@@ -264,8 +273,9 @@ fn render_100_small_sections_fully(c: &mut Criterion) {
 // Note: 'no_cache' here refers to the glyph positioning/drawing caches (not the gpu cache)
 fn no_cache_render_100_small_sections_fully(c: &mut Criterion) {
     let _ = env_logger::try_init();
+    let font = FontRef::try_from_slice(TEST_FONT).unwrap();
 
-    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT)
+    let mut glyph_brush = GlyphBrushBuilder::using_font(font)
         .cache_glyph_positioning(false)
         .cache_glyph_drawing(false)
         .build();
@@ -295,8 +305,9 @@ fn no_cache_render_100_small_sections_fully(c: &mut Criterion) {
 /// section is rendered with text edits each run to the end
 fn continually_modify_end_text_of_1_of_3(c: &mut Criterion) {
     let _ = env_logger::try_init();
+    let font = FontRef::try_from_slice(TEST_FONT).unwrap();
 
-    let mut brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT).build();
+    let mut brush = GlyphBrushBuilder::using_font(font).build();
     let text = LIPSUM;
 
     let string_variants = vec![
@@ -341,8 +352,9 @@ fn continually_modify_end_text_of_1_of_3(c: &mut Criterion) {
 /// section is rendered with text edits each run to the beginning
 fn continually_modify_start_text_of_1_of_3(c: &mut Criterion) {
     let _ = env_logger::try_init();
+    let font = FontRef::try_from_slice(TEST_FONT).unwrap();
 
-    let mut brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT).build();
+    let mut brush = GlyphBrushBuilder::using_font(font).build();
     let text = LIPSUM;
 
     let string_variants = vec![
@@ -387,8 +399,9 @@ fn continually_modify_start_text_of_1_of_3(c: &mut Criterion) {
 /// section is rendered with text edits each run to the middle
 fn continually_modify_middle_text_of_1_of_3(c: &mut Criterion) {
     let _ = env_logger::try_init();
+    let font = FontRef::try_from_slice(TEST_FONT).unwrap();
 
-    let mut brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT).build();
+    let mut brush = GlyphBrushBuilder::using_font(font).build();
     let text = LIPSUM;
     let middle_index = {
         let mut ci = text.char_indices();
@@ -438,8 +451,9 @@ fn continually_modify_middle_text_of_1_of_3(c: &mut Criterion) {
 /// section is rendered with the bounds redefined each run to the middle
 fn continually_modify_bounds_of_1_of_3(c: &mut Criterion) {
     let _ = env_logger::try_init();
+    let font = FontRef::try_from_slice(TEST_FONT).unwrap();
 
-    let mut brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT).build();
+    let mut brush = GlyphBrushBuilder::using_font(font).build();
     let text = LIPSUM;
 
     let variants: Vec<_> = vec![400, 600, 855]
@@ -477,8 +491,9 @@ fn continually_modify_bounds_of_1_of_3(c: &mut Criterion) {
 /// 1 section of 3 is rendered with a different colour each frame
 fn continually_modify_color_of_1_of_3(c: &mut Criterion) {
     let _ = env_logger::try_init();
+    let font = FontRef::try_from_slice(TEST_FONT).unwrap();
 
-    let mut brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT).build();
+    let mut brush = GlyphBrushBuilder::using_font(font).build();
     let text = LIPSUM;
 
     let variants: Vec<_> = vec![
@@ -521,8 +536,9 @@ fn continually_modify_color_of_1_of_3(c: &mut Criterion) {
 /// 1 section of 3 is rendered with a different colour each frame
 fn continually_modify_alpha_of_1_of_3(c: &mut Criterion) {
     let _ = env_logger::try_init();
+    let font = FontRef::try_from_slice(TEST_FONT).unwrap();
 
-    let mut brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT).build();
+    let mut brush = GlyphBrushBuilder::using_font(font).build();
     let text = LIPSUM;
 
     let variants: Vec<_> = vec![
@@ -582,8 +598,9 @@ fn continually_modify_alpha_of_1_of_3(c: &mut Criterion) {
 /// section is rendered with the bounds redefined each run to the middle
 fn continually_modify_position_of_1_of_3(c: &mut Criterion) {
     let _ = env_logger::try_init();
+    let font = FontRef::try_from_slice(TEST_FONT).unwrap();
 
-    let mut brush = GlyphBrushBuilder::using_font_bytes(TEST_FONT).build();
+    let mut brush = GlyphBrushBuilder::using_font(font).build();
     let text = LIPSUM;
 
     let variants: Vec<_> = vec![(0, 0), (100, 50), (101, 300)]
@@ -625,7 +642,7 @@ fn continually_modify_position_of_1_of_3(c: &mut Criterion) {
 fn bench_variants<'a, S: 'a>(
     b: &mut Bencher,
     variants: &'a [std::vec::Vec<S>],
-    glyph_brush: &mut GlyphBrush<FontRef<'static>, [f32; 13]>,
+    glyph_brush: &mut GlyphBrush<[f32; 13], FontRef<'static>>,
 ) where
     &'a S: Into<Cow<'a, VariedSection<'a>>>,
 {

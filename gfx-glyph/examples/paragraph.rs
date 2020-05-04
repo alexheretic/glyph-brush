@@ -25,6 +25,7 @@ use std::{
     f32::consts::PI as PI32,
     io::{self, Write},
 };
+use gfx_glyph::ab_glyph;
 
 const MAX_FONT_SIZE: f32 = 2000.0;
 
@@ -66,8 +67,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             .build_windowed(window_builder, &event_loop)?
             .init_gfx::<Srgba8, Depth>();
 
-    let font: &[u8] = include_bytes!("../../fonts/OpenSans-Light.ttf");
-    let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(font)
+    let font = ab_glyph::FontArc::try_from_slice(include_bytes!("../../fonts/OpenSans-Light.ttf"))?;
+    let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(font)
         .initial_cache_size((1024, 1024))
         .build(factory.clone());
 

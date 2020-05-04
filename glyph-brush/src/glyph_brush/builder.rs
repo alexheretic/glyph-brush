@@ -11,11 +11,11 @@ use std::hash::BuildHasher;
 /// use glyph_brush::{GlyphBrush, GlyphBrushBuilder};
 /// # type Vertex = ();
 ///
-/// let dejavu: &[u8] = include_bytes!("../../../fonts/DejaVuSans.ttf");
-/// let mut glyph_brush: GlyphBrush<FontRef<'static>, Vertex> =
-///     GlyphBrushBuilder::using_font_bytes(dejavu).build();
+/// let dejavu = FontArc::try_from_slice(include_bytes!("../../../fonts/DejaVuSans.ttf")).unwrap();
+/// let mut glyph_brush: GlyphBrush<Vertex> =
+///     GlyphBrushBuilder::using_fonts(vec![dejavu]).build();
 /// ```
-pub struct GlyphBrushBuilder<F, H = DefaultSectionHasher> {
+pub struct GlyphBrushBuilder<F = FontArc, H = DefaultSectionHasher> {
     pub font_data: Vec<F>,
     pub cache_glyph_positioning: bool,
     pub cache_glyph_drawing: bool,
@@ -25,38 +25,19 @@ pub struct GlyphBrushBuilder<F, H = DefaultSectionHasher> {
 }
 
 impl GlyphBrushBuilder<()> {
-    /// Create a new builder with a single font's data that will be used to render glyphs.
-    /// Referenced with `FontId(0)`, which is default.
-    pub fn using_font_bytes<'a>(font_0_data: &'a [u8]) -> GlyphBrushBuilder<FontRef<'a>> {
-        Self::using_fonts_bytes(std::iter::once(font_0_data))
-    }
-
-    /// Create a new builder with multiple fonts' data.
-    pub fn using_fonts_bytes<'a, V>(font_data: V) -> GlyphBrushBuilder<FontRef<'a>>
-    where
-        V: IntoIterator<Item = &'a [u8]>,
-    {
-        Self::using_fonts(
-            font_data
-                .into_iter()
-                .map(|data| FontRef::try_from_slice(data).unwrap())
-                .collect::<Vec<_>>(),
-        )
-    }
-
-    /// Create a new builder with a single font that will be used to render glyphs.
-    /// Referenced with `FontId(0)`, which is default.
-    pub fn using_font<F: Font>(font_0: F) -> GlyphBrushBuilder<F> {
-        Self::using_fonts(vec![font_0])
-    }
-
     /// Create a new builder with multiple fonts.
-    pub fn using_fonts<F: Font, V: Into<Vec<F>>>(fonts: V) -> GlyphBrushBuilder<F> {
+    pub fn using_fonts<F: Font>(fonts: Vec<F>) -> GlyphBrushBuilder<F> {
         Self::without_fonts().replace_fonts(|_| fonts)
     }
 
+    /// Create a new builder with multiple fonts.
+    #[inline]
+    pub fn using_font<F: Font>(font: F) -> GlyphBrushBuilder<F> {
+        Self::using_fonts(vec![font])
+    }
+
     /// Create a new builder without any fonts.
-    pub fn without_fonts() -> Self {
+    pub fn without_fonts() -> GlyphBrushBuilder<()> {
         GlyphBrushBuilder {
             font_data: Vec::new(),
             cache_glyph_positioning: true,
@@ -116,21 +97,12 @@ impl<F, H> GlyphBrushBuilder<F, H> {
     }
 }
 
-impl<'a, H: BuildHasher> GlyphBrushBuilder<FontRef<'a>, H> {
-    /// Adds additional fonts to the one added in [`using_font`](#method.using_font) /
-    /// [`using_font_bytes`](#method.using_font_bytes).
-    /// Returns a [`FontId`](struct.FontId.html) to reference this font.
-    pub fn add_font_bytes(&mut self, font_data: &'a [u8]) -> FontId {
-        self.add_font(FontRef::try_from_slice(font_data).unwrap())
-    }
-}
-
 impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
     /// Adds additional fonts to the one added in [`using_font`](#method.using_font) /
     /// [`using_font_bytes`](#method.using_font_bytes).
     /// Returns a [`FontId`](struct.FontId.html) to reference this font.
-    pub fn add_font(&mut self, font_data: F) -> FontId {
-        self.font_data.push(font_data);
+    pub fn add_font<I: Into<F>>(&mut self, font_data: I) -> FontId {
+        self.font_data.push(font_data.into());
         FontId(self.font_data.len() - 1)
     }
 
@@ -234,7 +206,7 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
     }
 
     /// Builds a `GlyphBrush` using the input gfx factory
-    pub fn build<V>(self) -> GlyphBrush<F, V, H> {
+    pub fn build<V>(self) -> GlyphBrush<V, F, H> {
         GlyphBrush {
             fonts: self.font_data,
             texture_cache: self.gpu_cache_builder.build(),
@@ -273,7 +245,7 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
     /// glyph_brush.to_builder().initial_cache_size((64, 64)).rebuild(&mut glyph_brush);
     /// assert_eq!(glyph_brush.texture_dimensions(), (64, 64));
     /// ```
-    pub fn rebuild<V>(self, brush: &mut GlyphBrush<F, V, H>) {
+    pub fn rebuild<V>(self, brush: &mut GlyphBrush<V, F, H>) {
         std::mem::replace(brush, self.build());
     }
 }

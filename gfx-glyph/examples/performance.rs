@@ -51,8 +51,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             .build_windowed(window_builder, &event_loop)?
             .init_gfx::<Srgba8, Depth>();
 
-    let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu)
+    let dejavu = FontRef::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf"))?;
+    let mut glyph_brush = GlyphBrushBuilder::using_font(dejavu)
         .initial_cache_size((2048, 2048))
         .gpu_cache_position_tolerance(1.0)
         .build(factory.clone());

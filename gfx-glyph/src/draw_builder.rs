@@ -19,7 +19,7 @@ use std::{hash::BuildHasher, marker::PhantomData};
 /// #         .unwrap()
 /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
 /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
-/// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(&[])
+/// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(todo!())
 /// #     .build(gfx_factory.clone());
 /// glyph_brush
 ///     .use_queue()
@@ -30,7 +30,7 @@ use std::{hash::BuildHasher, marker::PhantomData};
 /// ```
 #[must_use]
 pub struct DrawBuilder<'a, F, R: gfx::Resources, GF: gfx::Factory<R>, H, DV> {
-    pub(crate) brush: &'a mut GlyphBrush<F, R, GF, H>,
+    pub(crate) brush: &'a mut GlyphBrush<R, GF, F, H>,
     pub(crate) transform: Option<[[f32; 4]; 4]>,
     pub(crate) depth_target: Option<&'a DV>,
 }

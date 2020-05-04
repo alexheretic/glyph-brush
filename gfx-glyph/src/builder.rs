@@ -20,33 +20,13 @@ use glyph_brush::delegate_glyph_brush_builder_fns;
 /// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build(gfx_factory.clone());
 /// # let _ = glyph_brush;
 /// ```
-pub struct GlyphBrushBuilder<F, H = DefaultSectionHasher> {
+pub struct GlyphBrushBuilder<F = FontArc, H = DefaultSectionHasher> {
     inner: glyph_brush::GlyphBrushBuilder<F, H>,
     depth_test: gfx::state::Depth,
     texture_filter_method: texture::FilterMethod,
 }
 
 impl GlyphBrushBuilder<()> {
-    /// Specifies the default font data used to render glyphs.
-    /// Referenced with `FontId(0)`, which is default.
-    #[inline]
-    pub fn using_font_bytes<'a>(font_0_data: &'a [u8]) -> GlyphBrushBuilder<FontRef<'a>> {
-        Self::using_fonts_bytes(std::iter::once(font_0_data))
-    }
-
-    #[inline]
-    pub fn using_fonts_bytes<'a, V>(font_data: V) -> GlyphBrushBuilder<FontRef<'a>>
-    where
-        V: IntoIterator<Item = &'a [u8]>,
-    {
-        Self::using_fonts(
-            font_data
-                .into_iter()
-                .map(|data| FontRef::try_from_slice(data).unwrap())
-                .collect::<Vec<_>>(),
-        )
-    }
-
     /// Specifies the default font used to render glyphs.
     /// Referenced with `FontId(0)`, which is default.
     #[inline]
@@ -107,12 +87,6 @@ impl<F, H> GlyphBrushBuilder<F, H> {
             depth_test: self.depth_test,
             texture_filter_method: self.texture_filter_method,
         }
-    }
-}
-
-impl<'a, H: BuildHasher> GlyphBrushBuilder<FontRef<'a>, H> {
-    pub fn add_font_bytes(&mut self, font_data: &'a [u8]) -> FontId {
-        self.inner.add_font_bytes(font_data)
     }
 }
 
@@ -187,7 +161,7 @@ where
     }
 
     /// Builds a `GlyphBrush` using the input gfx factory
-    pub fn build<R, GF>(self, mut factory: GF) -> GlyphBrush<F, R, GF, H>
+    pub fn build<R, GF>(self, mut factory: GF) -> GlyphBrush<R, GF, F, H>
     where
         R: gfx::Resources,
         GF: gfx::Factory<R>,

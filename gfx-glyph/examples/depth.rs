@@ -47,13 +47,13 @@ fn main() -> Result<(), Box<dyn Error>> {
             .build_windowed(window_builder, &event_loop)?
             .init_gfx::<Srgba8, Depth>();
 
-    let fonts: Vec<&[u8]> = vec![
-        include_bytes!("../../fonts/DejaVuSans.ttf"),
-        include_bytes!("../../fonts/OpenSans-Italic.ttf"),
+    let fonts = vec![
+        FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf"))?,
+        FontArc::try_from_slice(include_bytes!("../../fonts/OpenSans-Italic.ttf"))?,
     ];
     let italic_font = FontId(1);
 
-    let mut glyph_brush = GlyphBrushBuilder::using_fonts_bytes(fonts)
+    let mut glyph_brush = GlyphBrushBuilder::using_fonts(fonts)
         .initial_cache_size((512, 512))
         .build(factory.clone());
 

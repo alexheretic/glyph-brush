@@ -180,7 +180,7 @@ pub trait GlyphCruncher<F: Font> {
 /// is created, that provides the calculation functionality. Dropping indicates the 'cache frame'
 /// is over, similar to when a `GlyphBrush` draws. Section calculations are cached for the next
 /// 'cache frame', if not used then they will be dropped.
-pub struct GlyphCalculator<F: Font, H = DefaultSectionHasher> {
+pub struct GlyphCalculator<F = FontArc, H = DefaultSectionHasher> {
     fonts: Vec<F>,
 
     // cache of section-layout hash -> computed glyphs, this avoid repeated glyph computation
@@ -190,7 +190,7 @@ pub struct GlyphCalculator<F: Font, H = DefaultSectionHasher> {
     section_hasher: H,
 }
 
-impl<F: Font, H> fmt::Debug for GlyphCalculator<F, H> {
+impl<F, H> fmt::Debug for GlyphCalculator<F, H> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "GlyphCalculator")
     }
@@ -264,20 +264,6 @@ impl<F: Font, H: BuildHasher> fmt::Debug for GlyphCalculatorGuard<'_, F, H> {
 }
 
 impl<F: Font, H: BuildHasher> GlyphCruncher<F> for GlyphCalculatorGuard<'_, F, H> {
-    // fn pixel_bounds_custom_layout<'a, S, L>(
-    //     &mut self,
-    //     section: S,
-    //     custom_layout: &L,
-    // ) -> Option<Rect<i32>>
-    // where
-    //     L: GlyphPositioner + Hash,
-    //     S: Into<Cow<'a, VariedSection<'a>>>,
-    // {
-    //     let section_hash = self.cache_glyphs(&section.into(), custom_layout);
-    //     self.cached.insert(section_hash);
-    //     self.glyph_cache[&section_hash].pixel_bounds()
-    // }
-
     fn glyphs_custom_layout<'a, 'b, S, L>(
         &'b mut self,
         section: S,
@@ -369,51 +355,23 @@ impl<F, H> Drop for GlyphCalculatorGuard<'_, F, H> {
 /// let mut glyphs = GlyphCalculatorBuilder::using_font_bytes(dejavu).build();
 /// ```
 #[derive(Debug, Clone)]
-pub struct GlyphCalculatorBuilder<F, H = DefaultSectionHasher> {
+pub struct GlyphCalculatorBuilder<F = FontArc, H = DefaultSectionHasher> {
     font_data: Vec<F>,
     section_hasher: H,
 }
 
-impl GlyphCalculatorBuilder<()> {
-    /// Specifies the default font data used to render glyphs.
-    /// Referenced with `FontId(0)`, which is default.
-    pub fn using_font_bytes<'a>(font_0_data: &'a [u8]) -> GlyphCalculatorBuilder<FontRef<'a>> {
-        Self::using_font(FontRef::try_from_slice(font_0_data).unwrap())
-    }
-
-    pub fn using_fonts_bytes<'a, V>(font_data: V) -> GlyphCalculatorBuilder<FontRef<'a>>
-    where
-        V: IntoIterator<Item = &'a [u8]>,
-    {
-        Self::using_fonts(
-            font_data
-                .into_iter()
-                .map(|data| FontRef::try_from_slice(data).unwrap())
-                .collect::<Vec<_>>(),
-        )
-    }
-
+impl<F: Font> GlyphCalculatorBuilder<F> {
     /// Specifies the default font used to render glyphs.
     /// Referenced with `FontId(0)`, which is default.
-    pub fn using_font<F: Font>(font_0_data: F) -> GlyphCalculatorBuilder<F> {
-        Self::using_fonts(vec![font_0_data])
+    pub fn using_font(font: F) -> Self {
+        Self::using_fonts(vec![font])
     }
 
-    pub fn using_fonts<F: Font, V: Into<Vec<F>>>(fonts: V) -> GlyphCalculatorBuilder<F> {
+    pub fn using_fonts(fonts: Vec<F>) -> Self {
         GlyphCalculatorBuilder {
-            font_data: fonts.into(),
+            font_data: fonts,
             section_hasher: DefaultSectionHasher::default(),
         }
-    }
-}
-
-impl<'a, H: BuildHasher> GlyphCalculatorBuilder<FontRef<'a>, H> {
-    /// Adds additional fonts to the one added in [`using_font`](#method.using_font) /
-    /// [`using_font_bytes`](#method.using_font_bytes).
-    ///
-    /// Returns a [`FontId`](struct.FontId.html) to reference this font.
-    pub fn add_font_bytes(&mut self, font_data: &'a [u8]) -> FontId {
-        self.add_font(FontRef::try_from_slice(font_data).unwrap())
     }
 }
 
@@ -422,8 +380,8 @@ impl<F: Font, H: BuildHasher> GlyphCalculatorBuilder<F, H> {
     /// [`using_font_bytes`](#method.using_font_bytes).
     ///
     /// Returns a [`FontId`](struct.FontId.html) to reference this font.
-    pub fn add_font(&mut self, font_data: F) -> FontId {
-        self.font_data.push(font_data);
+    pub fn add_font<I: Into<F>>(&mut self, font_data: I) -> FontId {
+        self.font_data.push(font_data.into());
         FontId(self.font_data.len() - 1)
     }
 
@@ -458,76 +416,6 @@ pub(crate) struct GlyphedSection {
 }
 
 impl GlyphedSection {
-    // pub(crate) fn pixel_bounds(&self) -> Option<Rect<i32>> {
-    //     let Self {
-    //         ref glyphs, bounds, ..
-    //     } = *self;
-    //
-    //     let to_i32 = |f: f32| {
-    //         if f > i32::MAX as f32 {
-    //             i32::MAX
-    //         } else if f < i32::MIN as f32 {
-    //             i32::MIN
-    //         } else {
-    //             f as i32
-    //         }
-    //     };
-    //
-    //     let section_bounds = Rect {
-    //         min: point(to_i32(bounds.min.x.floor()), to_i32(bounds.min.y.floor())),
-    //         max: point(to_i32(bounds.max.x.ceil()), to_i32(bounds.max.y.ceil())),
-    //     };
-    //
-    //     let inside_layout = |rect: Rect<i32>| {
-    //         if rect.max.x < section_bounds.min.x
-    //             || rect.max.y < section_bounds.min.y
-    //             || rect.min.x > section_bounds.max.x
-    //             || rect.min.y > section_bounds.max.y
-    //         {
-    //             return None;
-    //         }
-    //         Some(Rect {
-    //             min: Point {
-    //                 x: rect.min.x.max(section_bounds.min.x),
-    //                 y: rect.min.y.max(section_bounds.min.y),
-    //             },
-    //             max: Point {
-    //                 x: rect.max.x.min(section_bounds.max.x),
-    //                 y: rect.max.y.min(section_bounds.max.y),
-    //             },
-    //         })
-    //     };
-    //
-    //     let mut no_match = true;
-    //
-    //     let mut pixel_bounds = Rect {
-    //         min: point(0, 0),
-    //         max: point(0, 0),
-    //     };
-    //
-    //     for Rect { min, max } in glyphs
-    //         .iter()
-    //         .filter_map(|&(ref g, ..)| g.pixel_bounding_box())
-    //         .filter_map(inside_layout)
-    //     {
-    //         if no_match || min.x < pixel_bounds.min.x {
-    //             pixel_bounds.min.x = min.x;
-    //         }
-    //         if no_match || min.y < pixel_bounds.min.y {
-    //             pixel_bounds.min.y = min.y;
-    //         }
-    //         if no_match || max.x > pixel_bounds.max.x {
-    //             pixel_bounds.max.x = max.x;
-    //         }
-    //         if no_match || max.y > pixel_bounds.max.y {
-    //             pixel_bounds.max.y = max.y;
-    //         }
-    //         no_match = false;
-    //     }
-    //
-    //     Some(pixel_bounds).filter(|_| !no_match)
-    // }
-
     #[inline]
     pub(crate) fn glyphs(&self) -> SectionGlyphIter<'_> {
         self.glyphs.iter().map(|(sg, ..)| sg)
@@ -541,89 +429,12 @@ mod test {
     use once_cell::sync::Lazy;
     use std::f32;
 
-    static MONO_FONT: Lazy<FontRef<'static>> = Lazy::new(|| {
-        FontRef::try_from_slice(include_bytes!("../../fonts/DejaVuSansMono.ttf") as &[u8])
-            .expect("Could not create rusttype::Font")
+    static MONO_FONT: Lazy<FontArc> = Lazy::new(|| {
+        FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSansMono.ttf") as &[u8]).unwrap()
     });
-    static OPEN_SANS_LIGHT: Lazy<FontRef<'static>> = Lazy::new(|| {
-        FontRef::try_from_slice(include_bytes!("../../fonts/OpenSans-Light.ttf") as &[u8])
-            .expect("Could not create rusttype::Font")
+    static OPEN_SANS_LIGHT: Lazy<FontArc> = Lazy::new(|| {
+        FontArc::try_from_slice(include_bytes!("../../fonts/OpenSans-Light.ttf") as &[u8]).unwrap()
     });
-
-    // #[test]
-    // fn pixel_bounds_respect_layout_bounds() {
-    //     let glyphs = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build();
-    //     let mut glyphs = glyphs.cache_scope();
-    //
-    //     let section = Section {
-    //         text: "Hello\n\
-    //                World",
-    //         screen_position: (0.0, 20.0),
-    //         bounds: (f32::INFINITY, 20.0),
-    //         scale: PxScale::from(16.0),
-    //         layout: Layout::default().v_align(VerticalAlign::Bottom),
-    //         ..Section::default()
-    //     };
-    //
-    //     let pixel_bounds = glyphs.pixel_bounds(&section).expect("None bounds");
-    //     let layout_bounds = Layout::default()
-    //         .v_align(VerticalAlign::Bottom)
-    //         .bounds_rect(&SectionGeometry::from(&VariedSection::from(section)));
-    //
-    //     assert!(
-    //         layout_bounds.min.y <= pixel_bounds.min.y as f32,
-    //         "expected {} <= {}",
-    //         layout_bounds.min.y,
-    //         pixel_bounds.min.y
-    //     );
-    //
-    //     assert!(
-    //         layout_bounds.max.y >= pixel_bounds.max.y as f32,
-    //         "expected {} >= {}",
-    //         layout_bounds.max.y,
-    //         pixel_bounds.max.y
-    //     );
-    // }
-    //
-    // #[test]
-    // fn pixel_bounds_handle_infinity() {
-    //     let glyphs = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build();
-    //     let mut glyphs = glyphs.cache_scope();
-    //
-    //     for h_align in &[
-    //         HorizontalAlign::Left,
-    //         HorizontalAlign::Center,
-    //         HorizontalAlign::Right,
-    //     ] {
-    //         for v_align in &[
-    //             VerticalAlign::Top,
-    //             VerticalAlign::Center,
-    //             VerticalAlign::Bottom,
-    //         ] {
-    //             let section = Section {
-    //                 text: "Hello\n\
-    //                        World",
-    //                 screen_position: (0.0, 20.0),
-    //                 bounds: (f32::INFINITY, f32::INFINITY),
-    //                 scale: PxScale::from(16.0),
-    //                 layout: Layout::default().h_align(*h_align).v_align(*v_align),
-    //                 ..Section::default()
-    //             };
-    //
-    //             let inf_pixel_bounds = glyphs.pixel_bounds(&section);
-    //             let large_pixel_bounds = glyphs.pixel_bounds(Section {
-    //                 bounds: (1000.0, 1000.0),
-    //                 ..section
-    //             });
-    //
-    //             assert_eq!(
-    //                 inf_pixel_bounds, large_pixel_bounds,
-    //                 "h={:?}, v={:?}",
-    //                 h_align, v_align
-    //             );
-    //         }
-    //     }
-    // }
 
     #[test]
     fn glyph_bounds() {

@@ -30,8 +30,8 @@
 //! #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
 //! # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
 //!
-//! let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-//! let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build(gfx_factory.clone());
+//! let dejavu = FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf"))?;
+//! let mut glyph_brush = GlyphBrushBuilder::using_font(dejavu).build(gfx_factory.clone());
 //!
 //! # let some_other_section = Section { text: "another", ..Section::default() };
 //! let section = Section {
@@ -54,10 +54,9 @@ mod draw_builder;
 
 pub use crate::{builder::*, draw_builder::*};
 pub use glyph_brush::{
-    ab_glyph, BuiltInLineBreaker, FontId, GlyphCruncher, GlyphPositioner, HorizontalAlign,
-    Layout, LineBreak, LineBreaker, OwnedVariedSection, OwnedVariedSectionText, Section,
-    SectionGeometry, SectionGlyphIter, SectionText, VariedSection, VariedSectionText,
-    VerticalAlign,
+    ab_glyph, BuiltInLineBreaker, FontId, GlyphCruncher, GlyphPositioner, HorizontalAlign, Layout,
+    LineBreak, LineBreaker, OwnedVariedSection, OwnedVariedSectionText, Section, SectionGeometry,
+    SectionGlyphIter, SectionText, VariedSection, VariedSectionText, VerticalAlign,
 };
 
 use crate::pipe::{glyph_pipe, GlyphVertex, IntoDimensions, RawAndFormat};
@@ -169,7 +168,8 @@ pub fn default_transform<D: IntoDimensions>(d: D) -> [[f32; 4]; 4] {
 /// The cache for a section will be **cleared** after a
 /// [`.use_queue().draw(..)`](struct.DrawBuilder.html#method.draw) call when that section has not been used since
 /// the previous draw call.
-pub struct GlyphBrush<F, R: gfx::Resources, GF: gfx::Factory<R>, H = DefaultSectionHasher> {
+pub struct GlyphBrush<R: gfx::Resources, GF: gfx::Factory<R>, F = FontArc, H = DefaultSectionHasher>
+{
     font_cache_tex: (
         gfx::handle::Texture<R, TexSurface>,
         gfx_core::handle::ShaderResourceView<R, f32>,
@@ -178,63 +178,24 @@ pub struct GlyphBrush<F, R: gfx::Resources, GF: gfx::Factory<R>, H = DefaultSect
     factory: GF,
     program: gfx::handle::Program<R>,
     draw_cache: Option<DrawnGlyphBrush<R>>,
-    glyph_brush: glyph_brush::GlyphBrush<F, GlyphVertex, H>,
+    glyph_brush: glyph_brush::GlyphBrush<GlyphVertex, F, H>,
 
     // config
     depth_test: gfx::state::Depth,
 }
 
-impl<F, R: gfx::Resources, GF: gfx::Factory<R>, H> fmt::Debug for GlyphBrush<F, R, GF, H> {
-    #[inline]
+impl<R: gfx::Resources, GF: gfx::Factory<R>, F, H> fmt::Debug for GlyphBrush<R, GF, F, H> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "GlyphBrush")
     }
 }
 
-impl<'a, R, GF, H> GlyphBrush<FontRef<'a>, R, GF, H>
+impl<R, GF, F, H> GlyphBrush<R, GF, F, H>
 where
     R: gfx::Resources,
     GF: gfx::Factory<R>,
     H: BuildHasher,
-{
-    /// Adds an additional font to the one(s) initially added on build.
-    ///
-    /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use gfx_glyph::{GlyphBrushBuilder, Section};
-    /// # use old_school_gfx_glutin_ext::*;
-    /// # let event_loop = glutin::event_loop::EventLoop::new();
-    /// # let window_builder = glutin::window::WindowBuilder::new();
-    /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
-    /// #     glutin::ContextBuilder::new()
-    /// #         .build_windowed(window_builder, &event_loop)
-    /// #         .unwrap()
-    /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
-    /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
-    ///
-    /// // dejavu is built as default `FontId(0)`
-    /// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-    /// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build(gfx_factory.clone());
-    ///
-    /// // some time later, add another font referenced by a new `FontId`
-    /// let open_sans_italic: &[u8] = include_bytes!("../../fonts/OpenSans-Italic.ttf");
-    /// let open_sans_italic_id = glyph_brush.add_font_bytes(open_sans_italic);
-    /// # glyph_brush.use_queue().draw(&mut gfx_encoder, &gfx_color).unwrap();
-    /// # let _ = open_sans_italic_id;
-    /// ```
-    pub fn add_font_bytes(&mut self, font_data: &'a [u8]) -> FontId {
-        self.glyph_brush.add_font_bytes(font_data)
-    }
-}
-
-impl<F, R, GF, H> GlyphBrush<F, R, GF, H>
-where
-    R: gfx::Resources,
-    GF: gfx::Factory<R>,
-    H: BuildHasher,
+    F: Font,
 {
     /// Adds an additional font to the one(s) initially added on build.
     ///
@@ -244,27 +205,13 @@ where
     }
 }
 
-impl<F, R, GF, H> GlyphCruncher<F> for GlyphBrush<F, R, GF, H>
+impl<R, GF, F, H> GlyphCruncher<F> for GlyphBrush<R, GF, F, H>
 where
     F: Font,
     R: gfx::Resources,
     GF: gfx::Factory<R>,
     H: BuildHasher,
 {
-    // #[inline]
-    // fn pixel_bounds_custom_layout<'a, S, L>(
-    //     &mut self,
-    //     section: S,
-    //     custom_layout: &L,
-    // ) -> Option<Rect<i32>>
-    // where
-    //     L: GlyphPositioner + Hash,
-    //     S: Into<Cow<'a, VariedSection<'a>>>,
-    // {
-    //     self.glyph_brush
-    //         .pixel_bounds_custom_layout(section, custom_layout)
-    // }
-
     #[inline]
     fn glyphs_custom_layout<'a, 'b, S, L>(
         &'b mut self,
@@ -299,7 +246,7 @@ where
     }
 }
 
-impl<F, R, GF, H> GlyphBrush<F, R, GF, H>
+impl<R, GF, F, H> GlyphBrush<R, GF, F, H>
 where
     F: Font + Sync,
     R: gfx::Resources,
@@ -336,7 +283,7 @@ where
     /// #         .unwrap()
     /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
     /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
-    /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(&[])
+    /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(todo!())
     /// #     .build(gfx_factory.clone());
     /// glyph_brush.use_queue().draw(&mut gfx_encoder, &gfx_color)?;
     /// # Ok(())

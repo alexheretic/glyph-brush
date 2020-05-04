@@ -50,16 +50,20 @@ fn main() -> Result<(), Box<dyn Error>> {
             .build_windowed(window_builder, &event_loop)?
             .init_gfx::<Srgba8, Depth>();
 
-    let mut builder =
-        GlyphBrushBuilder::using_font_bytes(include_bytes!("../../fonts/DejaVuSans.ttf") as &[u8])
-            .initial_cache_size((512, 512));
+    let font_0 = FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf"))?;
+
+    let mut builder = GlyphBrushBuilder::using_font(font_0).initial_cache_size((512, 512));
     let sans_font = FontId::default();
-    let italic_font =
-        builder.add_font_bytes(include_bytes!("../../fonts/OpenSans-Italic.ttf") as &[u8]);
-    let serif_font =
-        builder.add_font_bytes(include_bytes!("../../fonts/GaramondNo8-Reg.ttf") as &[u8]);
-    let mono_font =
-        builder.add_font_bytes(include_bytes!("../../fonts/DejaVuSansMono.ttf") as &[u8]);
+
+    let italic_font = builder.add_font(FontArc::try_from_slice(include_bytes!(
+        "../../fonts/OpenSans-Italic.ttf"
+    ))?);
+    let serif_font = builder.add_font(FontArc::try_from_slice(include_bytes!(
+        "../../fonts/GaramondNo8-Reg.ttf"
+    ))?);
+    let mono_font = builder.add_font(FontArc::try_from_slice(include_bytes!(
+        "../../fonts/DejaVuSansMono.ttf"
+    ))?);
 
     let mut glyph_brush = builder.build(factory.clone());
 

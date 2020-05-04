@@ -61,8 +61,8 @@ fn main() -> Res<()> {
         )?;
     let window_ctx = unsafe { window_ctx.make_current().unwrap() };
 
-    let dejavu: &[u8] = include_bytes!("../../fonts/OpenSans-Light.ttf");
-    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
+    let dejavu = FontRef::try_from_slice(include_bytes!("../../fonts/OpenSans-Light.ttf"))?;
+    let mut glyph_brush = GlyphBrushBuilder::using_font(dejavu).build();
 
     // Load the OpenGL function pointers
     gl::load_with(|symbol| window_ctx.get_proc_address(symbol) as _);
