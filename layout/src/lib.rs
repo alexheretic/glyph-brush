@@ -75,12 +75,16 @@ use std::hash::Hash;
 pub trait GlyphPositioner: Hash {
     /// Calculate a sequence of positioned glyphs to render. Custom implementations should
     /// return the same result when called with the same arguments to allow layout caching.
-    fn calculate_glyphs<F: Font, FM: FontMap<F>, S: AsSectionText>(
+    fn calculate_glyphs<F, FM, S>(
         &self,
         fonts: &FM,
         geometry: &SectionGeometry,
         sections: &[S],
-    ) -> Vec<SectionGlyph>;
+    ) -> Vec<SectionGlyph>
+    where
+        F: Font,
+        FM: FontMap<F>,
+        S: ToSectionText;
 
     /// Return a screen rectangle according to the requested render position and bounds
     /// appropriate for the glyph layout.
@@ -102,7 +106,7 @@ pub trait GlyphPositioner: Hash {
     where
         F: Font,
         FM: FontMap<F>,
-        S: AsSectionText,
+        S: ToSectionText,
         P: IntoIterator<Item = SectionGlyph>,
     {
         let _ = (previous, change);

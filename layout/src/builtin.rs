@@ -1,5 +1,5 @@
 use super::{
-    AsSectionText, BuiltInLineBreaker, FontMap, GlyphPositioner, LineBreaker, SectionGeometry,
+    BuiltInLineBreaker, FontMap, GlyphPositioner, LineBreaker, SectionGeometry, ToSectionText,
 };
 use crate::{characters::Characters, GlyphChange, SectionGlyph};
 use ab_glyph::*;
@@ -134,17 +134,18 @@ impl<L: LineBreaker> Layout<L> {
 }
 
 impl<L: LineBreaker> GlyphPositioner for Layout<L> {
-    fn calculate_glyphs<F: Font, FM: FontMap<F>, S: AsSectionText>(
+    fn calculate_glyphs<F, FM, S>(
         &self,
-        font_map: &FM,
+        fonts: &FM,
         geometry: &SectionGeometry,
         sections: &[S],
-    ) -> Vec<SectionGlyph> {
+    ) -> Vec<SectionGlyph>
+    where
+        F: Font,
+        FM: FontMap<F>,
+        S: ToSectionText,
+    {
         use crate::Layout::{SingleLine, Wrap};
-
-        if sections.is_empty() {
-            return Vec::new();
-        }
 
         let SectionGeometry {
             screen_position,
@@ -157,12 +158,16 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                 h_align,
                 v_align,
                 line_breaker,
-            } => Characters::new(font_map, sections.iter().enumerate(), line_breaker)
-                .words()
-                .lines(bound_w)
-                .next()
-                .map(|line| line.aligned_on_screen(screen_position, h_align, v_align))
-                .unwrap_or_default(),
+            } => Characters::new(
+                fonts,
+                sections.iter().map(|s| s.to_section_text()).enumerate(),
+                line_breaker,
+            )
+            .words()
+            .lines(bound_w)
+            .next()
+            .map(|line| line.aligned_on_screen(screen_position, h_align, v_align))
+            .unwrap_or_default(),
 
             Wrap {
                 h_align,
@@ -173,9 +178,13 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                 let mut caret = screen_position;
                 let v_align_top = v_align == VerticalAlign::Top;
 
-                let lines = Characters::new(font_map, sections.iter().enumerate(), line_breaker)
-                    .words()
-                    .lines(bound_w);
+                let lines = Characters::new(
+                    fonts,
+                    sections.iter().map(|s| s.to_section_text()).enumerate(),
+                    line_breaker,
+                )
+                .words()
+                .lines(bound_w);
 
                 for line in lines {
                     // top align can bound check & exit early
@@ -210,7 +219,7 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                                     sg.glyph.position.y -= shift_up;
 
                                     // filter away out-of-bounds glyphs
-                                    let sfont = font_map.font(sg.font_id).as_scaled(sg.glyph.scale);
+                                    let sfont = fonts.font(sg.font_id).as_scaled(sg.glyph.scale);
                                     let h_advance = sfont.h_advance(sg.glyph.id);
                                     let h_side_bearing = sfont.h_side_bearing(sg.glyph.id);
                                     let height = sfont.height();
@@ -270,7 +279,7 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
     where
         F: Font,
         FM: FontMap<F>,
-        S: AsSectionText,
+        S: ToSectionText,
         P: IntoIterator<Item = SectionGlyph>,
     {
         match change {
@@ -287,34 +296,6 @@ impl<L: LineBreaker> GlyphPositioner for Layout<L> {
                     .for_each(|sg| sg.glyph.position += adjustment);
                 glyphs
             }
-            // GlyphChange::Color if !sections.is_empty() && !previous.is_empty() => {
-            //     let new_color = sections[0].color;
-            //     if sections.iter().all(|s| s.color == new_color) {
-            //         // if only the color changed, but the new section only use a single color
-            //         // we can simply set all the olds to the new color
-            //         let mut glyphs = previous.into_owned();
-            //         for (_, color, ..) in &mut glyphs {
-            //             *color = new_color;
-            //         }
-            //         glyphs
-            //     } else {
-            //         self.calculate_glyphs(fonts, geometry, sections)
-            //     }
-            // }
-            // GlyphChange::Alpha if !sections.is_empty() && !previous.is_empty() => {
-            //     let new_alpha = sections[0].color[3];
-            //     if sections.iter().all(|s| s.color[3] == new_alpha) {
-            //         // if only the alpha changed, but the new section only uses a single alpha
-            //         // we can simply set all the olds to the new alpha
-            //         let mut glyphs = previous.into_owned();
-            //         for (_, color, ..) in &mut glyphs {
-            //             color[3] = new_alpha;
-            //         }
-            //         glyphs
-            //     } else {
-            //         self.calculate_glyphs(fonts, geometry, sections)
-            //     }
-            // }
             _ => self.calculate_glyphs(fonts, geometry, sections),
         }
     }
@@ -449,13 +430,19 @@ mod layout_test {
     #[allow(unused)]
     #[derive(Hash)]
     enum SimpleCustomGlyphPositioner {}
+
     impl GlyphPositioner for SimpleCustomGlyphPositioner {
-        fn calculate_glyphs<F: Font, FM: FontMap<F>, S: AsSectionText>(
+        fn calculate_glyphs<F, FM, S>(
             &self,
-            _: &FM,
-            _: &SectionGeometry,
-            _: &[S],
-        ) -> Vec<SectionGlyph> {
+            _fonts: &FM,
+            _geometry: &SectionGeometry,
+            _sections: &[S],
+        ) -> Vec<SectionGlyph>
+        where
+            F: Font,
+            FM: FontMap<F>,
+            S: ToSectionText,
+        {
             <_>::default()
         }
 

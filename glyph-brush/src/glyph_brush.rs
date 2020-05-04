@@ -233,7 +233,7 @@ where
     {
         let section = section.into();
         if cfg!(debug_assertions) {
-            for (text, ..) in &section.text {
+            for text in &section.text {
                 assert!(self.fonts.len() > text.font_id.0, "Invalid font id");
             }
         }
@@ -336,7 +336,7 @@ where
                                 .calculate_glyphs(&self.fonts, &geometry, &section.text)
                                 .into_iter()
                                 .map(|sg| {
-                                    let color = section.text[sg.section_index].1;
+                                    let color = section.text[sg.section_index].color;
                                     (sg, color)
                                 })
                                 .collect()
@@ -351,7 +351,7 @@ where
                 .calculate_glyphs(&self.fonts, &geometry, &section.text)
                 .into_iter()
                 .map(|sg| {
-                    let color = section.text[sg.section_index].1;
+                    let color = section.text[sg.section_index].color;
                     (sg, color)
                 })
                 .collect();
@@ -437,7 +437,7 @@ where
         let section = section.into();
         if cfg!(debug_assertions) {
             for text in &section.text {
-                assert!(self.fonts.len() > text.0.font_id.0, "Invalid font id");
+                assert!(self.fonts.len() > text.font_id.0, "Invalid font id");
             }
         }
 
@@ -742,7 +742,7 @@ impl SectionChange {
         previous: P,
         fonts: &FM,
         geometry: &SectionGeometry,
-        sections: &[(SectionText, Color)],
+        sections: &[VariedSectionText],
     ) -> Vec<(SectionGlyph, Color)>
     where
         F: Font,
@@ -761,15 +761,15 @@ impl SectionChange {
                 )
                 .into_iter()
                 .map(|sg| {
-                    let color = sections[sg.section_index].1;
+                    let color = sections[sg.section_index].color;
                     (sg, color)
                 })
                 .collect(),
             SectionChange::Color => previous
                 .into_iter()
                 .map(|(sg, _)| {
-                    let new_color = sections[sg.section_index].1;
-                    (sg, new_color)
+                    let color = sections[sg.section_index].color;
+                    (sg, color)
                 })
                 .collect(),
         }
@@ -856,22 +856,18 @@ mod hash_diff_test {
     fn section() -> VariedSection<'static> {
         VariedSection {
             text: vec![
-                (
-                    SectionText {
-                        text: "Hello, ",
-                        scale: PxScale::from(20.0),
-                        font_id: FontId(0),
-                    },
-                    [1.0, 0.9, 0.8, 0.7],
-                ),
-                (
-                    SectionText {
-                        text: "World",
-                        scale: PxScale::from(22.0),
-                        font_id: FontId(1),
-                    },
-                    [0.6, 0.5, 0.4, 0.3],
-                ),
+                VariedSectionText {
+                    text: "Hello, ",
+                    scale: PxScale::from(20.0),
+                    font_id: FontId(0),
+                    color: [1.0, 0.9, 0.8, 0.7],
+                },
+                VariedSectionText {
+                    text: "World",
+                    scale: PxScale::from(22.0),
+                    font_id: FontId(1),
+                    color: [0.6, 0.5, 0.4, 0.3],
+                },
             ],
             bounds: (55.5, 66.6),
             z: 0.444,
@@ -908,7 +904,7 @@ mod hash_diff_test {
         let mut section = section();
         let hash_deets = SectionHashDetail::new(&build_hasher, &section, &section.layout);
 
-        section.text[1].1[2] -= 0.1;
+        section.text[1].color[2] -= 0.1;
 
         let diff = hash_deets.diff(SectionHashDetail::new(
             &build_hasher,
@@ -925,9 +921,9 @@ mod hash_diff_test {
         let mut section = section();
         let hash_deets = SectionHashDetail::new(&build_hasher, &section, &section.layout);
 
-        section.text[1].1[2] -= 0.1;
-        section.text[0].1[0] -= 0.1;
-        section.text[0].1[3] += 0.1; // alpha change too
+        section.text[1].color[2] -= 0.1;
+        section.text[0].color[0] -= 0.1;
+        section.text[0].color[3] += 0.1; // alpha change too
 
         let diff = hash_deets.diff(SectionHashDetail::new(
             &build_hasher,
@@ -961,7 +957,7 @@ mod hash_diff_test {
         let mut section = section();
         let hash_deets = SectionHashDetail::new(&build_hasher, &section, &section.layout);
 
-        section.text[1].0.text = "something else";
+        section.text[1].text = "something else";
 
         let diff = hash_deets.diff(SectionHashDetail::new(
             &build_hasher,

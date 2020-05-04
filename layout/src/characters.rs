@@ -1,4 +1,4 @@
-use super::{AsSectionText, EolLineBreak, FontId, FontMap, SectionText};
+use super::{EolLineBreak, FontId, FontMap, SectionText};
 use crate::{
     linebreak::{LineBreak, LineBreaker},
     words::Words,
@@ -7,7 +7,7 @@ use ab_glyph::*;
 use std::{
     iter::{Enumerate, FusedIterator, Iterator},
     marker::PhantomData,
-    mem, slice,
+    mem,
     str::CharIndices,
 };
 
@@ -35,10 +35,10 @@ where
     L: LineBreaker,
     F: Font,
     FM: FontMap<F>,
-    S: AsSectionText,
+    S: Iterator<Item = SectionText<'a>>,
 {
     font_map: &'b FM,
-    section_text: Enumerate<slice::Iter<'a, S>>,
+    section_text: Enumerate<S>,
     line_breaker: L,
     part_info: Option<PartInfo<'a>>,
     phantom: PhantomData<F>,
@@ -46,7 +46,7 @@ where
 
 struct PartInfo<'a> {
     section_index: usize,
-    section: &'a SectionText<'a>,
+    section: SectionText<'a>,
     info_chars: CharIndices<'a>,
     line_breaks: Box<dyn Iterator<Item = LineBreak> + 'a>,
     next_break: Option<LineBreak>,
@@ -57,14 +57,10 @@ where
     L: LineBreaker,
     F: Font,
     FM: FontMap<F>,
-    S: AsSectionText,
+    S: Iterator<Item = SectionText<'a>>,
 {
     /// Returns a new `Characters` iterator.
-    pub(crate) fn new(
-        font_map: &'b FM,
-        section_text: Enumerate<slice::Iter<'a, S>>,
-        line_breaker: L,
-    ) -> Self {
+    pub(crate) fn new(font_map: &'b FM, section_text: Enumerate<S>, line_breaker: L) -> Self {
         Self {
             font_map,
             section_text,
@@ -80,12 +76,12 @@ where
     }
 }
 
-impl<'b, L, F, FM, S> Iterator for Characters<'_, 'b, L, F, FM, S>
+impl<'a, 'b, L, F, FM, S> Iterator for Characters<'a, 'b, L, F, FM, S>
 where
     L: LineBreaker,
     F: Font,
     FM: FontMap<F>,
-    S: AsSectionText,
+    S: Iterator<Item = SectionText<'a>>,
 {
     type Item = Character<'b, F>;
 
@@ -94,8 +90,7 @@ where
         if self.part_info.is_none() {
             let mut index_and_section;
             loop {
-                let (index, s) = self.section_text.next()?;
-                index_and_section = (index, s.as_section_text());
+                index_and_section = self.section_text.next()?;
                 if valid_section(&index_and_section.1) {
                     break;
                 }
@@ -166,12 +161,12 @@ where
     }
 }
 
-impl<'font, L, F, FM, S> FusedIterator for Characters<'_, '_, L, F, FM, S>
+impl<'a, L, F, FM, S> FusedIterator for Characters<'a, '_, L, F, FM, S>
 where
     L: LineBreaker,
     F: Font,
     FM: FontMap<F>,
-    S: AsSectionText,
+    S: Iterator<Item = SectionText<'a>>,
 {
 }
 

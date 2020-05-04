@@ -45,32 +45,21 @@ impl Default for SectionText<'static> {
     }
 }
 
-pub trait AsSectionText {
-    fn as_section_text(&self) -> &SectionText<'_>;
+pub trait ToSectionText {
+    fn to_section_text(&self) -> SectionText<'_>;
 }
 
-impl AsSectionText for SectionText<'_> {
+impl ToSectionText for SectionText<'_> {
     #[inline]
-    fn as_section_text(&self) -> &SectionText<'_> {
-        self
+    fn to_section_text(&self) -> SectionText<'_> {
+        *self
     }
 }
-impl AsSectionText for &SectionText<'_> {
+
+impl ToSectionText for &SectionText<'_> {
     #[inline]
-    fn as_section_text(&self) -> &SectionText<'_> {
-        self
-    }
-}
-impl<T> AsSectionText for (SectionText<'_>, T) {
-    #[inline]
-    fn as_section_text(&self) -> &SectionText<'_> {
-        &self.0
-    }
-}
-impl<T> AsSectionText for &(SectionText<'_>, T) {
-    #[inline]
-    fn as_section_text(&self) -> &SectionText<'_> {
-        &self.0
+    fn to_section_text(&self) -> SectionText<'_> {
+        **self
     }
 }
 

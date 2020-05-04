@@ -241,7 +241,7 @@ impl<F: Font, H: BuildHasher> GlyphCalculatorGuard<'_, F, H> {
                 .calculate_glyphs(self.fonts, &geometry, &section.text)
                 .into_iter()
                 .map(|sg| {
-                    let color = section.text[sg.section_index].1;
+                    let color = section.text[sg.section_index].color;
                     (sg, color)
                 })
                 .collect();

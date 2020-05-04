@@ -41,7 +41,7 @@ pub struct VariedSection<'a> {
     /// see [`queue_custom_layout`](struct.GlyphBrush.html#method.queue_custom_layout)
     pub layout: Layout<BuiltInLineBreaker>,
     /// Text to render, rendered next to one another according the layout.
-    pub text: Vec<(SectionText<'a>, Color)>,
+    pub text: Vec<VariedSectionText<'a>>,
 }
 
 impl Default for VariedSection<'static> {
@@ -95,13 +95,53 @@ impl Hash for VariedSection<'_> {
     }
 }
 
+/// `SectionText` + `Color`
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct VariedSectionText<'a> {
+    /// Text to render
+    pub text: &'a str,
+    /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
+    pub scale: PxScale,
+    /// Font id to use for this section.
+    ///
+    /// It must be a valid id in the `FontMap` used for layout calls.
+    /// The default `FontId(0)` should always be valid.
+    pub font_id: FontId,
+    /// Color
+    pub color: Color,
+}
+
+impl Default for VariedSectionText<'static> {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            text: "",
+            scale: PxScale::from(16.0),
+            font_id: <_>::default(),
+            color: [0.0, 0.0, 0.0, 1.0],
+        }
+    }
+}
+
+impl ToSectionText for VariedSectionText<'_> {
+    #[inline]
+    fn to_section_text(&self) -> SectionText<'_> {
+        SectionText {
+            text: self.text,
+            scale: self.scale,
+            font_id: self.font_id,
+        }
+    }
+}
+
 #[inline]
-fn hash_section_text<H: Hasher>(state: &mut H, text: &[(SectionText, Color)]) {
-    for (t, color) in text {
-        let SectionText {
+fn hash_section_text<H: Hasher>(state: &mut H, text: &[VariedSectionText]) {
+    for t in text {
+        let VariedSectionText {
             text,
             scale,
             font_id,
+            color,
         } = *t;
 
         let ord_floats: &[OrderedFloat<_>] = &[
@@ -124,11 +164,7 @@ impl<'text> VariedSection<'text> {
             bounds: self.bounds,
             z: self.z,
             layout: self.layout,
-            text: self
-                .text
-                .iter()
-                .map(|(t, color)| (t.into(), *color))
-                .collect(),
+            text: self.text.iter().map(|t| t.into()).collect(),
         }
     }
 
@@ -234,14 +270,12 @@ impl<'a> From<&Section<'a>> for VariedSection<'a> {
         } = *s;
 
         VariedSection {
-            text: vec![(
-                SectionText {
-                    text,
-                    scale,
-                    font_id,
-                },
+            text: vec![VariedSectionText {
+                text,
+                scale,
+                font_id,
                 color,
-            )],
+            }],
             screen_position,
             bounds,
             z,
@@ -271,7 +305,7 @@ impl<'a> From<&Section<'a>> for Cow<'a, VariedSection<'a>> {
 pub(crate) struct HashableVariedSectionParts<'a> {
     geometry: [OrderedFloat<f32>; 4],
     z: OrderedFloat<f32>,
-    text: &'a [(SectionText<'a>, Color)],
+    text: &'a [VariedSectionText<'a>],
 }
 
 impl HashableVariedSectionParts<'_> {
@@ -287,8 +321,8 @@ impl HashableVariedSectionParts<'_> {
 
     #[inline]
     pub fn hash_text_no_color<H: Hasher>(&self, state: &mut H) {
-        for (t, _) in self.text {
-            let SectionText {
+        for t in self.text {
+            let VariedSectionText {
                 text,
                 scale,
                 font_id,
@@ -303,16 +337,16 @@ impl HashableVariedSectionParts<'_> {
 
     #[inline]
     pub fn hash_alpha<H: Hasher>(&self, state: &mut H) {
-        for (_, color) in self.text {
-            OrderedFloat(color[3]).hash(state);
+        for t in self.text {
+            OrderedFloat(t.color[3]).hash(state);
         }
     }
 
     #[inline]
     pub fn hash_color<H: Hasher>(&self, state: &mut H) {
-        for (_, color) in self.text {
+        for t in self.text {
             let ord_floats: &[OrderedFloat<_>] =
-                &[color[0].into(), color[1].into(), color[2].into()];
+                &[t.color[0].into(), t.color[1].into(), t.color[2].into()];
 
             ord_floats.hash(state);
         }

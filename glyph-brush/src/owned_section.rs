@@ -13,7 +13,7 @@ pub struct OwnedVariedSection {
     /// see [`queue_custom_layout`](struct.GlyphBrush.html#method.queue_custom_layout)
     pub layout: Layout<BuiltInLineBreaker>,
     /// Text to render, rendered next to one another according the layout.
-    pub text: Vec<(OwnedSectionText, Color)>,
+    pub text: Vec<OwnedVariedSectionText>,
 }
 
 impl Default for OwnedVariedSection {
@@ -35,11 +35,7 @@ impl OwnedVariedSection {
             bounds: self.bounds,
             z: self.z,
             layout: self.layout,
-            text: self
-                .text
-                .iter()
-                .map(|(t, color)| (t.into(), *color))
-                .collect(),
+            text: self.text.iter().map(|t| t.into()).collect(),
         }
     }
 }
@@ -57,7 +53,7 @@ impl<'a> From<&'a OwnedVariedSection> for Cow<'a, VariedSection<'a>> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct OwnedSectionText {
+pub struct OwnedVariedSectionText {
     /// Text to render
     pub text: String,
     /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
@@ -68,34 +64,50 @@ pub struct OwnedSectionText {
     /// either `FontId::default()` or the return of
     /// [`add_font`](struct.GlyphBrushBuilder.html#method.add_font).
     pub font_id: FontId,
+    /// Color
+    pub color: Color,
 }
 
-impl Default for OwnedSectionText {
+impl OwnedVariedSectionText {
+    pub fn from_text_and_color(st: &SectionText<'_>, color: Color) -> Self {
+        Self {
+            text: st.text.into(),
+            scale: st.scale,
+            font_id: st.font_id,
+            color,
+        }
+    }
+}
+
+impl Default for OwnedVariedSectionText {
     fn default() -> Self {
         Self {
             text: String::new(),
             scale: PxScale::from(16.0),
             font_id: FontId::default(),
+            color: [0.0, 0.0, 0.0, 1.0],
         }
     }
 }
 
-impl<'a> From<&'a OwnedSectionText> for SectionText<'a> {
-    fn from(owned: &'a OwnedSectionText) -> Self {
+impl<'a> From<&'a OwnedVariedSectionText> for VariedSectionText<'a> {
+    fn from(owned: &'a OwnedVariedSectionText) -> Self {
         Self {
             text: owned.text.as_str(),
             scale: owned.scale,
             font_id: owned.font_id,
+            color: owned.color,
         }
     }
 }
 
-impl From<&SectionText<'_>> for OwnedSectionText {
-    fn from(st: &SectionText<'_>) -> Self {
+impl From<&VariedSectionText<'_>> for OwnedVariedSectionText {
+    fn from(s: &VariedSectionText<'_>) -> Self {
         Self {
-            text: st.text.into(),
-            scale: st.scale,
-            font_id: st.font_id,
+            text: s.text.into(),
+            scale: s.scale,
+            font_id: s.font_id,
+            color: s.color,
         }
     }
 }

@@ -1,4 +1,4 @@
-use super::{AsSectionText, FontMap, HorizontalAlign, SectionGlyph, VerticalAlign};
+use super::{FontMap, HorizontalAlign, SectionGlyph, SectionText, VerticalAlign};
 use crate::{linebreak::LineBreaker, words::*};
 use ab_glyph::*;
 use std::iter::{FusedIterator, Iterator, Peekable};
@@ -77,18 +77,18 @@ where
     L: LineBreaker,
     F: Font,
     FM: FontMap<F>,
-    S: AsSectionText,
+    S: Iterator<Item = SectionText<'a>>,
 {
     pub(crate) words: Peekable<Words<'a, 'b, L, F, FM, S>>,
     pub(crate) width_bound: f32,
 }
 
-impl<L, F, FM, S> Iterator for Lines<'_, '_, L, F, FM, S>
+impl<'a, L, F, FM, S> Iterator for Lines<'a, '_, L, F, FM, S>
 where
     L: LineBreaker,
     F: Font,
     FM: FontMap<F>,
-    S: AsSectionText,
+    S: Iterator<Item = SectionText<'a>>,
 {
     type Item = Line;
 
@@ -142,11 +142,11 @@ where
     }
 }
 
-impl<L, F, FM, S> FusedIterator for Lines<'_, '_, L, F, FM, S>
+impl<'a, L, F, FM, S> FusedIterator for Lines<'a, '_, L, F, FM, S>
 where
     L: LineBreaker,
     F: Font,
     FM: FontMap<F>,
-    S: AsSectionText,
+    S: Iterator<Item = SectionText<'a>>,
 {
 }

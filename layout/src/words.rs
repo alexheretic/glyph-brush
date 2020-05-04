@@ -2,7 +2,7 @@ use crate::{
     characters::{Character, Characters},
     linebreak::{LineBreak, LineBreaker},
     lines::Lines,
-    AsSectionText, FontMap, SectionGlyph,
+    FontMap, SectionGlyph, SectionText,
 };
 use ab_glyph::*;
 use std::iter::{FusedIterator, Iterator};
@@ -61,7 +61,7 @@ where
     L: LineBreaker,
     F: Font,
     FM: FontMap<F>,
-    S: AsSectionText,
+    S: Iterator<Item = SectionText<'a>>,
 {
     pub(crate) characters: Characters<'a, 'b, L, F, FM, S>,
 }
@@ -71,7 +71,7 @@ where
     L: LineBreaker,
     F: Font,
     FM: FontMap<F>,
-    S: AsSectionText,
+    S: Iterator<Item = SectionText<'a>>,
 {
     pub(crate) fn lines(self, width_bound: f32) -> Lines<'a, 'b, L, F, FM, S> {
         Lines {
@@ -81,12 +81,12 @@ where
     }
 }
 
-impl<'b, L, F: 'b, FM, S> Iterator for Words<'_, 'b, L, F, FM, S>
+impl<'a, 'b, L, F: 'b, FM, S> Iterator for Words<'a, 'b, L, F, FM, S>
 where
     L: LineBreaker,
     F: Font,
     FM: FontMap<F>,
-    S: AsSectionText,
+    S: Iterator<Item = SectionText<'a>>,
 {
     type Item = Word;
 
@@ -161,11 +161,11 @@ where
     }
 }
 
-impl<L, F, FM, S> FusedIterator for Words<'_, '_, L, F, FM, S>
+impl<'a, L, F, FM, S> FusedIterator for Words<'a, '_, L, F, FM, S>
 where
     L: LineBreaker,
     F: Font,
     FM: FontMap<F>,
-    S: AsSectionText,
+    S: Iterator<Item = SectionText<'a>>,
 {
 }
