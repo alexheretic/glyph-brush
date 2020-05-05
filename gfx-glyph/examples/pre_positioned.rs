@@ -70,7 +70,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
         &[gfx_glyph::SectionText {
             text: include_str!("lipsum.txt"),
-            // color: [0.8, 0.8, 0.8, 1.0],
             scale: PxScale::from(30.0),
             font_id: FontId(0),
         }],
@@ -101,12 +100,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                 encoder.clear(&main_color, [0.02, 0.02, 0.02, 1.0]);
 
                 glyph_brush.queue_pre_positioned(
-                    glyphs.iter().map(|sg| (sg.clone(), color)).collect(),
+                    glyphs.clone(),
+                    vec![Extra { color, z: 0.0 }],
                     Rect {
                         min: point(0.0, 0.0),
                         max: point(width, height),
                     },
-                    0.0,
                 );
 
                 glyph_brush

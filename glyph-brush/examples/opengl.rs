@@ -435,8 +435,7 @@ fn to_vertex(
         mut tex_coords,
         pixel_coords,
         bounds,
-        color,
-        z,
+        extra,
     }: glyph_brush::GlyphVertex,
 ) -> Vertex {
     let gl_bounds = bounds;
@@ -471,17 +470,17 @@ fn to_vertex(
     [
         gl_rect.min.x,
         gl_rect.max.y,
-        z,
+        extra.z,
         gl_rect.max.x,
         gl_rect.min.y,
         tex_coords.min.x,
         tex_coords.max.y,
         tex_coords.max.x,
         tex_coords.min.y,
-        color[0],
-        color[1],
-        color[2],
-        color[3],
+        extra.color[0],
+        extra.color[1],
+        extra.color[2],
+        extra.color[3],
     ]
 }
 

@@ -552,12 +552,18 @@ fn continually_modify_alpha_of_1_of_3(c: &mut Criterion) {
                 text: vec![
                     VariedSectionText {
                         text: "Heading\n",
-                        color: [1.0, 1.0, 0.0, alpha],
+                        extra: Extra {
+                            color: [1.0, 1.0, 0.0, alpha],
+                            z: 0.0,
+                        },
                         ..<_>::default()
                     },
                     VariedSectionText {
                         text,
-                        color: [1.0, 1.0, 0.0, alpha],
+                        extra: Extra {
+                            color: [1.0, 1.0, 0.0, alpha],
+                            z: 0.0,
+                        },
                         ..<_>::default()
                     },
                 ],
@@ -567,7 +573,10 @@ fn continually_modify_alpha_of_1_of_3(c: &mut Criterion) {
             VariedSection {
                 text: vec![VariedSectionText {
                     text,
-                    color: [0.0, 0.0, 0.0, 1.0],
+                    extra: Extra {
+                        color: [0.0, 0.0, 0.0, 1.0],
+                        z: 0.0,
+                    },
                     ..<_>::default()
                 }],
                 screen_position: (600.0, 0.0),
@@ -578,7 +587,10 @@ fn continually_modify_alpha_of_1_of_3(c: &mut Criterion) {
             VariedSection {
                 text: vec![VariedSectionText {
                     text,
-                    color: [0.0, 0.0, 0.0, 1.0],
+                    extra: Extra {
+                        color: [0.0, 0.0, 0.0, 1.0],
+                        z: 0.0,
+                    },
                     ..<_>::default()
                 }],
                 screen_position: (1200.0, 0.0),
@@ -642,7 +654,7 @@ fn continually_modify_position_of_1_of_3(c: &mut Criterion) {
 fn bench_variants<'a, S: 'a>(
     b: &mut Bencher,
     variants: &'a [std::vec::Vec<S>],
-    glyph_brush: &mut GlyphBrush<[f32; 13], FontRef<'static>>,
+    glyph_brush: &mut GlyphBrush<[f32; 13], Extra, FontRef<'static>>,
 ) where
     &'a S: Into<Cow<'a, VariedSection<'a>>>,
 {
@@ -665,8 +677,7 @@ fn gl_to_vertex(
         mut tex_coords,
         pixel_coords,
         bounds,
-        color,
-        z,
+        extra,
     }: glyph_brush::GlyphVertex,
 ) -> [f32; 13] {
     let gl_bounds = bounds;
@@ -701,17 +712,17 @@ fn gl_to_vertex(
     [
         gl_rect.min.x,
         gl_rect.max.y,
-        z,
+        extra.z,
         gl_rect.max.x,
         gl_rect.min.y,
         tex_coords.min.x,
         tex_coords.max.y,
         tex_coords.max.x,
         tex_coords.min.y,
-        color[0],
-        color[1],
-        color[2],
-        color[3],
+        extra.color[0],
+        extra.color[1],
+        extra.color[2],
+        extra.color[3],
     ]
 }
 

@@ -30,18 +30,23 @@ pub type Color = [f32; 4];
 /// };
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct VariedSection<'a> {
+pub struct VariedSection<'a, X = Extra> {
     /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
     pub screen_position: (f32, f32),
     /// Max (width, height) bounds, in pixels from top-left. Defaults to unbounded.
     pub bounds: (f32, f32),
-    /// Z values for use in depth testing. Defaults to 0.0
-    pub z: f32,
     /// Built in layout, can be overridden with custom layout logic
     /// see [`queue_custom_layout`](struct.GlyphBrush.html#method.queue_custom_layout)
     pub layout: Layout<BuiltInLineBreaker>,
     /// Text to render, rendered next to one another according the layout.
-    pub text: Vec<VariedSectionText<'a>>,
+    pub text: Vec<VariedSectionText<'a, X>>,
+}
+
+impl<X: Clone> VariedSection<'_, X> {
+    #[inline]
+    pub(crate) fn clone_extras(&self) -> Vec<X> {
+        self.text.iter().map(|t| &t.extra).cloned().collect()
+    }
 }
 
 impl Default for VariedSection<'static> {
@@ -50,31 +55,29 @@ impl Default for VariedSection<'static> {
         Self {
             screen_position: (0.0, 0.0),
             bounds: (f32::INFINITY, f32::INFINITY),
-            z: 0.0,
             layout: Layout::default(),
             text: vec![],
         }
     }
 }
 
-impl<'a> From<VariedSection<'a>> for Cow<'a, VariedSection<'a>> {
-    fn from(owned: VariedSection<'a>) -> Self {
+impl<'a, X: Clone> From<VariedSection<'a, X>> for Cow<'a, VariedSection<'a, X>> {
+    fn from(owned: VariedSection<'a, X>) -> Self {
         Cow::Owned(owned)
     }
 }
 
-impl<'a, 'b> From<&'b VariedSection<'a>> for Cow<'b, VariedSection<'a>> {
-    fn from(owned: &'b VariedSection<'a>) -> Self {
+impl<'a, 'b, X: Clone> From<&'b VariedSection<'a, X>> for Cow<'b, VariedSection<'a, X>> {
+    fn from(owned: &'b VariedSection<'a, X>) -> Self {
         Cow::Borrowed(owned)
     }
 }
 
-impl Hash for VariedSection<'_> {
+impl<X: Hash> Hash for VariedSection<'_, X> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         let VariedSection {
             screen_position: (screen_x, screen_y),
             bounds: (bound_w, bound_h),
-            z,
             layout,
             ref text,
         } = *self;
@@ -84,7 +87,6 @@ impl Hash for VariedSection<'_> {
             screen_y.into(),
             bound_w.into(),
             bound_h.into(),
-            z.into(),
         ];
 
         layout.hash(state);
@@ -95,9 +97,9 @@ impl Hash for VariedSection<'_> {
     }
 }
 
-/// `SectionText` + `Color`
+/// `SectionText` + extra.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct VariedSectionText<'a> {
+pub struct VariedSectionText<'a, X = Extra> {
     /// Text to render
     pub text: &'a str,
     /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
@@ -107,23 +109,23 @@ pub struct VariedSectionText<'a> {
     /// It must be a valid id in the `FontMap` used for layout calls.
     /// The default `FontId(0)` should always be valid.
     pub font_id: FontId,
-    /// Color
-    pub color: Color,
+    /// Extra stuff for vertex generation.
+    pub extra: X,
 }
 
-impl Default for VariedSectionText<'static> {
+impl<X: Default> Default for VariedSectionText<'static, X> {
     #[inline]
     fn default() -> Self {
         Self {
             text: "",
             scale: PxScale::from(16.0),
             font_id: <_>::default(),
-            color: [0.0, 0.0, 0.0, 1.0],
+            extra: <_>::default(),
         }
     }
 }
 
-impl ToSectionText for VariedSectionText<'_> {
+impl<X> ToSectionText for VariedSectionText<'_, X> {
     #[inline]
     fn to_section_text(&self) -> SectionText<'_> {
         SectionText {
@@ -135,46 +137,37 @@ impl ToSectionText for VariedSectionText<'_> {
 }
 
 #[inline]
-fn hash_section_text<H: Hasher>(state: &mut H, text: &[VariedSectionText]) {
+fn hash_section_text<X: Hash, H: Hasher>(state: &mut H, text: &[VariedSectionText<'_, X>]) {
     for t in text {
         let VariedSectionText {
             text,
             scale,
             font_id,
-            color,
+            ref extra,
         } = *t;
 
-        let ord_floats: &[OrderedFloat<_>] = &[
-            scale.x.into(),
-            scale.y.into(),
-            color[0].into(),
-            color[1].into(),
-            color[2].into(),
-            color[3].into(),
-        ];
+        let ord_floats: [OrderedFloat<_>; 2] = [scale.x.into(), scale.y.into()];
 
-        (text, font_id, ord_floats).hash(state);
+        (text, font_id, extra, ord_floats).hash(state);
     }
 }
 
-impl<'text> VariedSection<'text> {
-    pub fn to_owned(&self) -> OwnedVariedSection {
+impl<'text, X: Clone> VariedSection<'text, X> {
+    pub fn to_owned(&self) -> OwnedVariedSection<X> {
         OwnedVariedSection {
             screen_position: self.screen_position,
             bounds: self.bounds,
-            z: self.z,
             layout: self.layout,
-            text: self.text.iter().map(|t| t.into()).collect(),
+            text: self.text.iter().map(OwnedVariedSectionText::from).collect(),
         }
     }
 
-    pub(crate) fn to_hashable_parts(&self) -> HashableVariedSectionParts<'_> {
+    pub(crate) fn to_hashable_parts(&self) -> HashableVariedSectionParts<'_, X> {
         let VariedSection {
             screen_position: (screen_x, screen_y),
             bounds: (bound_w, bound_h),
-            z,
             ref text,
-            ..
+            layout: _,
         } = *self;
 
         let geometry = [
@@ -184,16 +177,12 @@ impl<'text> VariedSection<'text> {
             bound_h.into(),
         ];
 
-        HashableVariedSectionParts {
-            geometry,
-            z: z.into(),
-            text,
-        }
+        HashableVariedSectionParts { geometry, text }
     }
 }
 
-impl From<&VariedSection<'_>> for SectionGeometry {
-    fn from(section: &VariedSection<'_>) -> Self {
+impl<X> From<&VariedSection<'_, X>> for SectionGeometry {
+    fn from(section: &VariedSection<'_, X>) -> Self {
         Self {
             bounds: section.bounds,
             screen_position: section.screen_position,
@@ -274,11 +263,10 @@ impl<'a> From<&Section<'a>> for VariedSection<'a> {
                 text,
                 scale,
                 font_id,
-                color,
+                extra: Extra { color, z },
             }],
             screen_position,
             bounds,
-            z,
             layout,
         }
     }
@@ -302,25 +290,19 @@ impl<'a> From<&Section<'a>> for Cow<'a, VariedSection<'a>> {
     }
 }
 
-pub(crate) struct HashableVariedSectionParts<'a> {
+pub(crate) struct HashableVariedSectionParts<'a, X> {
     geometry: [OrderedFloat<f32>; 4],
-    z: OrderedFloat<f32>,
-    text: &'a [VariedSectionText<'a>],
+    text: &'a [VariedSectionText<'a, X>],
 }
 
-impl HashableVariedSectionParts<'_> {
+impl<X: Hash> HashableVariedSectionParts<'_, X> {
     #[inline]
     pub fn hash_geometry<H: Hasher>(&self, state: &mut H) {
         self.geometry.hash(state);
     }
 
     #[inline]
-    pub fn hash_z<H: Hasher>(&self, state: &mut H) {
-        self.z.hash(state);
-    }
-
-    #[inline]
-    pub fn hash_text_no_color<H: Hasher>(&self, state: &mut H) {
+    pub fn hash_text_no_extra<H: Hasher>(&self, state: &mut H) {
         for t in self.text {
             let VariedSectionText {
                 text,
@@ -336,19 +318,7 @@ impl HashableVariedSectionParts<'_> {
     }
 
     #[inline]
-    pub fn hash_alpha<H: Hasher>(&self, state: &mut H) {
-        for t in self.text {
-            OrderedFloat(t.color[3]).hash(state);
-        }
-    }
-
-    #[inline]
-    pub fn hash_color<H: Hasher>(&self, state: &mut H) {
-        for t in self.text {
-            let ord_floats: &[OrderedFloat<_>] =
-                &[t.color[0].into(), t.color[1].into(), t.color[2].into()];
-
-            ord_floats.hash(state);
-        }
+    pub fn hash_extra<H: Hasher>(&self, state: &mut H) {
+        self.text.iter().for_each(|t| t.extra.hash(state));
     }
 }

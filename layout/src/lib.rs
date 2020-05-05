@@ -53,17 +53,17 @@
 //! ```
 mod builtin;
 mod characters;
+mod font;
 mod linebreak;
 mod lines;
 mod section;
 mod words;
-mod font;
 
 /// Re-exported rusttype types.
 pub mod ab_glyph {
     pub use ab_glyph::*;
 }
-pub use self::{builtin::*, linebreak::*, section::*, font::*};
+pub use self::{builtin::*, font::*, linebreak::*, section::*};
 
 use ::ab_glyph::*;
 use std::hash::Hash;

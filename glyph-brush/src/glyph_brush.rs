@@ -45,14 +45,14 @@ type SectionHash = u64;
 /// This behaviour can be adjusted with
 /// [`GlyphBrushBuilder::gpu_cache_position_tolerance`]
 /// (struct.GlyphBrushBuilder.html#method.gpu_cache_position_tolerance).
-pub struct GlyphBrush<V, F = FontArc, H = DefaultSectionHasher> {
+pub struct GlyphBrush<V, X = Extra, F = FontArc, H = DefaultSectionHasher> {
     fonts: Vec<F>,
     texture_cache: DrawCache,
     last_draw: LastDrawInfo,
 
     // cache of section-layout hash -> computed glyphs, this avoid repeated glyph computation
     // for identical layout/sections common to repeated frame rendering
-    calculate_glyph_cache: FxHashMap<SectionHash, Glyphed<V>>,
+    calculate_glyph_cache: FxHashMap<SectionHash, Glyphed<V, X>>,
 
     last_frame_seq_id_sections: Vec<SectionHashDetail>,
     frame_seq_id_sections: Vec<SectionHashDetail>,
@@ -70,18 +70,19 @@ pub struct GlyphBrush<V, F = FontArc, H = DefaultSectionHasher> {
 
     section_hasher: H,
 
-    last_pre_positioned: Vec<Glyphed<V>>,
-    pre_positioned: Vec<Glyphed<V>>,
+    last_pre_positioned: Vec<Glyphed<V, X>>,
+    pre_positioned: Vec<Glyphed<V, X>>,
 }
 
-impl<F, V, H> fmt::Debug for GlyphBrush<V, F, H> {
+impl<F, V, X, H> fmt::Debug for GlyphBrush<V, X, F, H> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "GlyphBrush")
     }
 }
 
-impl<F, V, H> GlyphCruncher<F> for GlyphBrush<V, F, H>
+impl<F, V, X, H> GlyphCruncher<F, X> for GlyphBrush<V, X, F, H>
 where
+    X: Clone + Hash,
     F: Font,
     V: Clone + 'static,
     H: BuildHasher,
@@ -92,8 +93,9 @@ where
         custom_layout: &L,
     ) -> SectionGlyphIter<'b>
     where
+        X: 'a,
         L: GlyphPositioner + Hash,
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, VariedSection<'a, X>>>,
     {
         let section_hash = self.cache_glyphs(&section.into(), custom_layout);
         self.keep_in_cache.insert(section_hash);
@@ -108,8 +110,9 @@ where
         custom_layout: &L,
     ) -> Option<Rect>
     where
+        X: 'a,
         L: GlyphPositioner + Hash,
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, VariedSection<'a, X>>>,
     {
         let section = section.into();
         let geometry = SectionGeometry::from(section.as_ref());
@@ -161,7 +164,7 @@ where
     }
 }
 
-impl<F, V, H: BuildHasher> GlyphBrush<V, F, H> {
+impl<F, V, X, H: BuildHasher> GlyphBrush<V, X, F, H> {
     /// Adds an additional font to the one(s) initially added on build.
     ///
     /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
@@ -171,9 +174,10 @@ impl<F, V, H: BuildHasher> GlyphBrush<V, F, H> {
     }
 }
 
-impl<F, V, H> GlyphBrush<V, F, H>
+impl<F, V, X, H> GlyphBrush<V, X, F, H>
 where
     F: Font,
+    X: Clone + Hash,
     V: Clone + 'static,
     H: BuildHasher,
 {
@@ -188,7 +192,8 @@ where
     pub fn queue_custom_layout<'a, S, G>(&mut self, section: S, custom_layout: &G)
     where
         G: GlyphPositioner,
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        X: 'a,
+        S: Into<Cow<'a, VariedSection<'a, X>>>,
     {
         let section = section.into();
         if cfg!(debug_assertions) {
@@ -218,7 +223,8 @@ where
     /// ```
     pub fn queue<'a, S>(&mut self, section: S)
     where
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        X: 'a,
+        S: Into<Cow<'a, VariedSection<'a, X>>>,
     {
         let section = section.into();
         let layout = section.layout;
@@ -228,19 +234,17 @@ where
     /// Queues pre-positioned glyphs to be processed by the next call of
     /// [`process_queued`](struct.GlyphBrush.html#method.process_queued). Can be called multiple
     /// times.
-    pub fn queue_pre_positioned(
-        &mut self,
-        glyphs: Vec<(SectionGlyph, Color)>,
-        bounds: Rect,
-        z: f32,
-    ) {
-        self.pre_positioned
-            .push(Glyphed::new(GlyphedSection { glyphs, bounds, z }));
+    pub fn queue_pre_positioned(&mut self, glyphs: Vec<SectionGlyph>, extra: Vec<X>, bounds: Rect) {
+        self.pre_positioned.push(Glyphed::new(GlyphedSection {
+            glyphs,
+            bounds,
+            extra,
+        }));
     }
 
     /// Returns the calculate_glyph_cache key for this sections glyphs
     #[allow(clippy::map_entry)] // further borrows are required after the contains_key check
-    fn cache_glyphs<L>(&mut self, section: &VariedSection<'_>, layout: &L) -> SectionHash
+    fn cache_glyphs<L>(&mut self, section: &VariedSection<'_, X>, layout: &L) -> SectionHash
     where
         L: GlyphPositioner,
     {
@@ -265,22 +269,28 @@ where
 
                         let recalced = if self.keep_in_cache.contains(&hash.full) {
                             let cached = self.calculate_glyph_cache.get(&hash.full)?;
-                            change.recalculate_glyphs(
-                                layout,
-                                Cow::Borrowed(&cached.positioned.glyphs),
-                                &self.fonts,
-                                &geometry,
-                                &section.text,
-                            )
+                            match change {
+                                SectionChange::Layout(lchange) => layout.recalculate_glyphs(
+                                    cached.positioned.glyphs.iter().cloned(),
+                                    lchange,
+                                    &self.fonts,
+                                    &geometry,
+                                    &section.text,
+                                ),
+                                SectionChange::Extra => cached.positioned.glyphs.clone(),
+                            }
                         } else {
                             let old = self.calculate_glyph_cache.remove(&hash.full)?;
-                            change.recalculate_glyphs(
-                                layout,
-                                Cow::Owned(old.positioned.glyphs),
-                                &self.fonts,
-                                &geometry,
-                                &section.text,
-                            )
+                            match change {
+                                SectionChange::Layout(lchange) => layout.recalculate_glyphs(
+                                    old.positioned.glyphs.into_iter(),
+                                    lchange,
+                                    &self.fonts,
+                                    &geometry,
+                                    &section.text,
+                                ),
+                                SectionChange::Extra => old.positioned.glyphs,
+                            }
                         };
 
                         Some(recalced)
@@ -291,35 +301,21 @@ where
                     Glyphed::new(GlyphedSection {
                         bounds: layout.bounds_rect(&geometry),
                         glyphs: recalculated_glyphs.unwrap_or_else(|| {
-                            layout
-                                .calculate_glyphs(&self.fonts, &geometry, &section.text)
-                                .into_iter()
-                                .map(|sg| {
-                                    let color = section.text[sg.section_index].color;
-                                    (sg, color)
-                                })
-                                .collect()
+                            layout.calculate_glyphs(&self.fonts, &geometry, &section.text)
                         }),
-                        z: section.z,
+                        extra: section.clone_extras(),
                     }),
                 );
             }
         } else {
             let geometry = SectionGeometry::from(section);
-            let glyphs = layout
-                .calculate_glyphs(&self.fonts, &geometry, &section.text)
-                .into_iter()
-                .map(|sg| {
-                    let color = section.text[sg.section_index].color;
-                    (sg, color)
-                })
-                .collect();
+            let glyphs = layout.calculate_glyphs(&self.fonts, &geometry, &section.text);
             self.calculate_glyph_cache.insert(
                 section_hash.full,
                 Glyphed::new(GlyphedSection {
                     bounds: layout.bounds_rect(&geometry),
                     glyphs,
-                    z: section.z,
+                    extra: section.text.iter().map(|s| s.extra.clone()).collect(),
                 }),
             );
         }
@@ -418,9 +414,10 @@ where
 }
 
 // `Font + Sync` stuff
-impl<F, V, H> GlyphBrush<V, F, H>
+impl<F, V, X, H> GlyphBrush<V, X, F, H>
 where
     F: Font + Sync,
+    X: Clone + Hash + PartialEq,
     V: Clone + 'static,
     H: BuildHasher,
 {
@@ -461,7 +458,7 @@ where
     ) -> Result<BrushAction<V>, BrushError>
     where
         Up: FnMut(Rectangle<u32>, &[u8]),
-        VF: Fn(GlyphVertex) -> V + Copy,
+        VF: Fn(GlyphVertex<X>) -> V + Copy,
     {
         let draw_info = LastDrawInfo {
             text_state: {
@@ -480,7 +477,7 @@ where
             // be retained in the texture cache avoiding cache thrashing if they are rendered
             // in a 2-draw per frame style.
             for section_hash in &self.keep_in_cache {
-                for &(ref sg, ..) in self
+                for sg in self
                     .calculate_glyph_cache
                     .get(section_hash)
                     .iter()
@@ -492,7 +489,7 @@ where
                 }
             }
 
-            for &(ref sg, ..) in self
+            for sg in self
                 .pre_positioned
                 .iter()
                 .flat_map(|p| &p.positioned.glyphs)
@@ -548,7 +545,7 @@ where
     }
 }
 
-impl<F: Font + Clone, V, H: BuildHasher + Clone> GlyphBrush<V, F, H> {
+impl<F: Font + Clone, V, X, H: BuildHasher + Clone> GlyphBrush<V, X, F, H> {
     /// Return a [`GlyphBrushBuilder`](struct.GlyphBrushBuilder.html) prefilled with the
     /// properties of this `GlyphBrush`.
     ///
@@ -582,12 +579,11 @@ struct LastDrawInfo {
 
 /// Data used to generate vertex information for a single glyph
 #[derive(Debug)]
-pub struct GlyphVertex {
+pub struct GlyphVertex<'x, X = Extra> {
     pub tex_coords: Rect,
     pub pixel_coords: Rect,
     pub bounds: Rect,
-    pub color: Color,
-    pub z: f32,
+    pub extra: &'x X,
 }
 
 /// Actions that should be taken after processing queue data
@@ -623,23 +619,21 @@ impl std::error::Error for BrushError {
 
 #[derive(Debug, Clone, Copy)]
 struct SectionHashDetail {
-    /// hash of text (- color - alpha - geo - z)
+    /// hash of text (- extra - geo)
     text: SectionHash,
-    // hash of text + color (- alpha - geo - z)
-    text_color: SectionHash,
-    /// hash of text + color + alpha (- geo - z)
-    test_alpha_color: SectionHash,
-    /// hash of text  + color + alpha + geo + z
+    // hash of text + extra (- geo)
+    text_extra: SectionHash,
+    /// hash of text + extra + geo
     full: SectionHash,
-
     /// copy of geometry for later comparison
     geometry: SectionGeometry,
 }
 
 impl SectionHashDetail {
     #[inline]
-    fn new<H, L>(build_hasher: &H, section: &VariedSection<'_>, layout: &L) -> Self
+    fn new<X, H, L>(build_hasher: &H, section: &VariedSection<'_, X>, layout: &L) -> Self
     where
+        X: Clone + Hash,
         H: BuildHasher,
         L: GlyphPositioner,
     {
@@ -647,38 +641,33 @@ impl SectionHashDetail {
 
         let mut s = build_hasher.build_hasher();
         layout.hash(&mut s);
-        parts.hash_text_no_color(&mut s);
-        let text_hash = s.finish();
+        parts.hash_text_no_extra(&mut s);
+        let text = s.finish();
 
-        parts.hash_color(&mut s);
-        let text_color_hash = s.finish();
-
-        parts.hash_alpha(&mut s);
-        let test_alpha_color_hash = s.finish();
+        parts.hash_extra(&mut s);
+        let text_extra = s.finish();
 
         parts.hash_geometry(&mut s);
-        parts.hash_z(&mut s);
-        let full_hash = s.finish();
+        let full = s.finish();
 
         Self {
-            text: text_hash,
-            text_color: text_color_hash,
-            test_alpha_color: test_alpha_color_hash,
-            full: full_hash,
+            text,
+            text_extra,
+            full,
             geometry: SectionGeometry::from(section),
         }
     }
 
     /// They're different, but how?
     fn diff(self, other: SectionHashDetail) -> SectionChange {
-        if self.test_alpha_color == other.test_alpha_color {
+        if self.text_extra == other.text_extra {
             return SectionChange::Layout(GlyphChange::Geometry(self.geometry));
         } else if self.geometry == other.geometry {
             // if self.text_color == other.text_color {
             //     return SectionChange::Alpha;
             if self.text == other.text {
                 // color and alpha may have changed
-                return SectionChange::Color;
+                return SectionChange::Extra;
             }
         }
         SectionChange::Layout(GlyphChange::Unknown)
@@ -687,87 +676,87 @@ impl SectionHashDetail {
 
 #[derive(Debug)]
 pub(crate) enum SectionChange {
-    /// Only the colors have changed (including alpha).
-    Color,
-    /// A `GlyphChange`.
+    /// Only `extra` has changed.
+    Extra,
+    /// A layout `GlyphChange` has occurred.
     Layout(GlyphChange),
 }
 
-impl SectionChange {
-    #[inline]
-    pub(crate) fn recalculate_glyphs<F, L>(
-        self,
-        layout: &L,
-        previous: Cow<'_, Vec<(SectionGlyph, Color)>>,
-        fonts: &[F],
-        geometry: &SectionGeometry,
-        sections: &[VariedSectionText],
-    ) -> Vec<(SectionGlyph, Color)>
-    where
-        F: Font,
-        L: GlyphPositioner,
-    {
-        match self {
-            SectionChange::Layout(inner) => {
-                let recalced = match previous {
-                    Cow::Borrowed(p) => layout.recalculate_glyphs(
-                        p.iter().map(|(sg, _)| sg).cloned(),
-                        inner,
-                        fonts,
-                        geometry,
-                        sections,
-                    ),
-                    Cow::Owned(p) => layout.recalculate_glyphs(
-                        p.into_iter().map(|(sg, _)| sg),
-                        inner,
-                        fonts,
-                        geometry,
-                        sections,
-                    ),
-                };
-                recalced
-                    .into_iter()
-                    .map(|sg| {
-                        let color = sections[sg.section_index].color;
-                        (sg, color)
-                    })
-                    .collect()
-            }
-            SectionChange::Color => match previous {
-                Cow::Borrowed(p) => p
-                    .iter()
-                    .map(|(sg, _)| {
-                        let color = sections[sg.section_index].color;
-                        (sg.clone(), color)
-                    })
-                    .collect(),
-                Cow::Owned(mut p) => {
-                    p.iter_mut().for_each(|(sg, color)| {
-                        *color = sections[sg.section_index].color;
-                    });
-                    p
-                }
-            },
-        }
-    }
-}
+// impl SectionChange {
+//     #[inline]
+//     pub(crate) fn recalculate_glyphs<F, L>(
+//         self,
+//         layout: &L,
+//         previous: Cow<'_, Vec<(SectionGlyph, Color)>>,
+//         fonts: &[F],
+//         geometry: &SectionGeometry,
+//         sections: &[VariedSectionText],
+//     ) -> Vec<(SectionGlyph, Color)>
+//     where
+//         F: Font,
+//         L: GlyphPositioner,
+//     {
+//         match self {
+//             SectionChange::Layout(inner) => {
+//                 let recalced = match previous {
+//                     Cow::Borrowed(p) => layout.recalculate_glyphs(
+//                         p.iter().map(|(sg, _)| sg).cloned(),
+//                         inner,
+//                         fonts,
+//                         geometry,
+//                         sections,
+//                     ),
+//                     Cow::Owned(p) => layout.recalculate_glyphs(
+//                         p.into_iter().map(|(sg, _)| sg),
+//                         inner,
+//                         fonts,
+//                         geometry,
+//                         sections,
+//                     ),
+//                 };
+//                 recalced
+//                     .into_iter()
+//                     .map(|sg| {
+//                         let color = sections[sg.section_index].color;
+//                         (sg, color)
+//                     })
+//                     .collect()
+//             }
+//             SectionChange::Color => match previous {
+//                 Cow::Borrowed(p) => p
+//                     .iter()
+//                     .map(|(sg, _)| {
+//                         let color = sections[sg.section_index].color;
+//                         (sg.clone(), color)
+//                     })
+//                     .collect(),
+//                 Cow::Owned(mut p) => {
+//                     p.iter_mut().for_each(|(sg, color)| {
+//                         *color = sections[sg.section_index].color;
+//                     });
+//                     p
+//                 }
+//             },
+//         }
+//     }
+// }
 
 /// Container for positioned glyphs which can generate and cache vertices
-struct Glyphed<V> {
-    positioned: GlyphedSection,
+struct Glyphed<V, X> {
+    positioned: GlyphedSection<X>,
     vertices: Vec<V>,
 }
 
-impl<V> PartialEq for Glyphed<V> {
+impl<V, X: PartialEq> PartialEq for Glyphed<V, X> {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.positioned == other.positioned
     }
 }
 
-impl<V> Glyphed<V> {
+impl<V, X> Glyphed<V, X> {
     #[inline]
-    fn new(gs: GlyphedSection) -> Self {
+    fn new(gs: GlyphedSection<X>) -> Self {
         Self {
             positioned: gs,
             vertices: Vec::new(),
@@ -782,7 +771,7 @@ impl<V> Glyphed<V> {
     /// Calculate vertices if not already done
     fn ensure_vertices<F>(&mut self, texture_cache: &DrawCache, to_vertex: F)
     where
-        F: Fn(GlyphVertex) -> V,
+        F: Fn(GlyphVertex<X>) -> V,
     {
         if !self.vertices.is_empty() {
             return;
@@ -790,37 +779,35 @@ impl<V> Glyphed<V> {
 
         let GlyphedSection {
             bounds,
-            z,
+            ref extra,
             ref glyphs,
         } = self.positioned;
 
         self.vertices.reserve(glyphs.len());
-        self.vertices
-            .extend(glyphs.iter().filter_map(|(sg, color)| {
-                match texture_cache.rect_for(sg.font_id.0, &sg.glyph) {
-                    // `Err(_)`: no texture for this glyph. This may not be an error as some
-                    // glyphs are invisible.
-                    Err(_) | Ok(None) => None,
-                    Ok(Some((tex_coords, pixel_coords))) => {
-                        if pixel_coords.min.x as f32 > bounds.max.x
-                            || pixel_coords.min.y as f32 > bounds.max.y
-                            || bounds.min.x > pixel_coords.max.x as f32
-                            || bounds.min.y > pixel_coords.max.y as f32
-                        {
-                            // glyph is totally outside the bounds
-                            None
-                        } else {
-                            Some(to_vertex(GlyphVertex {
-                                tex_coords,
-                                pixel_coords,
-                                bounds,
-                                color: *color,
-                                z,
-                            }))
-                        }
+        self.vertices.extend(glyphs.iter().filter_map(|sg| {
+            match texture_cache.rect_for(sg.font_id.0, &sg.glyph) {
+                // `Err(_)`: no texture for this glyph. This may not be an error as some
+                // glyphs are invisible.
+                Err(_) | Ok(None) => None,
+                Ok(Some((tex_coords, pixel_coords))) => {
+                    if pixel_coords.min.x as f32 > bounds.max.x
+                        || pixel_coords.min.y as f32 > bounds.max.y
+                        || bounds.min.x > pixel_coords.max.x as f32
+                        || bounds.min.y > pixel_coords.max.y as f32
+                    {
+                        // glyph is totally outside the bounds
+                        None
+                    } else {
+                        Some(to_vertex(GlyphVertex {
+                            tex_coords,
+                            pixel_coords,
+                            bounds,
+                            extra: &extra[sg.section_index],
+                        }))
                     }
                 }
-            }));
+            }
+        }));
     }
 }
 
@@ -836,17 +823,22 @@ mod hash_diff_test {
                     text: "Hello, ",
                     scale: PxScale::from(20.0),
                     font_id: FontId(0),
-                    color: [1.0, 0.9, 0.8, 0.7],
+                    extra: Extra {
+                        color: [1.0, 0.9, 0.8, 0.7],
+                        z: 0.444,
+                    },
                 },
                 VariedSectionText {
                     text: "World",
                     scale: PxScale::from(22.0),
                     font_id: FontId(1),
-                    color: [0.6, 0.5, 0.4, 0.3],
+                    extra: Extra {
+                        color: [0.6, 0.5, 0.4, 0.3],
+                        z: 0.444,
+                    },
                 },
             ],
             bounds: (55.5, 66.6),
-            z: 0.444,
             layout: Layout::default(),
             screen_position: (999.99, 888.88),
         }
@@ -875,12 +867,12 @@ mod hash_diff_test {
     }
 
     #[test]
-    fn change_color() {
+    fn change_extra() {
         let build_hasher = DefaultSectionHasher::default();
         let mut section = section();
         let hash_deets = SectionHashDetail::new(&build_hasher, &section, &section.layout);
 
-        section.text[1].color[2] -= 0.1;
+        section.text[1].extra.color[2] -= 0.1;
 
         let diff = hash_deets.diff(SectionHashDetail::new(
             &build_hasher,
@@ -888,44 +880,8 @@ mod hash_diff_test {
             &section.layout,
         ));
 
-        assert_matches!(diff, SectionChange::Color);
+        assert_matches!(diff, SectionChange::Extra);
     }
-
-    #[test]
-    fn change_color_alpha() {
-        let build_hasher = DefaultSectionHasher::default();
-        let mut section = section();
-        let hash_deets = SectionHashDetail::new(&build_hasher, &section, &section.layout);
-
-        section.text[1].color[2] -= 0.1;
-        section.text[0].color[0] -= 0.1;
-        section.text[0].color[3] += 0.1; // alpha change too
-
-        let diff = hash_deets.diff(SectionHashDetail::new(
-            &build_hasher,
-            &section,
-            &section.layout,
-        ));
-
-        assert_matches!(diff, SectionChange::Color);
-    }
-
-    // #[test]
-    // fn change_alpha() {
-    //     let build_hasher = DefaultSectionHasher::default();
-    //     let mut section = section();
-    //     let hash_deets = SectionHashDetail::new(&build_hasher, &section, &section.layout);
-    //
-    //     section.text[1].1[3] -= 0.1;
-    //
-    //     let diff = hash_deets.diff(SectionHashDetail::new(
-    //         &build_hasher,
-    //         &section,
-    //         &section.layout,
-    //     ));
-    //
-    //     assert_matches!(diff, SectionChange::Alpha);
-    // }
 
     #[test]
     fn change_text() {

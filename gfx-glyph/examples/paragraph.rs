@@ -11,6 +11,7 @@ use gfx::{
     format::{Depth, Srgba8},
     Device,
 };
+use gfx_glyph::ab_glyph;
 use glutin::{
     event::{
         ElementState, Event, KeyboardInput, ModifiersState, MouseScrollDelta, VirtualKeyCode,
@@ -25,7 +26,6 @@ use std::{
     f32::consts::PI as PI32,
     io::{self, Write},
 };
-use gfx_glyph::ab_glyph;
 
 const MAX_FONT_SIZE: f32 = 2000.0;
 

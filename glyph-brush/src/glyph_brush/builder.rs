@@ -206,7 +206,7 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
     }
 
     /// Builds a `GlyphBrush` using the input gfx factory
-    pub fn build<V>(self) -> GlyphBrush<V, F, H> {
+    pub fn build<V, X>(self) -> GlyphBrush<V, X, F, H> {
         GlyphBrush {
             fonts: self.font_data,
             texture_cache: self.gpu_cache_builder.build(),
@@ -245,7 +245,7 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
     /// glyph_brush.to_builder().initial_cache_size((64, 64)).rebuild(&mut glyph_brush);
     /// assert_eq!(glyph_brush.texture_dimensions(), (64, 64));
     /// ```
-    pub fn rebuild<V>(self, brush: &mut GlyphBrush<V, F, H>) {
+    pub fn rebuild<V, X>(self, brush: &mut GlyphBrush<V, X, F, H>) {
         std::mem::replace(brush, self.build());
     }
 }

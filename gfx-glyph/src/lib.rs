@@ -54,9 +54,10 @@ mod draw_builder;
 
 pub use crate::{builder::*, draw_builder::*};
 pub use glyph_brush::{
-    ab_glyph, BuiltInLineBreaker, FontId, GlyphCruncher, GlyphPositioner, HorizontalAlign, Layout,
-    LineBreak, LineBreaker, OwnedVariedSection, OwnedVariedSectionText, Section, SectionGeometry,
-    SectionGlyphIter, SectionText, VariedSection, VariedSectionText, VerticalAlign,
+    ab_glyph, BuiltInLineBreaker, Extra, FontId, GlyphCruncher, GlyphPositioner, HorizontalAlign,
+    Layout, LineBreak, LineBreaker, OwnedVariedSection, OwnedVariedSectionText, Section,
+    SectionGeometry, SectionGlyph, SectionGlyphIter, SectionText, VariedSection, VariedSectionText,
+    VerticalAlign,
 };
 
 use crate::pipe::{glyph_pipe, GlyphVertex, IntoDimensions, RawAndFormat};
@@ -66,9 +67,7 @@ use gfx::{
     texture,
     traits::FactoryExt,
 };
-use glyph_brush::{
-    ab_glyph::*, BrushAction, BrushError, Color, DefaultSectionHasher, SectionGlyph,
-};
+use glyph_brush::{ab_glyph::*, BrushAction, BrushError, Color, DefaultSectionHasher};
 use log::{log_enabled, warn};
 use std::{
     borrow::Cow,
@@ -178,7 +177,7 @@ pub struct GlyphBrush<R: gfx::Resources, GF: gfx::Factory<R>, F = FontArc, H = D
     factory: GF,
     program: gfx::handle::Program<R>,
     draw_cache: Option<DrawnGlyphBrush<R>>,
-    glyph_brush: glyph_brush::GlyphBrush<GlyphVertex, F, H>,
+    glyph_brush: glyph_brush::GlyphBrush<GlyphVertex, Extra, F, H>,
 
     // config
     depth_test: gfx::state::Depth,
@@ -205,7 +204,7 @@ where
     }
 }
 
-impl<R, GF, F, H> GlyphCruncher<F> for GlyphBrush<R, GF, F, H>
+impl<R, GF, F, H> GlyphCruncher<F, Extra> for GlyphBrush<R, GF, F, H>
 where
     F: Font,
     R: gfx::Resources,
@@ -320,11 +319,11 @@ where
     #[inline]
     pub fn queue_pre_positioned(
         &mut self,
-        glyphs: Vec<(SectionGlyph, Color)>,
+        glyphs: Vec<SectionGlyph>,
+        extra: Vec<Extra>,
         bounds: Rect,
-        z: f32,
     ) {
-        self.glyph_brush.queue_pre_positioned(glyphs, bounds, z)
+        self.glyph_brush.queue_pre_positioned(glyphs, extra, bounds)
     }
 
     /// Retains the section in the cache as if it had been used in the last draw-frame.
@@ -579,8 +578,7 @@ fn to_vertex(
         mut tex_coords,
         pixel_coords,
         bounds,
-        color,
-        z,
+        extra,
     }: glyph_brush::GlyphVertex,
 ) -> GlyphVertex {
     let gl_bounds = bounds;
@@ -613,11 +611,11 @@ fn to_vertex(
     }
 
     GlyphVertex {
-        left_top: [gl_rect.min.x, gl_rect.max.y, z],
+        left_top: [gl_rect.min.x, gl_rect.max.y, extra.z],
         right_bottom: [gl_rect.max.x, gl_rect.min.y],
         tex_left_top: [tex_coords.min.x, tex_coords.max.y],
         tex_right_bottom: [tex_coords.max.x, tex_coords.min.y],
-        color,
+        color: extra.color,
     }
 }
 
