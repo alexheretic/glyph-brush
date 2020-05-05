@@ -3,7 +3,7 @@ use ordered_float::OrderedFloat;
 use std::hash::{Hash, Hasher};
 
 /// Default `extra` field type. Non-layout data for vertex generation.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy)]
 pub struct Extra {
     pub color: Color,
     pub z: f32,
@@ -12,11 +12,21 @@ pub struct Extra {
 impl Hash for Extra {
     #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
-        OrderedFloat::from(self.color[0]).hash(state);
-        OrderedFloat::from(self.color[1]).hash(state);
-        OrderedFloat::from(self.color[2]).hash(state);
-        OrderedFloat::from(self.color[3]).hash(state);
-        OrderedFloat::from(self.z).hash(state);
+        [
+            OrderedFloat::from(self.color[0]),
+            OrderedFloat::from(self.color[1]),
+            OrderedFloat::from(self.color[2]),
+            OrderedFloat::from(self.color[3]),
+            OrderedFloat::from(self.z),
+        ]
+        .hash(state)
+    }
+}
+
+impl PartialEq for Extra {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        self.color == other.color && self.z == other.z
     }
 }
 

@@ -262,38 +262,36 @@ where
                     .get(frame_seq_id)
                     .cloned()
                     .and_then(|hash| {
-                        let change = hash.diff(section_hash);
-                        if let SectionChange::Layout(GlyphChange::Unknown) = change {
+                        let change = hash.layout_diff(section_hash);
+                        if let Some(GlyphChange::Unknown) = change {
                             return None;
                         }
 
-                        let recalced = if self.keep_in_cache.contains(&hash.full) {
+                        if self.keep_in_cache.contains(&hash.full) {
                             let cached = self.calculate_glyph_cache.get(&hash.full)?;
                             match change {
-                                SectionChange::Layout(lchange) => layout.recalculate_glyphs(
+                                None => Some(cached.positioned.glyphs.clone()),
+                                Some(change) => Some(layout.recalculate_glyphs(
                                     cached.positioned.glyphs.iter().cloned(),
-                                    lchange,
+                                    change,
                                     &self.fonts,
                                     &geometry,
                                     &section.text,
-                                ),
-                                SectionChange::Extra => cached.positioned.glyphs.clone(),
+                                )),
                             }
                         } else {
                             let old = self.calculate_glyph_cache.remove(&hash.full)?;
                             match change {
-                                SectionChange::Layout(lchange) => layout.recalculate_glyphs(
+                                None => Some(old.positioned.glyphs),
+                                Some(change) => Some(layout.recalculate_glyphs(
                                     old.positioned.glyphs.into_iter(),
-                                    lchange,
+                                    change,
                                     &self.fonts,
                                     &geometry,
                                     &section.text,
-                                ),
-                                SectionChange::Extra => old.positioned.glyphs,
+                                )),
                             }
-                        };
-
-                        Some(recalced)
+                        }
                     });
 
                 self.calculate_glyph_cache.insert(
@@ -621,8 +619,6 @@ impl std::error::Error for BrushError {
 struct SectionHashDetail {
     /// hash of text (- extra - geo)
     text: SectionHash,
-    // hash of text + extra (- geo)
-    text_extra: SectionHash,
     /// hash of text + extra + geo
     full: SectionHash,
     /// copy of geometry for later comparison
@@ -645,101 +641,29 @@ impl SectionHashDetail {
         let text = s.finish();
 
         parts.hash_extra(&mut s);
-        let text_extra = s.finish();
-
         parts.hash_geometry(&mut s);
         let full = s.finish();
 
         Self {
             text,
-            text_extra,
             full,
             geometry: SectionGeometry::from(section),
         }
     }
 
-    /// They're different, but how?
-    fn diff(self, other: SectionHashDetail) -> SectionChange {
-        if self.text_extra == other.text_extra {
-            return SectionChange::Layout(GlyphChange::Geometry(self.geometry));
-        } else if self.geometry == other.geometry {
-            // if self.text_color == other.text_color {
-            //     return SectionChange::Alpha;
-            if self.text == other.text {
-                // color and alpha may have changed
-                return SectionChange::Extra;
+    /// Hash layout diff, if any (None implies no change or extra-only change)
+    fn layout_diff(self, other: SectionHashDetail) -> Option<GlyphChange> {
+        if self.text == other.text {
+            if self.geometry == other.geometry {
+                None
+            } else {
+                Some(GlyphChange::Geometry(self.geometry))
             }
+        } else {
+            Some(GlyphChange::Unknown)
         }
-        SectionChange::Layout(GlyphChange::Unknown)
     }
 }
-
-#[derive(Debug)]
-pub(crate) enum SectionChange {
-    /// Only `extra` has changed.
-    Extra,
-    /// A layout `GlyphChange` has occurred.
-    Layout(GlyphChange),
-}
-
-// impl SectionChange {
-//     #[inline]
-//     pub(crate) fn recalculate_glyphs<F, L>(
-//         self,
-//         layout: &L,
-//         previous: Cow<'_, Vec<(SectionGlyph, Color)>>,
-//         fonts: &[F],
-//         geometry: &SectionGeometry,
-//         sections: &[VariedSectionText],
-//     ) -> Vec<(SectionGlyph, Color)>
-//     where
-//         F: Font,
-//         L: GlyphPositioner,
-//     {
-//         match self {
-//             SectionChange::Layout(inner) => {
-//                 let recalced = match previous {
-//                     Cow::Borrowed(p) => layout.recalculate_glyphs(
-//                         p.iter().map(|(sg, _)| sg).cloned(),
-//                         inner,
-//                         fonts,
-//                         geometry,
-//                         sections,
-//                     ),
-//                     Cow::Owned(p) => layout.recalculate_glyphs(
-//                         p.into_iter().map(|(sg, _)| sg),
-//                         inner,
-//                         fonts,
-//                         geometry,
-//                         sections,
-//                     ),
-//                 };
-//                 recalced
-//                     .into_iter()
-//                     .map(|sg| {
-//                         let color = sections[sg.section_index].color;
-//                         (sg, color)
-//                     })
-//                     .collect()
-//             }
-//             SectionChange::Color => match previous {
-//                 Cow::Borrowed(p) => p
-//                     .iter()
-//                     .map(|(sg, _)| {
-//                         let color = sections[sg.section_index].color;
-//                         (sg.clone(), color)
-//                     })
-//                     .collect(),
-//                 Cow::Owned(mut p) => {
-//                     p.iter_mut().for_each(|(sg, color)| {
-//                         *color = sections[sg.section_index].color;
-//                     });
-//                     p
-//                 }
-//             },
-//         }
-//     }
-// }
 
 /// Container for positioned glyphs which can generate and cache vertices
 struct Glyphed<V, X> {
@@ -852,17 +776,17 @@ mod hash_diff_test {
 
         section.screen_position.1 += 0.1;
 
-        let diff = hash_deets.diff(SectionHashDetail::new(
+        let diff = hash_deets.layout_diff(SectionHashDetail::new(
             &build_hasher,
             &section,
             &section.layout,
         ));
 
         match diff {
-            SectionChange::Layout(GlyphChange::Geometry(geo)) => {
+            Some(GlyphChange::Geometry(geo)) => {
                 assert_eq!(geo, hash_deets.geometry)
             }
-            _ => assert_matches!(diff, SectionChange::Layout(GlyphChange::Geometry(..))),
+            _ => assert_matches!(diff, Some(GlyphChange::Geometry(..))),
         }
     }
 
@@ -874,13 +798,13 @@ mod hash_diff_test {
 
         section.text[1].extra.color[2] -= 0.1;
 
-        let diff = hash_deets.diff(SectionHashDetail::new(
+        let diff = hash_deets.layout_diff(SectionHashDetail::new(
             &build_hasher,
             &section,
             &section.layout,
         ));
 
-        assert_matches!(diff, SectionChange::Extra);
+        assert_matches!(diff, None);
     }
 
     #[test]
@@ -891,12 +815,12 @@ mod hash_diff_test {
 
         section.text[1].text = "something else";
 
-        let diff = hash_deets.diff(SectionHashDetail::new(
+        let diff = hash_deets.layout_diff(SectionHashDetail::new(
             &build_hasher,
             &section,
             &section.layout,
         ));
 
-        assert_matches!(diff, SectionChange::Layout(GlyphChange::Unknown));
+        assert_matches!(diff, Some(GlyphChange::Unknown));
     }
 }

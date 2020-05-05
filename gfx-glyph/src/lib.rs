@@ -67,7 +67,7 @@ use gfx::{
     texture,
     traits::FactoryExt,
 };
-use glyph_brush::{ab_glyph::*, BrushAction, BrushError, Color, DefaultSectionHasher};
+use glyph_brush::{ab_glyph::*, BrushAction, BrushError, DefaultSectionHasher};
 use log::{log_enabled, warn};
 use std::{
     borrow::Cow,
