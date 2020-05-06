@@ -19,7 +19,8 @@ use std::{hash::BuildHasher, marker::PhantomData};
 /// #         .unwrap()
 /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
 /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
-/// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(todo!())
+/// # let font: gfx_glyph::ab_glyph::FontArc = unimplemented!();
+/// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(font)
 /// #     .build(gfx_factory.clone());
 /// glyph_brush
 ///     .use_queue()
@@ -56,7 +57,8 @@ where
     /// #         .build_windowed(window_builder, &event_loop)
     /// #         .unwrap()
     /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
-    /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(&[])
+    /// # let font: gfx_glyph::ab_glyph::FontArc = unimplemented!();
+    /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(font)
     /// #     .build(gfx_factory.clone());
     /// let projection = gfx_glyph::default_transform(&gfx_color);
     ///
@@ -85,7 +87,8 @@ where
     /// #         .build_windowed(window_builder, &event_loop)
     /// #         .unwrap()
     /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
-    /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(&[])
+    /// # let font: gfx_glyph::ab_glyph::FontArc = unimplemented!();
+    /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(font)
     /// #     .build(gfx_factory.clone());
     /// glyph_brush.use_queue().depth_target(&gfx_depth)
     /// # ;
@@ -108,7 +111,8 @@ where
     /// #         .build_windowed(window_builder, &event_loop)
     /// #         .unwrap()
     /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
-    /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(&[])
+    /// # let font: gfx_glyph::ab_glyph::FontArc = unimplemented!();
+    /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(font)
     /// #     .build(gfx_factory.clone());
     /// # let raw_depth_view = gfx_depth.raw();
     /// glyph_brush
@@ -157,7 +161,8 @@ where
     /// #         .unwrap()
     /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
     /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
-    /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(&[])
+    /// # let font: gfx_glyph::ab_glyph::FontArc = unimplemented!();
+    /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(font)
     /// #     .build(gfx_factory.clone());
     /// glyph_brush
     ///     .use_queue()
@@ -182,7 +187,8 @@ where
     /// #         .unwrap()
     /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
     /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
-    /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(&[])
+    /// # let font: gfx_glyph::ab_glyph::FontArc = unimplemented!();
+    /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(font)
     /// #     .build(gfx_factory.clone());
     /// # let raw_render_view = gfx_color.raw();
     /// glyph_brush

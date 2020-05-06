@@ -13,20 +13,28 @@ pub type Color = [f32; 4];
 /// # Example
 ///
 /// ```
-/// use glyph_brush::{SectionText, VariedSection};
+/// use glyph_brush::{VariedSectionText, VariedSection, Extra};
 ///
 /// let section = VariedSection {
 ///     text: vec![
-///         (SectionText {
+///         VariedSectionText {
 ///             text: "I looked around and it was ",
-///             ..SectionText::default()
-///         }, [0.0, 0.0, 0.0, 1.0]),
-///         (SectionText {
+///             extra: Extra {
+///                 color: [0.0, 0.0, 0.0, 1.0],
+///                 z: 0.0,
+///             },
+///             ..<_>::default()
+///         },
+///         VariedSectionText {
 ///             text: "RED",
-///             ..SectionText::default()
-///         },  [1.0, 0.0, 0.0, 1.0]),
+///             extra: Extra {
+///                 color: [1.0, 0.0, 0.0, 1.0],
+///                 z: 0.0,
+///             },
+///             ..<_>::default()
+///         },
 ///     ],
-///     ..VariedSection::default()
+///     ..<_>::default()
 /// };
 /// ```
 #[derive(Debug, Clone, PartialEq)]

@@ -6,21 +6,7 @@ gfx_glyph
 Fast GPU cached text rendering using [gfx-rs v0.18](https://github.com/gfx-rs/gfx/tree/pre-ll) & [glyph-brush](https://github.com/alexheretic/glyph-brush/tree/master/glyph-brush).
 
 ```rust
-use gfx_glyph::{Section, GlyphBrushBuilder};
-
-let garamond: &[u8] = include_bytes!("GaramondNo8-Reg.ttf");
-let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(garamond)
-    .build(gfx_factory.clone());
-
-let section = Section {
-    text: "Hello gfx_glyph",
-    ..Section::default() // color, position, etc
-};
-
-glyph_brush.queue(section);
-glyph_brush.queue(some_other_section);
-
-glyph_brush.use_queue().draw(&mut gfx_encoder, &gfx_color)?;
+// TODO
 ```
 
 ## Examples

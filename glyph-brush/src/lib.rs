@@ -1,9 +1,9 @@
 //! ```
-//! use glyph_brush::{BrushAction, BrushError, GlyphBrushBuilder, Section};
+//! use glyph_brush::{ab_glyph::FontArc, BrushAction, BrushError, GlyphBrushBuilder, Section};
 //!
-//! # fn main() -> Result<(), glyph_brush::BrushError> {
-//! let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-//! let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let dejavu = FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf"))?;
+//! let mut glyph_brush = GlyphBrushBuilder::using_font(dejavu).build();
 //! # let some_other_section = Section { text: "another", ..Section::default() };
 //!
 //! glyph_brush.queue(Section {
@@ -12,8 +12,8 @@
 //! });
 //! glyph_brush.queue(some_other_section);
 //!
-//! # fn update_texture(_: glyph_brush::rusttype::Rect<u32>, _: &[u8]) {}
-//! # let into_vertex = |_| ();
+//! # fn update_texture(_: glyph_brush::Rectangle<u32>, _: &[u8]) {}
+//! # fn into_vertex(v: glyph_brush::GlyphVertex) { () }
 //! match glyph_brush.process_queued(
 //!     |rect, tex_data| update_texture(rect, tex_data),
 //!     |vertex_data| into_vertex(vertex_data),
@@ -38,6 +38,7 @@ mod owned_section;
 mod section;
 
 pub use crate::{extra::*, glyph_brush::*, glyph_calculator::*, owned_section::*, section::*};
+pub use glyph_brush_draw_cache::Rectangle;
 pub use glyph_brush_layout::*;
 
 use glyph_brush_layout::ab_glyph::*;

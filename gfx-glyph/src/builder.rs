@@ -6,7 +6,7 @@ use glyph_brush::delegate_glyph_brush_builder_fns;
 /// # Example
 ///
 /// ```no_run
-/// use gfx_glyph::GlyphBrushBuilder;
+/// use gfx_glyph::{ab_glyph::FontArc, GlyphBrushBuilder};
 /// # use old_school_gfx_glutin_ext::*;
 /// # let event_loop = glutin::event_loop::EventLoop::new();
 /// # let window_builder = glutin::window::WindowBuilder::new();
@@ -16,9 +16,8 @@ use glyph_brush::delegate_glyph_brush_builder_fns;
 /// #         .unwrap()
 /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
 ///
-/// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-/// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build(gfx_factory.clone());
-/// # let _ = glyph_brush;
+/// let dejavu = FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf")).unwrap();
+/// let mut glyph_brush = GlyphBrushBuilder::using_font(dejavu).build(gfx_factory.clone());
 /// ```
 pub struct GlyphBrushBuilder<F = FontArc, H = DefaultSectionHasher> {
     inner: glyph_brush::GlyphBrushBuilder<F, H>,
@@ -54,28 +53,6 @@ impl<F, H> GlyphBrushBuilder<F, H> {
     /// Generally only makes sense when wanting to change fonts after calling
     /// [`GlyphBrush::to_builder`](struct.GlyphBrush.html#method.to_builder). Or on
     /// a `GlyphBrushBuilder<()>` built using `without_fonts()`.
-    ///
-    /// # Example
-    /// ```
-    /// # use glyph_brush::{*, ab_glyph::*};
-    /// # type Vertex = ();
-    /// # let open_sans = FontRef::try_from_slice(&include_bytes!("../../fonts/DejaVuSans.ttf")[..]).unwrap();
-    /// # let deja_vu_sans = open_sans.clone();
-    /// let two_font_brush: GlyphBrush<FontRef<'static>, Vertex>
-    ///     = GlyphBrushBuilder::using_fonts(vec![open_sans, deja_vu_sans]).build();
-    ///
-    /// let one_font_brush: GlyphBrush<FontRef<'static>, Vertex> = two_font_brush
-    ///     .to_builder()
-    ///     .replace_fonts(|mut fonts| {
-    ///         // remove open_sans, leaving just deja_vu as FontId(0)
-    ///         fonts.remove(0);
-    ///         fonts
-    ///     })
-    ///     .build();
-    ///
-    /// assert_eq!(one_font_brush.fonts().len(), 1);
-    /// assert_eq!(two_font_brush.fonts().len(), 2);
-    /// ```
     pub fn replace_fonts<F2: Font, V, NF>(self, font_fn: NF) -> GlyphBrushBuilder<F2, H>
     where
         V: Into<Vec<F2>>,
@@ -106,8 +83,8 @@ where
     ///
     /// ```no_run
     /// # use gfx_glyph::GlyphBrushBuilder;
-    /// # let some_font: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-    /// GlyphBrushBuilder::using_font_bytes(some_font)
+    /// # let some_font: gfx_glyph::ab_glyph::FontArc = unimplemented!();
+    /// GlyphBrushBuilder::using_font(some_font)
     ///     .depth_test(gfx::preset::depth::PASS_WRITE)
     ///     // ...
     /// # ;
@@ -124,8 +101,8 @@ where
     /// # Example
     /// ```no_run
     /// # use gfx_glyph::GlyphBrushBuilder;
-    /// # let some_font: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-    /// GlyphBrushBuilder::using_font_bytes(some_font)
+    /// # let some_font: gfx_glyph::ab_glyph::FontArc = unimplemented!();
+    /// GlyphBrushBuilder::using_font(some_font)
     ///     .texture_filter_method(gfx::texture::FilterMethod::Scale)
     ///     // ...
     /// # ;
@@ -145,9 +122,9 @@ where
     /// # Example
     /// ```no_run
     /// # use gfx_glyph::GlyphBrushBuilder;
-    /// # let some_font: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
+    /// # let some_font: gfx_glyph::ab_glyph::FontArc = unimplemented!();
     /// # type SomeOtherBuildHasher = std::collections::hash_map::RandomState;
-    /// GlyphBrushBuilder::using_font_bytes(some_font)
+    /// GlyphBrushBuilder::using_font(some_font)
     ///     .section_hasher(SomeOtherBuildHasher::default())
     ///     // ...
     /// # ;

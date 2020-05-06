@@ -15,7 +15,7 @@
 //! // Layout "hello glyph_brush_layout" on an unbounded line with the second
 //! // word suitably bigger, greener and serif-ier.
 //! let glyphs = Layout::default().calculate_glyphs(
-//!     &fonts,
+//!     fonts,
 //!     &SectionGeometry {
 //!         screen_position: (150.0, 50.0),
 //!         ..SectionGeometry::default()
@@ -59,7 +59,7 @@ mod lines;
 mod section;
 mod words;
 
-/// Re-exported rusttype types.
+/// Re-exported ab_glyph types.
 pub mod ab_glyph {
     pub use ab_glyph::*;
 }

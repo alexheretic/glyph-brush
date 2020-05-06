@@ -8,12 +8,12 @@ use std::hash::BuildHasher;
 /// # Example
 ///
 /// ```
-/// use glyph_brush::{GlyphBrush, GlyphBrushBuilder};
+/// use glyph_brush::{ab_glyph::FontArc, GlyphBrush, GlyphBrushBuilder};
 /// # type Vertex = ();
 ///
 /// let dejavu = FontArc::try_from_slice(include_bytes!("../../../fonts/DejaVuSans.ttf")).unwrap();
 /// let mut glyph_brush: GlyphBrush<Vertex> =
-///     GlyphBrushBuilder::using_fonts(vec![dejavu]).build();
+///     GlyphBrushBuilder::using_font(dejavu).build();
 /// ```
 pub struct GlyphBrushBuilder<F = FontArc, H = DefaultSectionHasher> {
     pub font_data: Vec<F>,
@@ -63,9 +63,9 @@ impl<F, H> GlyphBrushBuilder<F, H> {
     /// ```
     /// # use glyph_brush::{*, ab_glyph::*};
     /// # type Vertex = ();
-    /// # let open_sans = FontRef::try_from_slice(&include_bytes!("../../../fonts/DejaVuSans.ttf")[..]).unwrap();
+    /// # let open_sans = FontArc::try_from_slice(&include_bytes!("../../../fonts/DejaVuSans.ttf")[..]).unwrap();
     /// # let deja_vu_sans = open_sans.clone();
-    /// let two_font_brush: GlyphBrush<FontRef<'static>, Vertex>
+    /// let two_font_brush: GlyphBrush<Vertex>
     ///     = GlyphBrushBuilder::using_fonts(vec![open_sans, deja_vu_sans]).build();
     ///
     /// let one_font_brush: GlyphBrush<FontRef<'static>, Vertex> = two_font_brush
@@ -98,8 +98,7 @@ impl<F, H> GlyphBrushBuilder<F, H> {
 }
 
 impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
-    /// Adds additional fonts to the one added in [`using_font`](#method.using_font) /
-    /// [`using_font_bytes`](#method.using_font_bytes).
+    /// Adds additional fonts to the one added in [`using_font`](#method.using_font).
     /// Returns a [`FontId`](struct.FontId.html) to reference this font.
     pub fn add_font<I: Into<F>>(&mut self, font_data: I) -> FontId {
         self.font_data.push(font_data.into());
@@ -121,7 +120,7 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
     ///
     /// Defaults to `0.5`
     ///
-    /// See rusttype docs for `rusttype::gpu_cache::Cache`
+    /// See docs for `glyph_brush_draw_cache::DrawCache`
     pub fn gpu_cache_scale_tolerance(mut self, tolerance: f32) -> Self {
         self.gpu_cache_builder = self.gpu_cache_builder.scale_tolerance(tolerance);
         self
@@ -133,7 +132,7 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
     ///
     /// Defaults to `0.1`
     ///
-    /// See rusttype docs for `rusttype::gpu_cache::Cache`
+    /// See docs for `glyph_brush_draw_cache::DrawCache`
     pub fn gpu_cache_position_tolerance(mut self, tolerance: f32) -> Self {
         self.gpu_cache_builder = self.gpu_cache_builder.position_tolerance(tolerance);
         self
@@ -146,7 +145,7 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
     ///
     /// Defaults to `false`
     ///
-    /// See rusttype docs for `rusttype::gpu_cache::Cache`
+    /// See docs for `glyph_brush_draw_cache::DrawCache`
     pub fn gpu_cache_align_4x4(mut self, align: bool) -> Self {
         self.gpu_cache_builder = self.gpu_cache_builder.align_4x4(align);
         self
@@ -186,10 +185,10 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
     ///
     /// # Example
     /// ```
-    /// # use glyph_brush::GlyphBrushBuilder;
-    /// # let some_font: &[u8] = include_bytes!("../../../fonts/DejaVuSans.ttf");
+    /// # use glyph_brush::{ab_glyph::*, GlyphBrushBuilder};
+    /// # let some_font = FontArc::try_from_slice(include_bytes!("../../../fonts/DejaVuSans.ttf")).unwrap();
     /// # type SomeOtherBuildHasher = glyph_brush::DefaultSectionHasher;
-    /// GlyphBrushBuilder::using_font_bytes(some_font)
+    /// GlyphBrushBuilder::using_font(some_font)
     ///     .section_hasher(SomeOtherBuildHasher::default())
     ///     // ...
     /// # ;
@@ -236,9 +235,9 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
     /// # Example
     /// ```
     /// # use glyph_brush::{*, ab_glyph::*};
-    /// # let sans = FontRef::try_from_slice(&include_bytes!("../../../fonts/DejaVuSans.ttf")[..]).unwrap();
+    /// # let sans = FontArc::try_from_slice(include_bytes!("../../../fonts/DejaVuSans.ttf")).unwrap();
     /// # type Vertex = ();
-    /// let mut glyph_brush: GlyphBrush<FontRef<'static>, Vertex> = GlyphBrushBuilder::using_font(sans).build();
+    /// let mut glyph_brush: GlyphBrush<Vertex> = GlyphBrushBuilder::using_font(sans).build();
     /// assert_eq!(glyph_brush.texture_dimensions(), (256, 256));
     ///
     /// // Use a new builder to rebuild the brush with a smaller initial cache size
@@ -286,7 +285,7 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
 ///     pub fn section_hasher<T: BuildHasher>(
 ///         self,
 ///         section_hasher: T,
-///     ) -> DownstreamGlyphBrushBuilder<'a, T> {
+///     ) -> DownstreamGlyphBrushBuilder<F, T> {
 ///         DownstreamGlyphBrushBuilder {
 ///             inner: self.inner.section_hasher(section_hasher),
 ///             some_config: self.some_config,
@@ -303,8 +302,7 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
 #[macro_export]
 macro_rules! delegate_glyph_brush_builder_fns {
     ($inner:ident) => {
-        /// Adds additional fonts to the one added in [`using_font`](#method.using_font) /
-        /// [`using_font_bytes`](#method.using_font_bytes).
+        /// Adds additional fonts to the one added in [`using_font`](#method.using_font).
         /// Returns a [`FontId`](struct.FontId.html) to reference this font.
         pub fn add_font(&mut self, font_data: F) -> $crate::FontId {
             self.$inner.add_font(font_data)
@@ -325,7 +323,7 @@ macro_rules! delegate_glyph_brush_builder_fns {
         ///
         /// Defaults to `0.5`
         ///
-        /// See rusttype docs for `rusttype::gpu_cache::Cache`
+        /// See docs for `glyph_brush_draw_cache::DrawCache`
         pub fn gpu_cache_scale_tolerance(mut self, tolerance: f32) -> Self {
             self.$inner = self.$inner.gpu_cache_scale_tolerance(tolerance);
             self
@@ -337,7 +335,7 @@ macro_rules! delegate_glyph_brush_builder_fns {
         ///
         /// Defaults to `0.1`
         ///
-        /// See rusttype docs for `rusttype::gpu_cache::Cache`
+        /// See docs for `glyph_brush_draw_cache::DrawCache`
         pub fn gpu_cache_position_tolerance(mut self, tolerance: f32) -> Self {
             self.$inner = self.$inner.gpu_cache_position_tolerance(tolerance);
             self
@@ -350,7 +348,7 @@ macro_rules! delegate_glyph_brush_builder_fns {
         ///
         /// Defaults to `false`
         ///
-        /// See rusttype docs for `rusttype::gpu_cache::Cache`
+        /// See docs for `glyph_brush_draw_cache::DrawCache`
         pub fn gpu_cache_align_4x4(mut self, b: bool) -> Self {
             self.$inner = self.$inner.gpu_cache_align_4x4(b);
             self

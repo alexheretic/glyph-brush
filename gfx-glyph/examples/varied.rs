@@ -131,7 +131,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                         },
                     ],
                     layout: Layout::default().v_align(VerticalAlign::Center),
-                    ..<_>::default()
                 });
 
                 glyph_brush.queue(VariedSection {
@@ -185,7 +184,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                         },
                     ],
                     layout: Layout::default().h_align(HorizontalAlign::Right).v_align(VerticalAlign::Center),
-                    ..<_>::default()
                 });
 
                 glyph_brush.use_queue().draw(&mut encoder, &main_color).unwrap();

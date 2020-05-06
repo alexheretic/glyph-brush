@@ -5,7 +5,7 @@
     clippy::redundant_closure
 )]
 
-//! Fast GPU cached text rendering using gfx-rs & rusttype.
+//! Fast GPU cached text rendering using gfx-rs & ab_glyph.
 //!
 //! Makes use of three kinds of caching to optimise frame performance.
 //!
@@ -18,9 +18,9 @@
 //! # Example
 //!
 //! ```no_run
-//! use gfx_glyph::{GlyphBrushBuilder, Section};
+//! use gfx_glyph::{ab_glyph::FontArc, GlyphBrushBuilder, Section};
 //! # use old_school_gfx_glutin_ext::*;
-//! # fn main() -> Result<(), String> {
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # let event_loop = glutin::event_loop::EventLoop::new();
 //! # let window_builder = glutin::window::WindowBuilder::new();
 //! # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
@@ -137,8 +137,8 @@ pub fn default_transform<D: IntoDimensions>(d: D) -> [[f32; 4]; 4] {
 /// #         .unwrap()
 /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
 /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
-/// # let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-/// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu)
+/// # let dejavu = gfx_glyph::ab_glyph::FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf")).unwrap();
+/// # let mut glyph_brush = GlyphBrushBuilder::using_font(dejavu)
 /// #     .build(gfx_factory.clone());
 /// # let some_other_section = Section { text: "another", ..Section::default() };
 ///
@@ -282,7 +282,8 @@ where
     /// #         .unwrap()
     /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
     /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
-    /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(todo!())
+    /// # let font: gfx_glyph::ab_glyph::FontArc = unimplemented!();
+    /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(font)
     /// #     .build(gfx_factory.clone());
     /// glyph_brush.use_queue().draw(&mut gfx_encoder, &gfx_color)?;
     /// # Ok(())

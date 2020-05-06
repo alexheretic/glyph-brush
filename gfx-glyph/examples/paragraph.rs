@@ -4,7 +4,7 @@
 //! * Resize window to adjust layout
 //! * Scroll to modify font size
 //! * Type to add/remove text
-//! * Ctrl-Scroll to zoom in/out using a transform, this is cheap but notice how rusttype can't
+//! * Ctrl-Scroll to zoom in/out using a transform, this is cheap but notice how ab_glyph can't
 //!   render at full quality without the correct pixel information.
 use cgmath::{Matrix4, Rad, Transform, Vector3};
 use gfx::{

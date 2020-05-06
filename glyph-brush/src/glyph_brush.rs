@@ -213,9 +213,9 @@ where
     /// Benefits from caching, see [caching behaviour](#caching-behaviour).
     ///
     /// ```no_run
-    /// # use glyph_brush::*;
-    /// # let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-    /// # let mut glyph_brush: GlyphBrush<'_, ()> = GlyphBrushBuilder::using_font_bytes(dejavu).build();
+    /// # use glyph_brush::{ab_glyph::*, *};
+    /// # let font: FontArc = unimplemented!();
+    /// # let mut glyph_brush: GlyphBrush<()> = GlyphBrushBuilder::using_font(font).build();
     /// glyph_brush.queue(Section {
     ///     text: "Hello glyph_brush",
     ///     ..Section::default()
@@ -325,9 +325,9 @@ where
     /// # Example
     ///
     /// ```no_run
-    /// # use glyph_brush::*;
-    /// # let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-    /// # let mut glyph_brush: GlyphBrush<'_, ()> = GlyphBrushBuilder::using_font_bytes(dejavu).build();
+    /// # use glyph_brush::{ab_glyph::*, *};
+    /// # let dejavu = FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf")).unwrap();
+    /// # let mut glyph_brush: GlyphBrush<()> = GlyphBrushBuilder::using_font(dejavu).build();
     /// glyph_brush.resize_texture(512, 512);
     /// ```
     pub fn resize_texture(&mut self, new_width: u32, new_height: u32) {
@@ -435,12 +435,12 @@ where
     /// Trims the cache, see [caching behaviour](#caching-behaviour).
     ///
     /// ```no_run
-    /// # use glyph_brush::*;
+    /// # use glyph_brush::{ab_glyph::*, *};
     /// # fn main() -> Result<(), BrushError> {
-    /// # let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-    /// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
-    /// # fn update_texture(_: glyph_brush::rusttype::Rect<u32>, _: &[u8]) {}
-    /// # let into_vertex = |_| ();
+    /// # let dejavu = FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf")).unwrap();
+    /// # let mut glyph_brush = GlyphBrushBuilder::using_font(dejavu).build();
+    /// # fn update_texture(_: Rectangle<u32>, _: &[u8]) {}
+    /// # fn into_vertex(v: glyph_brush::GlyphVertex) { () }
     /// glyph_brush.process_queued(
     ///     |rect, tex_data| update_texture(rect, tex_data),
     ///     |vertex_data| into_vertex(vertex_data),
@@ -552,12 +552,12 @@ impl<F: Font + Clone, V, X, H: BuildHasher + Clone> GlyphBrush<V, X, F, H> {
     /// ```
     /// # use glyph_brush::{*, ab_glyph::*};
     /// # type Vertex = ();
-    /// # let sans = FontRef::try_from_slice(&include_bytes!("../../fonts/DejaVuSans.ttf")[..]).unwrap();
-    /// let glyph_brush: GlyphBrush<FontRef<'static>, Vertex> = GlyphBrushBuilder::using_font(sans)
+    /// # let sans = FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf")).unwrap();
+    /// let glyph_brush: GlyphBrush<Vertex> = GlyphBrushBuilder::using_font(sans)
     ///     .initial_cache_size((128, 128))
     ///     .build();
     ///
-    /// let new_brush: GlyphBrush<FontRef<'static>, Vertex> = glyph_brush.to_builder().build();
+    /// let new_brush: GlyphBrush<Vertex> = glyph_brush.to_builder().build();
     /// assert_eq!(new_brush.texture_dimensions(), (128, 128));
     /// ```
     pub fn to_builder(&self) -> GlyphBrushBuilder<F, H> {
@@ -783,9 +783,7 @@ mod hash_diff_test {
         ));
 
         match diff {
-            Some(GlyphChange::Geometry(geo)) => {
-                assert_eq!(geo, hash_deets.geometry)
-            }
+            Some(GlyphChange::Geometry(geo)) => assert_eq!(geo, hash_deets.geometry),
             _ => assert_matches!(diff, Some(GlyphChange::Geometry(..))),
         }
     }

@@ -19,7 +19,7 @@ pub type SectionGlyphIter<'a> = slice::Iter<'a, SectionGlyph>;
 /// # use glyph_brush::GlyphBrush;
 /// use glyph_brush::GlyphCruncher;
 ///
-/// # let glyph_brush: GlyphBrush<'_, ()> = unimplemented!();
+/// # let glyph_brush: GlyphBrush<()> = unimplemented!();
 /// let default_font = glyph_brush.fonts()[0];
 /// ```
 pub trait GlyphCruncher<F: Font, X: Clone> {
@@ -152,21 +152,21 @@ pub trait GlyphCruncher<F: Font, X: Clone> {
 /// # Example
 ///
 /// ```
-/// use glyph_brush::{GlyphCalculatorBuilder, GlyphCruncher, Section};
+/// use glyph_brush::{ab_glyph::FontArc, GlyphCalculatorBuilder, GlyphCruncher, Section};
 ///
-/// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-/// let glyphs = GlyphCalculatorBuilder::using_font_bytes(dejavu).build();
+/// let dejavu = FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf")).unwrap();
+/// let glyphs = GlyphCalculatorBuilder::using_font(dejavu).build();
 ///
 /// let section = Section {
 ///     text: "Hello glyph_brush",
-///     ..Section::default()
+///     ..<_>::default()
 /// };
 ///
 /// // create the scope, equivalent to a lock on the cache when
 /// // dropped will clean unused cached calculations like a draw call
 /// let mut scope = glyphs.cache_scope();
 ///
-/// let bounds = scope.pixel_bounds(section);
+/// let bounds = scope.glyph_bounds(section);
 /// ```
 ///
 /// # Caching behaviour
@@ -347,10 +347,10 @@ impl<F, X, H> Drop for GlyphCalculatorGuard<'_, F, X, H> {
 /// # Example
 ///
 /// ```no_run
-/// use glyph_brush::GlyphCalculatorBuilder;
+/// use glyph_brush::{ab_glyph::FontArc, GlyphCalculator, GlyphCalculatorBuilder};
 ///
-/// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-/// let mut glyphs = GlyphCalculatorBuilder::using_font_bytes(dejavu).build();
+/// let dejavu = FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf")).unwrap();
+/// let mut glyphs: GlyphCalculator = GlyphCalculatorBuilder::using_font(dejavu).build();
 /// ```
 #[derive(Debug, Clone)]
 pub struct GlyphCalculatorBuilder<F = FontArc, H = DefaultSectionHasher> {
@@ -374,8 +374,7 @@ impl<F: Font> GlyphCalculatorBuilder<F> {
 }
 
 impl<F: Font, H: BuildHasher> GlyphCalculatorBuilder<F, H> {
-    /// Adds additional fonts to the one added in [`using_font`](#method.using_font) /
-    /// [`using_font_bytes`](#method.using_font_bytes).
+    /// Adds additional fonts to the one added in [`using_font`](#method.using_font).
     ///
     /// Returns a [`FontId`](struct.FontId.html) to reference this font.
     pub fn add_font<I: Into<F>>(&mut self, font_data: I) -> FontId {

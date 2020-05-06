@@ -582,7 +582,6 @@ fn continually_modify_alpha_of_1_of_3(c: &mut Criterion) {
                 screen_position: (600.0, 0.0),
                 bounds: (600.0, f32::INFINITY),
                 layout: Layout::default().h_align(HorizontalAlign::Center),
-                ..<_>::default()
             },
             VariedSection {
                 text: vec![VariedSectionText {
@@ -596,7 +595,6 @@ fn continually_modify_alpha_of_1_of_3(c: &mut Criterion) {
                 screen_position: (1200.0, 0.0),
                 bounds: (600.0, f32::INFINITY),
                 layout: Layout::default().h_align(HorizontalAlign::Right),
-                ..<_>::default()
             },
         ]
     })
