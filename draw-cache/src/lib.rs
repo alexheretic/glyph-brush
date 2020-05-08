@@ -1139,7 +1139,7 @@ mod test {
         let fontmap = &[&font];
 
         let mut cache = DrawCache::builder()
-            .dimensions(36, 27)
+            .dimensions(30, 25)
             .scale_tolerance(0.1)
             .position_tolerance(0.1)
             .build();
@@ -1162,7 +1162,7 @@ mod test {
             fontmap,
             &SectionGeometry::default(),
             &[SectionText {
-                text: "HIKLMN",
+                text: "DEFHIK",
                 scale: 16.0.into(),
                 ..<_>::default()
             }],

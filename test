@@ -8,5 +8,7 @@ cd "$dir"
 echo "==> test"
 cargo test
 cargo test --benches
+echo "==> test (32-bit)"
+cargo test --target i686-unknown-linux-musl --target-dir ./target/32bit/
 echo "==> rustfmt"
 cargo +nightly fmt -- --check
