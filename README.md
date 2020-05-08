@@ -8,7 +8,7 @@ Render API agnostic rasterization & draw caching text rendering.
 glyph_brush wrapper for [gfx-rs v0.18](https://github.com/gfx-rs/gfx/tree/pre-ll) (OpenGL).
 
 ## [glyph_brush_layout](glyph-brush-layout) [![](https://img.shields.io/crates/v/glyph_brush_layout.svg)](https://crates.io/crates/glyph_brush_layout) [![](https://docs.rs/glyph_brush_layout/badge.svg)](https://docs.rs/glyph_brush_layout)
-TText layout for [ab_glyph](https://github.com/alexheretic/ab-glyph) used in glyph_brush.
+Text layout for [ab_glyph](https://github.com/alexheretic/ab-glyph) used in glyph_brush.
 
 
 ## Examples
