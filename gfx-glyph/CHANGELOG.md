@@ -1,3 +1,6 @@
+# Unreleased
+* Rework crate switching from rusttype to ab_glyph.
+
 # 0.16
 * Remove deprecated `GlyphBrush::draw_queued` (use `use_queue()`).
 * Update glyph_brush -> `0.6`.

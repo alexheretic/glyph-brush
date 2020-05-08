@@ -10,7 +10,7 @@ license = "Apache-2.0"
 readme="README.md"
 
 [dependencies]
-ab_glyph = { version = "*", path = "../../ab-glyph/glyph" }
+ab_glyph = "0.1"
 xi-unicode = "0.2"
 approx = "0.3.2"
 
