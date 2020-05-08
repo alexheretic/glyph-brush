@@ -11,12 +11,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - run: rustup update stable
-    - run: rustup target add thumbv6m-none-eabi
     - uses: actions/checkout@v2
     - run: cargo test
     - run: cargo test --benches
-    - name: Build & test 32-bit
-      run: rustup target add i686-unknown-linux-musl && cargo test --target i686-unknown-linux-musl
+
+  test_32bit:
+    runs-on: ubuntu-latest
+    steps:
+    - run: rustup update stable
+    - run: rustup target add i686-unknown-linux-musl
+    - uses: actions/checkout@v2
+    - run: cargo test --target i686-unknown-linux-musl
 
   rustfmt:
     runs-on: ubuntu-latest
