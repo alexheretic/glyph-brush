@@ -7,35 +7,14 @@ pub type Color = [f32; 4];
 /// An object that contains all the info to render a varied section of text. That is one including
 /// many parts with differing fonts/scales/colors bowing to a single layout.
 ///
-/// For single font/scale/color sections it may be simpler to use
-/// [`Section`](struct.Section.html).
-///
 /// # Example
-///
 /// ```
-/// use glyph_brush::{Text, VariedSection, Extra};
+/// use glyph_brush::{HorizontalAlign, Layout, Text, VariedSection};
 ///
-/// let section = VariedSection {
-///     text: vec![
-///         Text {
-///             text: "I looked around and it was ",
-///             extra: Extra {
-///                 color: [0.0, 0.0, 0.0, 1.0],
-///                 z: 0.0,
-///             },
-///             ..<_>::default()
-///         },
-///         Text {
-///             text: "RED",
-///             extra: Extra {
-///                 color: [1.0, 0.0, 0.0, 1.0],
-///                 z: 0.0,
-///             },
-///             ..<_>::default()
-///         },
-///     ],
-///     ..<_>::default()
-/// };
+/// let section = VariedSection::default()
+///     .add_text(Text::new("The last word was ").with_color([0.0, 0.0, 0.0, 1.0]))
+///     .add_text(Text::new("RED").with_color([1.0, 0.0, 0.0, 1.0]))
+///     .with_layout(Layout::default().h_align(HorizontalAlign::Center));
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct VariedSection<'a, X = Extra> {
@@ -57,7 +36,7 @@ impl<X: Clone> VariedSection<'_, X> {
     }
 }
 
-impl Default for VariedSection<'static> {
+impl<X> Default for VariedSection<'static, X> {
     #[inline]
     fn default() -> Self {
         Self {
@@ -65,6 +44,42 @@ impl Default for VariedSection<'static> {
             bounds: (f32::INFINITY, f32::INFINITY),
             layout: Layout::default(),
             text: vec![],
+        }
+    }
+}
+
+impl<'a, X> VariedSection<'a, X> {
+    #[inline]
+    pub fn with_screen_position<P: Into<(f32, f32)>>(mut self, position: P) -> Self {
+        self.screen_position = position.into();
+        self
+    }
+
+    #[inline]
+    pub fn with_bounds<P: Into<(f32, f32)>>(mut self, bounds: P) -> Self {
+        self.bounds = bounds.into();
+        self
+    }
+
+    #[inline]
+    pub fn with_layout<L: Into<Layout<BuiltInLineBreaker>>>(mut self, layout: L) -> Self {
+        self.layout = layout.into();
+        self
+    }
+
+    #[inline]
+    pub fn add_text<T: Into<Text<'a, X>>>(mut self, text: T) -> Self {
+        self.text.push(text.into());
+        self
+    }
+
+    #[inline]
+    pub fn with_text<'b, X2>(self, text: Vec<Text<'b, X2>>) -> VariedSection<'b, X2> {
+        VariedSection {
+            text,
+            screen_position: self.screen_position,
+            bounds: self.bounds,
+            layout: self.layout,
         }
     }
 }
@@ -167,7 +182,12 @@ impl<'a, X> Text<'a, X> {
     }
 }
 
-impl Text<'_, Extra> {
+impl<'a> Text<'a, Extra> {
+    #[inline]
+    pub fn new(text: &'a str) -> Self {
+        Text::default().with_text(text)
+    }
+
     #[inline]
     pub fn with_color<C: Into<Color>>(mut self, color: C) -> Self {
         self.extra.color = color.into();

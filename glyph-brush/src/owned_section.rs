@@ -15,12 +15,49 @@ pub struct OwnedVariedSection<X = Extra> {
 }
 
 impl<X: Default> Default for OwnedVariedSection<X> {
+    #[inline]
     fn default() -> Self {
         Self {
             screen_position: (0.0, 0.0),
             bounds: (f32::INFINITY, f32::INFINITY),
             layout: Layout::default(),
             text: vec![],
+        }
+    }
+}
+
+impl<X> OwnedVariedSection<X> {
+    #[inline]
+    pub fn with_screen_position<P: Into<(f32, f32)>>(mut self, position: P) -> Self {
+        self.screen_position = position.into();
+        self
+    }
+
+    #[inline]
+    pub fn with_bounds<P: Into<(f32, f32)>>(mut self, bounds: P) -> Self {
+        self.bounds = bounds.into();
+        self
+    }
+
+    #[inline]
+    pub fn with_layout<L: Into<Layout<BuiltInLineBreaker>>>(mut self, layout: L) -> Self {
+        self.layout = layout.into();
+        self
+    }
+
+    #[inline]
+    pub fn add_text<T: Into<OwnedText<X>>>(mut self, text: T) -> Self {
+        self.text.push(text.into());
+        self
+    }
+
+    #[inline]
+    pub fn with_text<X2>(self, text: Vec<OwnedText<X2>>) -> OwnedVariedSection<X2> {
+        OwnedVariedSection {
+            text,
+            screen_position: self.screen_position,
+            bounds: self.bounds,
+            layout: self.layout,
         }
     }
 }
@@ -64,18 +101,57 @@ pub struct OwnedText<X = Extra> {
     pub extra: X,
 }
 
-// impl OwnedText {
-//     pub fn from_text_and_color(st: &SectionText<'_>, color: Color) -> Self {
-//         Self {
-//             text: st.text.into(),
-//             scale: st.scale,
-//             font_id: st.font_id,
-//             color,
-//         }
-//     }
-// }
+impl<X> OwnedText<X> {
+    #[inline]
+    pub fn with_text<T: Into<String>>(mut self, text: T) -> Self {
+        self.text = text.into();
+        self
+    }
+
+    #[inline]
+    pub fn with_scale<S: Into<PxScale>>(mut self, scale: S) -> Self {
+        self.scale = scale.into();
+        self
+    }
+
+    #[inline]
+    pub fn with_font_id<F: Into<FontId>>(mut self, font_id: F) -> Self {
+        self.font_id = font_id.into();
+        self
+    }
+
+    #[inline]
+    pub fn with_extra<X2>(self, extra: X2) -> OwnedText<X2> {
+        OwnedText {
+            text: self.text,
+            scale: self.scale,
+            font_id: self.font_id,
+            extra,
+        }
+    }
+}
+
+impl OwnedText<Extra> {
+    #[inline]
+    pub fn new<T: Into<String>>(text: T) -> Self {
+        OwnedText::default().with_text(text)
+    }
+
+    #[inline]
+    pub fn with_color<C: Into<Color>>(mut self, color: C) -> Self {
+        self.extra.color = color.into();
+        self
+    }
+
+    #[inline]
+    pub fn with_z<Z: Into<f32>>(mut self, z: Z) -> Self {
+        self.extra.z = z.into();
+        self
+    }
+}
 
 impl<X: Default> Default for OwnedText<X> {
+    #[inline]
     fn default() -> Self {
         Self {
             text: String::new(),
@@ -87,6 +163,7 @@ impl<X: Default> Default for OwnedText<X> {
 }
 
 impl<'a, X: Clone> From<&'a OwnedText<X>> for Text<'a, X> {
+    #[inline]
     fn from(owned: &'a OwnedText<X>) -> Self {
         Self {
             text: owned.text.as_str(),
@@ -98,6 +175,7 @@ impl<'a, X: Clone> From<&'a OwnedText<X>> for Text<'a, X> {
 }
 
 impl<X: Clone> From<&Text<'_, X>> for OwnedText<X> {
+    #[inline]
     fn from(s: &Text<'_, X>) -> Self {
         Self {
             text: s.text.into(),
