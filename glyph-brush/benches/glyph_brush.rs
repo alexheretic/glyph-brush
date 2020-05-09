@@ -550,7 +550,7 @@ fn continually_modify_alpha_of_1_of_3(c: &mut Criterion) {
         vec![
             VariedSection {
                 text: vec![
-                    VariedSectionText {
+                    Text {
                         text: "Heading\n",
                         extra: Extra {
                             color: [1.0, 1.0, 0.0, alpha],
@@ -558,7 +558,7 @@ fn continually_modify_alpha_of_1_of_3(c: &mut Criterion) {
                         },
                         ..<_>::default()
                     },
-                    VariedSectionText {
+                    Text {
                         text,
                         extra: Extra {
                             color: [1.0, 1.0, 0.0, alpha],
@@ -571,7 +571,7 @@ fn continually_modify_alpha_of_1_of_3(c: &mut Criterion) {
                 ..<_>::default()
             },
             VariedSection {
-                text: vec![VariedSectionText {
+                text: vec![Text {
                     text,
                     extra: Extra {
                         color: [0.0, 0.0, 0.0, 1.0],
@@ -584,7 +584,7 @@ fn continually_modify_alpha_of_1_of_3(c: &mut Criterion) {
                 layout: Layout::default().h_align(HorizontalAlign::Center),
             },
             VariedSection {
-                text: vec![VariedSectionText {
+                text: vec![Text {
                     text,
                     extra: Extra {
                         color: [0.0, 0.0, 0.0, 1.0],

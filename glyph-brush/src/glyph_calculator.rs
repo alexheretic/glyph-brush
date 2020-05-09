@@ -22,7 +22,7 @@ pub type SectionGlyphIter<'a> = slice::Iter<'a, SectionGlyph>;
 /// # let glyph_brush: GlyphBrush<()> = unimplemented!();
 /// let default_font = glyph_brush.fonts()[0];
 /// ```
-pub trait GlyphCruncher<F: Font, X: Clone> {
+pub trait GlyphCruncher<F: Font = FontArc, X: Clone = Extra> {
     // /// Returns the pixel bounding box for the input section using a custom layout.
     // /// The box is a conservative whole number pixel rectangle that can contain the section.
     // ///
@@ -216,7 +216,7 @@ impl<F: Font, X, H: BuildHasher + Clone> GlyphCalculator<F, X, H> {
 }
 
 /// [`GlyphCalculator`](struct.GlyphCalculator.html) scoped cache lock.
-pub struct GlyphCalculatorGuard<'brush, F: 'brush, X, H = DefaultSectionHasher> {
+pub struct GlyphCalculatorGuard<'brush, F: 'brush = FontArc, X = Extra, H = DefaultSectionHasher> {
     fonts: &'brush Vec<F>,
     glyph_cache: MutexGuard<'brush, FxHashMap<u64, GlyphedSection<X>>>,
     cached: FxHashSet<u64>,

@@ -55,9 +55,8 @@ mod draw_builder;
 pub use crate::{builder::*, draw_builder::*};
 pub use glyph_brush::{
     ab_glyph, BuiltInLineBreaker, Extra, FontId, GlyphCruncher, GlyphPositioner, HorizontalAlign,
-    Layout, LineBreak, LineBreaker, OwnedVariedSection, OwnedVariedSectionText, Section,
-    SectionGeometry, SectionGlyph, SectionGlyphIter, SectionText, VariedSection, VariedSectionText,
-    VerticalAlign,
+    Layout, LineBreak, LineBreaker, OwnedText, OwnedVariedSection, Section, SectionGeometry,
+    SectionGlyph, SectionGlyphIter, SectionText, Text, VariedSection, VerticalAlign,
 };
 
 use crate::pipe::{glyph_pipe, GlyphVertex, IntoDimensions, RawAndFormat};

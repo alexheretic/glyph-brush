@@ -13,11 +13,11 @@ pub type Color = [f32; 4];
 /// # Example
 ///
 /// ```
-/// use glyph_brush::{VariedSectionText, VariedSection, Extra};
+/// use glyph_brush::{Text, VariedSection, Extra};
 ///
 /// let section = VariedSection {
 ///     text: vec![
-///         VariedSectionText {
+///         Text {
 ///             text: "I looked around and it was ",
 ///             extra: Extra {
 ///                 color: [0.0, 0.0, 0.0, 1.0],
@@ -25,7 +25,7 @@ pub type Color = [f32; 4];
 ///             },
 ///             ..<_>::default()
 ///         },
-///         VariedSectionText {
+///         Text {
 ///             text: "RED",
 ///             extra: Extra {
 ///                 color: [1.0, 0.0, 0.0, 1.0],
@@ -47,7 +47,7 @@ pub struct VariedSection<'a, X = Extra> {
     /// see [`queue_custom_layout`](struct.GlyphBrush.html#method.queue_custom_layout)
     pub layout: Layout<BuiltInLineBreaker>,
     /// Text to render, rendered next to one another according the layout.
-    pub text: Vec<VariedSectionText<'a, X>>,
+    pub text: Vec<Text<'a, X>>,
 }
 
 impl<X: Clone> VariedSection<'_, X> {
@@ -107,7 +107,7 @@ impl<X: Hash> Hash for VariedSection<'_, X> {
 
 /// `SectionText` + extra.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct VariedSectionText<'a, X = Extra> {
+pub struct Text<'a, X = Extra> {
     /// Text to render
     pub text: &'a str,
     /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
@@ -121,7 +121,7 @@ pub struct VariedSectionText<'a, X = Extra> {
     pub extra: X,
 }
 
-impl<X: Default> Default for VariedSectionText<'static, X> {
+impl<X: Default> Default for Text<'static, X> {
     #[inline]
     fn default() -> Self {
         Self {
@@ -133,7 +133,55 @@ impl<X: Default> Default for VariedSectionText<'static, X> {
     }
 }
 
-impl<X> ToSectionText for VariedSectionText<'_, X> {
+impl<'a, X> Text<'a, X> {
+    #[inline]
+    pub fn with_text<'b>(self, text: &'b str) -> Text<'b, X> {
+        Text {
+            text,
+            scale: self.scale,
+            font_id: self.font_id,
+            extra: self.extra,
+        }
+    }
+
+    #[inline]
+    pub fn with_scale<S: Into<PxScale>>(mut self, scale: S) -> Self {
+        self.scale = scale.into();
+        self
+    }
+
+    #[inline]
+    pub fn with_font_id<F: Into<FontId>>(mut self, font_id: F) -> Self {
+        self.font_id = font_id.into();
+        self
+    }
+
+    #[inline]
+    pub fn with_extra<X2>(self, extra: X2) -> Text<'a, X2> {
+        Text {
+            text: self.text,
+            scale: self.scale,
+            font_id: self.font_id,
+            extra,
+        }
+    }
+}
+
+impl Text<'_, Extra> {
+    #[inline]
+    pub fn with_color<C: Into<Color>>(mut self, color: C) -> Self {
+        self.extra.color = color.into();
+        self
+    }
+
+    #[inline]
+    pub fn with_z<Z: Into<f32>>(mut self, z: Z) -> Self {
+        self.extra.z = z.into();
+        self
+    }
+}
+
+impl<X> ToSectionText for Text<'_, X> {
     #[inline]
     fn to_section_text(&self) -> SectionText<'_> {
         SectionText {
@@ -145,9 +193,9 @@ impl<X> ToSectionText for VariedSectionText<'_, X> {
 }
 
 #[inline]
-fn hash_section_text<X: Hash, H: Hasher>(state: &mut H, text: &[VariedSectionText<'_, X>]) {
+fn hash_section_text<X: Hash, H: Hasher>(state: &mut H, text: &[Text<'_, X>]) {
     for t in text {
-        let VariedSectionText {
+        let Text {
             text,
             scale,
             font_id,
@@ -166,7 +214,7 @@ impl<'text, X: Clone> VariedSection<'text, X> {
             screen_position: self.screen_position,
             bounds: self.bounds,
             layout: self.layout,
-            text: self.text.iter().map(OwnedVariedSectionText::from).collect(),
+            text: self.text.iter().map(OwnedText::from).collect(),
         }
     }
 
@@ -267,7 +315,7 @@ impl<'a> From<&Section<'a>> for VariedSection<'a> {
         } = *s;
 
         VariedSection {
-            text: vec![VariedSectionText {
+            text: vec![Text {
                 text,
                 scale,
                 font_id,
@@ -300,7 +348,7 @@ impl<'a> From<&Section<'a>> for Cow<'a, VariedSection<'a>> {
 
 pub(crate) struct HashableVariedSectionParts<'a, X> {
     geometry: [OrderedFloat<f32>; 4],
-    text: &'a [VariedSectionText<'a, X>],
+    text: &'a [Text<'a, X>],
 }
 
 impl<X: Hash> HashableVariedSectionParts<'_, X> {
@@ -312,7 +360,7 @@ impl<X: Hash> HashableVariedSectionParts<'_, X> {
     #[inline]
     pub fn hash_text_no_extra<H: Hasher>(&self, state: &mut H) {
         for t in self.text {
-            let VariedSectionText {
+            let Text {
                 text,
                 scale,
                 font_id,

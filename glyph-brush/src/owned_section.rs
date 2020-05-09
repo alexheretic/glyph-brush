@@ -11,7 +11,7 @@ pub struct OwnedVariedSection<X = Extra> {
     /// see [`queue_custom_layout`](struct.GlyphBrush.html#method.queue_custom_layout)
     pub layout: Layout<BuiltInLineBreaker>,
     /// Text to render, rendered next to one another according the layout.
-    pub text: Vec<OwnedVariedSectionText<X>>,
+    pub text: Vec<OwnedText<X>>,
 }
 
 impl<X: Default> Default for OwnedVariedSection<X> {
@@ -49,7 +49,7 @@ impl<'a> From<&'a OwnedVariedSection> for Cow<'a, VariedSection<'a>> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct OwnedVariedSectionText<X = Extra> {
+pub struct OwnedText<X = Extra> {
     /// Text to render
     pub text: String,
     /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
@@ -64,7 +64,7 @@ pub struct OwnedVariedSectionText<X = Extra> {
     pub extra: X,
 }
 
-// impl OwnedVariedSectionText {
+// impl OwnedText {
 //     pub fn from_text_and_color(st: &SectionText<'_>, color: Color) -> Self {
 //         Self {
 //             text: st.text.into(),
@@ -75,7 +75,7 @@ pub struct OwnedVariedSectionText<X = Extra> {
 //     }
 // }
 
-impl<X: Default> Default for OwnedVariedSectionText<X> {
+impl<X: Default> Default for OwnedText<X> {
     fn default() -> Self {
         Self {
             text: String::new(),
@@ -86,8 +86,8 @@ impl<X: Default> Default for OwnedVariedSectionText<X> {
     }
 }
 
-impl<'a, X: Clone> From<&'a OwnedVariedSectionText<X>> for VariedSectionText<'a, X> {
-    fn from(owned: &'a OwnedVariedSectionText<X>) -> Self {
+impl<'a, X: Clone> From<&'a OwnedText<X>> for Text<'a, X> {
+    fn from(owned: &'a OwnedText<X>) -> Self {
         Self {
             text: owned.text.as_str(),
             scale: owned.scale,
@@ -97,8 +97,8 @@ impl<'a, X: Clone> From<&'a OwnedVariedSectionText<X>> for VariedSectionText<'a,
     }
 }
 
-impl<X: Clone> From<&VariedSectionText<'_, X>> for OwnedVariedSectionText<X> {
-    fn from(s: &VariedSectionText<'_, X>) -> Self {
+impl<X: Clone> From<&Text<'_, X>> for OwnedText<X> {
+    fn from(s: &Text<'_, X>) -> Self {
         Self {
             text: s.text.into(),
             scale: s.scale,

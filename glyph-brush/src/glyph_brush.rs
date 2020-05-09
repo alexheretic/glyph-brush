@@ -743,7 +743,7 @@ mod hash_diff_test {
     fn section() -> VariedSection<'static> {
         VariedSection {
             text: vec![
-                VariedSectionText {
+                Text {
                     text: "Hello, ",
                     scale: PxScale::from(20.0),
                     font_id: FontId(0),
@@ -752,7 +752,7 @@ mod hash_diff_test {
                         z: 0.444,
                     },
                 },
-                VariedSectionText {
+                Text {
                     text: "World",
                     scale: PxScale::from(22.0),
                     font_id: FontId(1),
