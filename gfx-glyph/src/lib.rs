@@ -18,7 +18,7 @@
 //! # Example
 //!
 //! ```no_run
-//! use gfx_glyph::{ab_glyph::FontArc, GlyphBrushBuilder, Section};
+//! use gfx_glyph::{ab_glyph::FontArc, GlyphBrushBuilder, legacy::Section};
 //! # use old_school_gfx_glutin_ext::*;
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # let event_loop = glutin::event_loop::EventLoop::new();
@@ -54,9 +54,9 @@ mod draw_builder;
 
 pub use crate::{builder::*, draw_builder::*};
 pub use glyph_brush::{
-    ab_glyph, BuiltInLineBreaker, Extra, FontId, GlyphCruncher, GlyphPositioner, HorizontalAlign,
-    Layout, LineBreak, LineBreaker, OwnedText, OwnedVariedSection, Section, SectionGeometry,
-    SectionGlyph, SectionGlyphIter, SectionText, Text, VariedSection, VerticalAlign,
+    ab_glyph, legacy, BuiltInLineBreaker, Extra, FontId, GlyphCruncher, GlyphPositioner,
+    HorizontalAlign, Layout, LineBreak, LineBreaker, OwnedSection, OwnedText, Section,
+    SectionGeometry, SectionGlyph, SectionGlyphIter, SectionText, Text, VerticalAlign,
 };
 
 use crate::pipe::{glyph_pipe, GlyphVertex, IntoDimensions, RawAndFormat};
@@ -125,7 +125,7 @@ pub fn default_transform<D: IntoDimensions>(d: D) -> [[f32; 4]; 4] {
 ///
 /// ```no_run
 /// # use gfx_glyph::{GlyphBrushBuilder};
-/// use gfx_glyph::Section;
+/// use gfx_glyph::legacy::Section;
 /// # use old_school_gfx_glutin_ext::*;
 /// # fn main() -> Result<(), String> {
 /// # let event_loop = glutin::event_loop::EventLoop::new();
@@ -218,7 +218,7 @@ where
     ) -> SectionGlyphIter<'b>
     where
         L: GlyphPositioner + Hash,
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, Section<'a>>>,
     {
         self.glyph_brush
             .glyphs_custom_layout(section, custom_layout)
@@ -237,7 +237,7 @@ where
     ) -> Option<Rect>
     where
         L: GlyphPositioner + Hash,
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, Section<'a>>>,
     {
         self.glyph_brush
             .glyph_bounds_custom_layout(section, custom_layout)
@@ -259,7 +259,7 @@ where
     #[inline]
     pub fn queue<'a, S>(&mut self, section: S)
     where
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, Section<'a>>>,
     {
         self.glyph_brush.queue(section)
     }
@@ -309,7 +309,7 @@ where
     pub fn queue_custom_layout<'a, S, G>(&mut self, section: S, custom_layout: &G)
     where
         G: GlyphPositioner,
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, Section<'a>>>,
     {
         self.glyph_brush.queue_custom_layout(section, custom_layout)
     }
@@ -333,7 +333,7 @@ where
     #[inline]
     pub fn keep_cached_custom_layout<'a, S, G>(&mut self, section: S, custom_layout: &G)
     where
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, Section<'a>>>,
         G: GlyphPositioner,
     {
         self.glyph_brush
@@ -347,7 +347,7 @@ where
     #[inline]
     pub fn keep_cached<'a, S>(&mut self, section: S)
     where
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, Section<'a>>>,
     {
         self.glyph_brush.keep_cached(section)
     }

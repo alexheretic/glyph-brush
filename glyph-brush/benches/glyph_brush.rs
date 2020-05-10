@@ -7,38 +7,36 @@ const LIPSUM: &str = include_str!("lipsum.txt");
 const LOTS_OF_LIPSUM: &str = include_str!("lots_of_lipsum.txt");
 const SMALL_LIPSUM: &str = include_str!("small_lipsum.txt");
 
+fn three_medium_sections() -> [Section<'static>; 3] {
+    [
+        Section::default()
+            .add_text(Text::new(LIPSUM))
+            .with_bounds((600.0, f32::INFINITY)),
+        Section::default()
+            .add_text(Text::new(LIPSUM))
+            .with_bounds((600.0, f32::INFINITY))
+            .with_screen_position((600.0, 0.0))
+            .with_layout(Layout::default().h_align(HorizontalAlign::Center)),
+        Section::default()
+            .add_text(Text::new(LIPSUM))
+            .with_bounds((1200.0, f32::INFINITY))
+            .with_screen_position((600.0, 0.0))
+            .with_layout(Layout::default().h_align(HorizontalAlign::Right)),
+    ]
+}
+
 fn render_3_medium_sections_fully(c: &mut Criterion) {
     let _ = env_logger::try_init();
     let font = FontRef::try_from_slice(TEST_FONT).unwrap();
 
     let mut glyph_brush = GlyphBrushBuilder::using_font(font).build();
 
-    let sections = &[
-        Section {
-            text: LIPSUM,
-            bounds: (600.0, f32::INFINITY),
-            ..<_>::default()
-        },
-        Section {
-            text: LIPSUM,
-            screen_position: (600.0, 0.0),
-            bounds: (600.0, f32::INFINITY),
-            layout: Layout::default().h_align(HorizontalAlign::Center),
-            ..<_>::default()
-        },
-        Section {
-            text: LIPSUM,
-            screen_position: (1200.0, 0.0),
-            bounds: (600.0, f32::INFINITY),
-            layout: Layout::default().h_align(HorizontalAlign::Right),
-            ..<_>::default()
-        },
-    ];
+    let sections = three_medium_sections();
 
     c.bench_function("render_3_medium_sections_fully", |b| {
         b.iter(|| {
-            for section in sections {
-                glyph_brush.queue(*section);
+            for section in &sections {
+                glyph_brush.queue(section);
             }
             glyph_brush
                 .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
@@ -57,32 +55,12 @@ fn no_cache_render_3_medium_sections_fully(c: &mut Criterion) {
         .cache_glyph_drawing(false)
         .build();
 
-    let sections = &[
-        Section {
-            text: LIPSUM,
-            bounds: (600.0, f32::INFINITY),
-            ..<_>::default()
-        },
-        Section {
-            text: LIPSUM,
-            screen_position: (600.0, 0.0),
-            bounds: (600.0, f32::INFINITY),
-            layout: Layout::default().h_align(HorizontalAlign::Center),
-            ..<_>::default()
-        },
-        Section {
-            text: LIPSUM,
-            screen_position: (1200.0, 0.0),
-            bounds: (600.0, f32::INFINITY),
-            layout: Layout::default().h_align(HorizontalAlign::Right),
-            ..<_>::default()
-        },
-    ];
+    let sections = three_medium_sections();
 
     c.bench_function("no_cache_render_3_medium_sections_fully", |b| {
         b.iter(|| {
-            for section in sections {
-                glyph_brush.queue(*section);
+            for section in &sections {
+                glyph_brush.queue(section);
             }
             glyph_brush
                 .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
@@ -97,7 +75,7 @@ fn render_1_large_section_partially(c: &mut Criterion) {
 
     let mut glyph_brush = GlyphBrushBuilder::using_font(font).build();
 
-    let section = Section {
+    let section = legacy::Section {
         text: LOTS_OF_LIPSUM,
         bounds: (600.0, 600.0),
         ..<_>::default()
@@ -123,7 +101,7 @@ fn no_cache_render_1_large_section_partially(c: &mut Criterion) {
         .cache_glyph_drawing(false)
         .build();
 
-    let section = Section {
+    let section = legacy::Section {
         text: LOTS_OF_LIPSUM,
         bounds: (600.0, 600.0),
         ..<_>::default()
@@ -145,7 +123,7 @@ fn render_v_center_1_large_section_partially(c: &mut Criterion) {
 
     let mut glyph_brush = GlyphBrushBuilder::using_font(font).build();
 
-    let section = Section {
+    let section = legacy::Section {
         text: LOTS_OF_LIPSUM,
         screen_position: (0.0, 300.0),
         bounds: (600.0, 600.0),
@@ -172,7 +150,7 @@ fn no_cache_render_v_center_1_large_section_partially(c: &mut Criterion) {
         .cache_glyph_drawing(false)
         .build();
 
-    let section = Section {
+    let section = legacy::Section {
         text: LOTS_OF_LIPSUM,
         screen_position: (0.0, 300.0),
         bounds: (600.0, 600.0),
@@ -196,7 +174,7 @@ fn render_v_bottom_1_large_section_partially(c: &mut Criterion) {
 
     let mut glyph_brush = GlyphBrushBuilder::using_font(font).build();
 
-    let section = Section {
+    let section = legacy::Section {
         text: LOTS_OF_LIPSUM,
         screen_position: (0.0, 600.0),
         bounds: (600.0, 600.0),
@@ -224,7 +202,7 @@ fn no_cache_render_v_bottom_1_large_section_partially(c: &mut Criterion) {
         .cache_glyph_drawing(false)
         .build();
 
-    let section = Section {
+    let section = legacy::Section {
         text: LOTS_OF_LIPSUM,
         screen_position: (0.0, 600.0),
         bounds: (600.0, 600.0),
@@ -250,7 +228,7 @@ fn render_100_small_sections_fully(c: &mut Criterion) {
 
     let mut sections = vec![];
     for i in 0..100 {
-        sections.push(Section {
+        sections.push(legacy::Section {
             text: SMALL_LIPSUM,
             screen_position: (i as f32, 0.0),
             bounds: (100.0, f32::INFINITY),
@@ -282,7 +260,7 @@ fn no_cache_render_100_small_sections_fully(c: &mut Criterion) {
 
     let mut sections = vec![];
     for i in 0..100 {
-        sections.push(Section {
+        sections.push(legacy::Section {
             text: SMALL_LIPSUM,
             screen_position: (i as f32, 0.0),
             bounds: (100.0, f32::INFINITY),
@@ -321,19 +299,19 @@ fn continually_modify_end_text_of_1_of_3(c: &mut Criterion) {
         .iter()
         .map(|s| {
             vec![
-                Section {
+                legacy::Section {
                     text: s,
                     bounds: (600.0, f32::INFINITY),
                     ..<_>::default()
                 },
-                Section {
+                legacy::Section {
                     text,
                     screen_position: (600.0, 0.0),
                     bounds: (600.0, f32::INFINITY),
                     layout: Layout::default().h_align(HorizontalAlign::Center),
                     ..<_>::default()
                 },
-                Section {
+                legacy::Section {
                     text,
                     screen_position: (1200.0, 0.0),
                     bounds: (600.0, f32::INFINITY),
@@ -368,19 +346,19 @@ fn continually_modify_start_text_of_1_of_3(c: &mut Criterion) {
         .iter()
         .map(|s| {
             vec![
-                Section {
+                legacy::Section {
                     text: s,
                     bounds: (600.0, f32::INFINITY),
                     ..<_>::default()
                 },
-                Section {
+                legacy::Section {
                     text,
                     screen_position: (600.0, 0.0),
                     bounds: (600.0, f32::INFINITY),
                     layout: Layout::default().h_align(HorizontalAlign::Center),
                     ..<_>::default()
                 },
-                Section {
+                legacy::Section {
                     text,
                     screen_position: (1200.0, 0.0),
                     bounds: (600.0, f32::INFINITY),
@@ -420,19 +398,19 @@ fn continually_modify_middle_text_of_1_of_3(c: &mut Criterion) {
         .iter()
         .map(|s| {
             vec![
-                Section {
+                legacy::Section {
                     text: s,
                     bounds: (600.0, f32::INFINITY),
                     ..<_>::default()
                 },
-                Section {
+                legacy::Section {
                     text,
                     screen_position: (600.0, 0.0),
                     bounds: (600.0, f32::INFINITY),
                     layout: Layout::default().h_align(HorizontalAlign::Center),
                     ..<_>::default()
                 },
-                Section {
+                legacy::Section {
                     text,
                     screen_position: (1200.0, 0.0),
                     bounds: (600.0, f32::INFINITY),
@@ -460,19 +438,19 @@ fn continually_modify_bounds_of_1_of_3(c: &mut Criterion) {
         .into_iter()
         .map(|width| {
             vec![
-                Section {
+                legacy::Section {
                     text,
                     bounds: (width as f32, f32::INFINITY),
                     ..<_>::default()
                 },
-                Section {
+                legacy::Section {
                     text,
                     screen_position: (600.0, 0.0),
                     bounds: (600.0, f32::INFINITY),
                     layout: Layout::default().h_align(HorizontalAlign::Center),
                     ..<_>::default()
                 },
-                Section {
+                legacy::Section {
                     text,
                     screen_position: (1200.0, 0.0),
                     bounds: (600.0, f32::INFINITY),
@@ -504,20 +482,20 @@ fn continually_modify_color_of_1_of_3(c: &mut Criterion) {
     .into_iter()
     .map(|color| {
         vec![
-            Section {
+            legacy::Section {
                 text,
                 color,
                 bounds: (600.0, f32::INFINITY),
                 ..<_>::default()
             },
-            Section {
+            legacy::Section {
                 text,
                 screen_position: (600.0, 0.0),
                 bounds: (600.0, f32::INFINITY),
                 layout: Layout::default().h_align(HorizontalAlign::Center),
                 ..<_>::default()
             },
-            Section {
+            legacy::Section {
                 text,
                 screen_position: (1200.0, 0.0),
                 bounds: (600.0, f32::INFINITY),
@@ -548,7 +526,7 @@ fn continually_modify_alpha_of_1_of_3(c: &mut Criterion) {
     .into_iter()
     .map(|alpha| {
         vec![
-            VariedSection {
+            Section {
                 text: vec![
                     Text {
                         text: "Heading\n",
@@ -570,7 +548,7 @@ fn continually_modify_alpha_of_1_of_3(c: &mut Criterion) {
                 bounds: (600.0, f32::INFINITY),
                 ..<_>::default()
             },
-            VariedSection {
+            Section {
                 text: vec![Text {
                     text,
                     extra: Extra {
@@ -583,7 +561,7 @@ fn continually_modify_alpha_of_1_of_3(c: &mut Criterion) {
                 bounds: (600.0, f32::INFINITY),
                 layout: Layout::default().h_align(HorizontalAlign::Center),
             },
-            VariedSection {
+            Section {
                 text: vec![Text {
                     text,
                     extra: Extra {
@@ -617,20 +595,20 @@ fn continually_modify_position_of_1_of_3(c: &mut Criterion) {
         .into_iter()
         .map(|(x, y)| {
             vec![
-                Section {
+                legacy::Section {
                     text,
                     screen_position: (x as f32, y as f32),
                     bounds: (600.0, f32::INFINITY),
                     ..<_>::default()
                 },
-                Section {
+                legacy::Section {
                     text,
                     screen_position: (600.0, 0.0),
                     bounds: (600.0, f32::INFINITY),
                     layout: Layout::default().h_align(HorizontalAlign::Center),
                     ..<_>::default()
                 },
-                Section {
+                legacy::Section {
                     text,
                     screen_position: (1200.0, 0.0),
                     bounds: (600.0, f32::INFINITY),
@@ -654,7 +632,7 @@ fn bench_variants<'a, S: 'a>(
     variants: &'a [std::vec::Vec<S>],
     glyph_brush: &mut GlyphBrush<[f32; 13], Extra, FontRef<'static>>,
 ) where
-    &'a S: Into<Cow<'a, VariedSection<'a>>>,
+    &'a S: Into<Cow<'a, Section<'a>>>,
 {
     let mut variants = variants.iter().cycle();
 

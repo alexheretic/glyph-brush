@@ -194,13 +194,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                 // The section is all the info needed for the glyph brush to render a 'section' of text.
                 // Use `..Section::default()` to skip the bits you don't care about
-                let section = gfx_glyph::Section {
+                let section = gfx_glyph::legacy::Section {
                     text: &text,
                     scale,
                     screen_position: (0.0, 0.0),
                     bounds: (width / 3.15, height),
                     color: [0.9, 0.3, 0.3, 1.0],
-                    ..Section::default()
+                    ..<_>::default()
                 };
 
                 // Adds a section & layout to the queue for the next call to `use_queue().draw(..)`, this
@@ -210,7 +210,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 glyph_brush.queue(section);
 
                 use gfx_glyph::*;
-                glyph_brush.queue(Section {
+                glyph_brush.queue(legacy::Section {
                     text: &text,
                     scale,
                     screen_position: (width / 2.0, height / 2.0),
@@ -219,10 +219,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                     layout: Layout::default()
                         .h_align(HorizontalAlign::Center)
                         .v_align(VerticalAlign::Center),
-                    ..Section::default()
+                    ..<_>::default()
                 });
 
-                glyph_brush.queue(Section {
+                glyph_brush.queue(legacy::Section {
                     text: &text,
                     scale,
                     screen_position: (width, height),
@@ -231,7 +231,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     layout: Layout::default()
                         .h_align(HorizontalAlign::Right)
                         .v_align(VerticalAlign::Bottom),
-                    ..Section::default()
+                    ..<_>::default()
                 });
 
                 // Rotation

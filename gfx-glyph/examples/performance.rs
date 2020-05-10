@@ -123,13 +123,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                 // The section is all the info needed for the glyph brush to render a 'section' of text
                 // can use `..Section::default()` to skip the bits you don't care about
-                let section = Section {
+                let section = legacy::Section {
                     text: &text,
                     scale,
                     bounds: (width, height),
                     color: [0.8, 0.8, 0.8, 1.0],
                     layout: Layout::default().line_breaker(BuiltInLineBreaker::AnyCharLineBreaker),
-                    ..Section::default()
+                    ..<_>::default()
                 };
 
                 // Adds a section & layout to the queue for the next call to `use_queue().draw(..)`, this

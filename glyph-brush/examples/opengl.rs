@@ -227,16 +227,16 @@ fn main() -> Res<()> {
                 let scale =
                     PxScale::from((font_size * window_ctx.window().scale_factor() as f32).round());
 
-                glyph_brush.queue(Section {
+                glyph_brush.queue(legacy::Section {
                     text: &text,
                     scale,
                     screen_position: (0.0, 0.0),
                     bounds: (width / 3.15, height),
                     color: [0.9, 0.3, 0.3, 1.0],
-                    ..Section::default()
+                    ..<_>::default()
                 });
 
-                glyph_brush.queue(Section {
+                glyph_brush.queue(legacy::Section {
                     text: &text,
                     scale,
                     screen_position: (width / 2.0, height / 2.0),
@@ -245,10 +245,10 @@ fn main() -> Res<()> {
                     layout: Layout::default()
                         .h_align(HorizontalAlign::Center)
                         .v_align(VerticalAlign::Center),
-                    ..Section::default()
+                    ..<_>::default()
                 });
 
-                glyph_brush.queue(Section {
+                glyph_brush.queue(legacy::Section {
                     text: &text,
                     scale,
                     screen_position: (width, height),
@@ -257,7 +257,7 @@ fn main() -> Res<()> {
                     layout: Layout::default()
                         .h_align(HorizontalAlign::Right)
                         .v_align(VerticalAlign::Bottom),
-                    ..Section::default()
+                    ..<_>::default()
                 });
 
                 let mut brush_action;

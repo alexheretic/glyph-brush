@@ -39,7 +39,7 @@ pub trait GlyphCruncher<F: Font = FontArc, X: Clone = Extra> {
     // ) -> Option<Rectangle<i32>>
     // where
     //     L: GlyphPositioner + Hash,
-    //     S: Into<Cow<'a, VariedSection<'a>>>;
+    //     S: Into<Cow<'a, Section<'a>>>;
     //
     // /// Returns the pixel bounding box for the input section. The box is a conservative
     // /// whole number pixel rectangle that can contain the section.
@@ -53,7 +53,7 @@ pub trait GlyphCruncher<F: Font = FontArc, X: Clone = Extra> {
     // #[inline]
     // fn pixel_bounds<'a, S>(&mut self, section: S) -> Option<Rect<i32>>
     // where
-    //     S: Into<Cow<'a, VariedSection<'a>>>,
+    //     S: Into<Cow<'a, Section<'a>>>,
     // {
     //     let section = section.into();
     //     let layout = section.layout;
@@ -74,7 +74,7 @@ pub trait GlyphCruncher<F: Font = FontArc, X: Clone = Extra> {
     where
         X: 'a,
         L: GlyphPositioner + Hash,
-        S: Into<Cow<'a, VariedSection<'a, X>>>;
+        S: Into<Cow<'a, Section<'a, X>>>;
 
     /// Returns an iterator over the `PositionedGlyph`s of the given section.
     ///
@@ -86,7 +86,7 @@ pub trait GlyphCruncher<F: Font = FontArc, X: Clone = Extra> {
     fn glyphs<'a, 'b, S>(&'b mut self, section: S) -> SectionGlyphIter<'b>
     where
         X: 'a,
-        S: Into<Cow<'a, VariedSection<'a, X>>>,
+        S: Into<Cow<'a, Section<'a, X>>>,
     {
         let section = section.into();
         let layout = section.layout;
@@ -118,7 +118,7 @@ pub trait GlyphCruncher<F: Font = FontArc, X: Clone = Extra> {
     where
         X: 'a,
         L: GlyphPositioner + Hash,
-        S: Into<Cow<'a, VariedSection<'a, X>>>;
+        S: Into<Cow<'a, Section<'a, X>>>;
 
     /// Returns a bounding box for the section glyphs calculated using each glyph's
     /// vertical & horizontal metrics.
@@ -136,11 +136,21 @@ pub trait GlyphCruncher<F: Font = FontArc, X: Clone = Extra> {
     fn glyph_bounds<'a, S>(&mut self, section: S) -> Option<Rect>
     where
         X: 'a,
-        S: Into<Cow<'a, VariedSection<'a, X>>>,
+        S: Into<Cow<'a, Section<'a, X>>>,
     {
         let section = section.into();
         let layout = section.layout;
         self.glyph_bounds_custom_layout(section, &layout)
+    }
+
+    #[inline]
+    #[deprecated(note = "No longer supported, use glyph_bounds")]
+    fn pixel_bounds<'a, S>(&mut self, section: S) -> Option<Rect>
+    where
+        X: 'a,
+        S: Into<Cow<'a, Section<'a, X>>>,
+    {
+        self.glyph_bounds(section)
     }
 }
 
@@ -152,7 +162,7 @@ pub trait GlyphCruncher<F: Font = FontArc, X: Clone = Extra> {
 /// # Example
 ///
 /// ```
-/// use glyph_brush::{ab_glyph::FontArc, GlyphCalculatorBuilder, GlyphCruncher, Section};
+/// use glyph_brush::{ab_glyph::FontArc, GlyphCalculatorBuilder, GlyphCruncher, legacy::Section};
 ///
 /// let dejavu = FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf")).unwrap();
 /// let glyphs = GlyphCalculatorBuilder::using_font(dejavu).build();
@@ -225,7 +235,7 @@ pub struct GlyphCalculatorGuard<'brush, F: 'brush = FontArc, X = Extra, H = Defa
 
 impl<F: Font, X: Clone + Hash, H: BuildHasher> GlyphCalculatorGuard<'_, F, X, H> {
     /// Returns the calculate_glyph_cache key for this sections glyphs
-    fn cache_glyphs<L>(&mut self, section: &VariedSection<'_, X>, layout: &L) -> u64
+    fn cache_glyphs<L>(&mut self, section: &Section<'_, X>, layout: &L) -> u64
     where
         L: GlyphPositioner,
     {
@@ -268,7 +278,7 @@ impl<F: Font, X: Clone + Hash, H: BuildHasher> GlyphCruncher<F, X>
     where
         X: 'a,
         L: GlyphPositioner + Hash,
-        S: Into<Cow<'a, VariedSection<'a, X>>>,
+        S: Into<Cow<'a, Section<'a, X>>>,
     {
         let section_hash = self.cache_glyphs(&section.into(), custom_layout);
         self.cached.insert(section_hash);
@@ -283,7 +293,7 @@ impl<F: Font, X: Clone + Hash, H: BuildHasher> GlyphCruncher<F, X>
     where
         X: 'a,
         L: GlyphPositioner + Hash,
-        S: Into<Cow<'a, VariedSection<'a, X>>>,
+        S: Into<Cow<'a, Section<'a, X>>>,
     {
         let section = section.into();
         let geometry = SectionGeometry::from(section.as_ref());
@@ -439,7 +449,7 @@ mod test {
         let mut glyphs = glyphs.cache_scope();
 
         let scale = PxScale::from(16.0);
-        let section = Section {
+        let section = legacy::Section {
             text: "Hello World",
             screen_position: (0.0, 0.0),
             scale,
@@ -469,7 +479,7 @@ mod test {
         let glyphs = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build();
         let mut glyphs = glyphs.cache_scope();
 
-        let section = Section {
+        let section = legacy::Section {
             text: "Hello\n\
                    World",
             screen_position: (0.0, 20.0),
@@ -480,7 +490,7 @@ mod test {
 
         let g_bounds = glyphs.glyph_bounds(&section).expect("None bounds");
         let bounds_rect =
-            Layout::default().bounds_rect(&SectionGeometry::from(&VariedSection::from(section)));
+            Layout::default().bounds_rect(&SectionGeometry::from(&Section::from(section)));
 
         assert!(
             bounds_rect.min.y <= g_bounds.min.y as f32,
@@ -544,7 +554,7 @@ mod test {
         let calc = GlyphCalculatorBuilder::using_font(OPEN_SANS_LIGHT.clone()).build();
         let mut calc = calc.cache_scope();
 
-        let section = Section {
+        let section = legacy::Section {
             text: "Eins Zwei Drei Vier Funf",
             scale: PxScale::from(20.0),
             ..<_>::default()
@@ -553,7 +563,7 @@ mod test {
         let glyph_bounds = calc.glyph_bounds(&section).expect("None bounds");
 
         // identical section with bounds that should be wide enough
-        let bounded_section = Section {
+        let bounded_section = legacy::Section {
             bounds: (glyph_bounds.width(), glyph_bounds.height()),
             ..section
         };
@@ -575,7 +585,7 @@ mod test {
         let calc = GlyphCalculatorBuilder::using_font(OPEN_SANS_LIGHT.clone()).build();
         let mut calc = calc.cache_scope();
 
-        let section = Section {
+        let section = legacy::Section {
             text: "Eins Zwei Drei Vier Funf ",
             scale: PxScale::from(20.0),
             ..<_>::default()
@@ -584,7 +594,7 @@ mod test {
         let glyph_bounds = calc.glyph_bounds(&section).expect("None bounds");
 
         // identical section with bounds that should be wide enough
-        let bounded_section = Section {
+        let bounded_section = legacy::Section {
             bounds: (glyph_bounds.width(), glyph_bounds.height()),
             ..section
         };
@@ -607,7 +617,7 @@ mod test {
         let calc = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build();
         let mut calc = calc.cache_scope();
 
-        let section = Section {
+        let section = legacy::Section {
             text: "Eins Zwei Drei Vier Funf",
             ..<_>::default()
         };
@@ -615,7 +625,7 @@ mod test {
         let glyph_bounds = calc.glyph_bounds(&section).expect("None bounds");
 
         // identical section with bounds that should be wide enough
-        let bounded_section = Section {
+        let bounded_section = legacy::Section {
             bounds: (glyph_bounds.width(), glyph_bounds.height()),
             ..section
         };

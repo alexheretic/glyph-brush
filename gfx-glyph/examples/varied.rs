@@ -98,7 +98,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let (width, height, ..) = main_color.get_dimensions();
                 let (width, height) = (f32::from(width), f32::from(height));
 
-                glyph_brush.queue(VariedSection {
+                glyph_brush.queue(Section {
                     screen_position: (0.0, height / 2.0),
                     bounds: (width * 0.49, height),
                     text: vec![
@@ -133,7 +133,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     layout: Layout::default().v_align(VerticalAlign::Center),
                 });
 
-                glyph_brush.queue(VariedSection {
+                glyph_brush.queue(Section {
                     screen_position: (width, height / 2.0),
                     bounds: (width * 0.49, height),
                     text: vec![

@@ -95,7 +95,7 @@ where
     where
         X: 'a,
         L: GlyphPositioner + Hash,
-        S: Into<Cow<'a, VariedSection<'a, X>>>,
+        S: Into<Cow<'a, Section<'a, X>>>,
     {
         let section_hash = self.cache_glyphs(&section.into(), custom_layout);
         self.keep_in_cache.insert(section_hash);
@@ -112,7 +112,7 @@ where
     where
         X: 'a,
         L: GlyphPositioner + Hash,
-        S: Into<Cow<'a, VariedSection<'a, X>>>,
+        S: Into<Cow<'a, Section<'a, X>>>,
     {
         let section = section.into();
         let geometry = SectionGeometry::from(section.as_ref());
@@ -193,7 +193,7 @@ where
     where
         G: GlyphPositioner,
         X: 'a,
-        S: Into<Cow<'a, VariedSection<'a, X>>>,
+        S: Into<Cow<'a, Section<'a, X>>>,
     {
         let section = section.into();
         if cfg!(debug_assertions) {
@@ -216,15 +216,15 @@ where
     /// # use glyph_brush::{ab_glyph::*, *};
     /// # let font: FontArc = unimplemented!();
     /// # let mut glyph_brush: GlyphBrush<()> = GlyphBrushBuilder::using_font(font).build();
-    /// glyph_brush.queue(Section {
+    /// glyph_brush.queue(legacy::Section {
     ///     text: "Hello glyph_brush",
-    ///     ..Section::default()
+    ///     ..<_>::default()
     /// });
     /// ```
     pub fn queue<'a, S>(&mut self, section: S)
     where
         X: 'a,
-        S: Into<Cow<'a, VariedSection<'a, X>>>,
+        S: Into<Cow<'a, Section<'a, X>>>,
     {
         let section = section.into();
         let layout = section.layout;
@@ -244,7 +244,7 @@ where
 
     /// Returns the calculate_glyph_cache key for this sections glyphs
     #[allow(clippy::map_entry)] // further borrows are required after the contains_key check
-    fn cache_glyphs<L>(&mut self, section: &VariedSection<'_, X>, layout: &L) -> SectionHash
+    fn cache_glyphs<L>(&mut self, section: &Section<'_, X>, layout: &L) -> SectionHash
     where
         L: GlyphPositioner,
     {
@@ -381,7 +381,7 @@ where
     /// Should not generally be necessary, see [caching behaviour](#caching-behaviour).
     pub fn keep_cached_custom_layout<'a, S, G>(&mut self, section: S, custom_layout: &G)
     where
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, Section<'a>>>,
         G: GlyphPositioner,
     {
         if !self.cache_glyph_positioning {
@@ -403,7 +403,7 @@ where
     /// Should not generally be necessary, see [caching behaviour](#caching-behaviour).
     pub fn keep_cached<'a, S>(&mut self, section: S)
     where
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, Section<'a>>>,
     {
         let section = section.into();
         let layout = section.layout;
@@ -627,7 +627,7 @@ struct SectionHashDetail {
 
 impl SectionHashDetail {
     #[inline]
-    fn new<X, H, L>(build_hasher: &H, section: &VariedSection<'_, X>, layout: &L) -> Self
+    fn new<X, H, L>(build_hasher: &H, section: &Section<'_, X>, layout: &L) -> Self
     where
         X: Clone + Hash,
         H: BuildHasher,
@@ -740,8 +740,8 @@ mod hash_diff_test {
     use super::*;
     use matches::assert_matches;
 
-    fn section() -> VariedSection<'static> {
-        VariedSection {
+    fn section() -> Section<'static> {
+        Section {
             text: vec![
                 Text {
                     text: "Hello, ",

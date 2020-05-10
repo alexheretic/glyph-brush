@@ -2,7 +2,7 @@ use super::*;
 use std::{borrow::Cow, f32};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct OwnedVariedSection<X = Extra> {
+pub struct OwnedSection<X = Extra> {
     /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
     pub screen_position: (f32, f32),
     /// Max (width, height) bounds, in pixels from top-left. Defaults to unbounded.
@@ -14,7 +14,7 @@ pub struct OwnedVariedSection<X = Extra> {
     pub text: Vec<OwnedText<X>>,
 }
 
-impl<X: Default> Default for OwnedVariedSection<X> {
+impl<X: Default> Default for OwnedSection<X> {
     #[inline]
     fn default() -> Self {
         Self {
@@ -26,7 +26,7 @@ impl<X: Default> Default for OwnedVariedSection<X> {
     }
 }
 
-impl<X> OwnedVariedSection<X> {
+impl<X> OwnedSection<X> {
     #[inline]
     pub fn with_screen_position<P: Into<(f32, f32)>>(mut self, position: P) -> Self {
         self.screen_position = position.into();
@@ -52,8 +52,8 @@ impl<X> OwnedVariedSection<X> {
     }
 
     #[inline]
-    pub fn with_text<X2>(self, text: Vec<OwnedText<X2>>) -> OwnedVariedSection<X2> {
-        OwnedVariedSection {
+    pub fn with_text<X2>(self, text: Vec<OwnedText<X2>>) -> OwnedSection<X2> {
+        OwnedSection {
             text,
             screen_position: self.screen_position,
             bounds: self.bounds,
@@ -62,9 +62,9 @@ impl<X> OwnedVariedSection<X> {
     }
 }
 
-impl<X: Clone> OwnedVariedSection<X> {
-    pub fn to_borrowed(&self) -> VariedSection<'_, X> {
-        VariedSection {
+impl<X: Clone> OwnedSection<X> {
+    pub fn to_borrowed(&self) -> Section<'_, X> {
+        Section {
             screen_position: self.screen_position,
             bounds: self.bounds,
             layout: self.layout,
@@ -73,14 +73,14 @@ impl<X: Clone> OwnedVariedSection<X> {
     }
 }
 
-impl<'a> From<&'a OwnedVariedSection> for VariedSection<'a> {
-    fn from(owned: &'a OwnedVariedSection) -> Self {
+impl<'a> From<&'a OwnedSection> for Section<'a> {
+    fn from(owned: &'a OwnedSection) -> Self {
         owned.to_borrowed()
     }
 }
 
-impl<'a> From<&'a OwnedVariedSection> for Cow<'a, VariedSection<'a>> {
-    fn from(owned: &'a OwnedVariedSection) -> Self {
+impl<'a> From<&'a OwnedSection> for Cow<'a, Section<'a>> {
+    fn from(owned: &'a OwnedSection) -> Self {
         Cow::Owned(owned.to_borrowed())
     }
 }
