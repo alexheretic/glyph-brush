@@ -23,43 +23,6 @@ pub type SectionGlyphIter<'a> = slice::Iter<'a, SectionGlyph>;
 /// let default_font = glyph_brush.fonts()[0];
 /// ```
 pub trait GlyphCruncher<F: Font = FontArc, X: Clone = Extra> {
-    // /// Returns the pixel bounding box for the input section using a custom layout.
-    // /// The box is a conservative whole number pixel rectangle that can contain the section.
-    // ///
-    // /// If the section is empty or would result in no drawn glyphs will return `None`.
-    // ///
-    // /// [`glyphs_custom_layout`](#method.glyphs_custom_layout) should be preferred if the
-    // /// bounds are to be used to inform further layout logic.
-    // ///
-    // /// Benefits from caching, see [caching behaviour](#caching-behaviour).
-    // fn pixel_bounds_custom_layout<'a, S, L>(
-    //     &mut self,
-    //     section: S,
-    //     custom_layout: &L,
-    // ) -> Option<Rectangle<i32>>
-    // where
-    //     L: GlyphPositioner + Hash,
-    //     S: Into<Cow<'a, Section<'a>>>;
-    //
-    // /// Returns the pixel bounding box for the input section. The box is a conservative
-    // /// whole number pixel rectangle that can contain the section.
-    // ///
-    // /// If the section is empty or would result in no drawn glyphs will return `None`.
-    // ///
-    // /// [`glyph_bounds`](#method.glyph_bounds) should be preferred if the bounds are to be
-    // /// used to inform further layout logic.
-    // ///
-    // /// Benefits from caching, see [caching behaviour](#caching-behaviour).
-    // #[inline]
-    // fn pixel_bounds<'a, S>(&mut self, section: S) -> Option<Rect<i32>>
-    // where
-    //     S: Into<Cow<'a, Section<'a>>>,
-    // {
-    //     let section = section.into();
-    //     let layout = section.layout;
-    //     self.pixel_bounds_custom_layout(section, &layout)
-    // }
-
     /// Returns an iterator over the `PositionedGlyph`s of the given section with a custom layout.
     ///
     /// Generally only drawable glyphs will be returned as invisible glyphs, like spaces,
@@ -171,7 +134,7 @@ pub trait GlyphCruncher<F: Font = FontArc, X: Clone = Extra> {
 ///
 /// # Caching behaviour
 ///
-/// Calls to [`GlyphCalculatorGuard::pixel_bounds`](#method.pixel_bounds),
+/// Calls to [`GlyphCalculatorGuard::glyph_bounds`](#method.glyph_bounds),
 /// [`GlyphCalculatorGuard::glyphs`](#method.glyphs) calculate the positioned glyphs for a
 /// section. This is cached so future calls to any of the methods for the same section are much
 /// cheaper.
