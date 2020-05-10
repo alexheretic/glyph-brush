@@ -142,16 +142,6 @@ pub trait GlyphCruncher<F: Font = FontArc, X: Clone = Extra> {
         let layout = section.layout;
         self.glyph_bounds_custom_layout(section, &layout)
     }
-
-    #[inline]
-    #[deprecated(note = "No longer supported, use glyph_bounds")]
-    fn pixel_bounds<'a, S>(&mut self, section: S) -> Option<Rect>
-    where
-        X: 'a,
-        S: Into<Cow<'a, Section<'a, X>>>,
-    {
-        self.glyph_bounds(section)
-    }
 }
 
 /// Cut down version of a [`GlyphBrush`](struct.GlyphBrush.html) that can calculate pixel bounds,
