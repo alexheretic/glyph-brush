@@ -92,18 +92,21 @@ impl<'a, X> Section<'a, X> {
 }
 
 impl<'a, X: Clone> From<Section<'a, X>> for Cow<'a, Section<'a, X>> {
+    #[inline]
     fn from(owned: Section<'a, X>) -> Self {
         Cow::Owned(owned)
     }
 }
 
 impl<'a, 'b, X: Clone> From<&'b Section<'a, X>> for Cow<'b, Section<'a, X>> {
+    #[inline]
     fn from(owned: &'b Section<'a, X>) -> Self {
         Cow::Borrowed(owned)
     }
 }
 
 impl<X: Hash> Hash for Section<'_, X> {
+    #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
         let Section {
             screen_position: (screen_x, screen_y),
@@ -245,6 +248,7 @@ impl<'text, X: Clone> Section<'text, X> {
         }
     }
 
+    #[inline]
     pub(crate) fn to_hashable_parts(&self) -> HashableSectionParts<'_, X> {
         let Section {
             screen_position: (screen_x, screen_y),
@@ -265,6 +269,7 @@ impl<'text, X: Clone> Section<'text, X> {
 }
 
 impl<X> From<&Section<'_, X>> for SectionGeometry {
+    #[inline]
     fn from(section: &Section<'_, X>) -> Self {
         Self {
             bounds: section.bounds,
