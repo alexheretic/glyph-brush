@@ -16,6 +16,10 @@ pub type Color = [f32; 4];
 ///     .add_text(Text::new("RED").with_color([1.0, 0.0, 0.0, 1.0]))
 ///     .with_layout(Layout::default().h_align(HorizontalAlign::Center));
 /// ```
+///
+/// # Extra
+/// Extra text section data is stored in a generic type, default `Extra`. To use custom
+/// `extra` data ensure your custom type implements `Debug`, `Clone`, `PartialEq` & `Hash`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Section<'a, X = Extra> {
     /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).

@@ -1,5 +1,36 @@
 # Unreleased
-* Rework crate switching from rusttype to ab_glyph.
+* **OpenType (.otf) fonts are now supported** in addition to .ttf fonts. They're just as fast as .ttf fonts too.
+* Rework crate switching from _rusttype_ to _ab_glyph_. ab_glyph is re-exported to `glyph_brush::ab_glyph`,
+  rusttype types are gone, e.g. all usage of `rusttype::Scale` is replaced with `ab_glyph::PxScale`.
+* New `Section` struct redesign replaces `VariedSection` & the old `Section` supporting generic extra data & builder syntax.
+  ```rust
+  // 0.7: Optional builder style, one API for simple & varied sections
+  Section::default().add_text(Text::new("Hello").with_scale(25.0))
+  ```
+  ```rust
+  // 0.6
+  Section { text: "Hello", scale: Scale::uniform(25.0), ..<_>::default() }
+  ```
+* Section `color` & `z` are now part of an `Extra` struct which is the default `extra` type. This allows previous usage
+  to continue but also downstream users to use different `Extra` data.
+  This data is provided to the vertex generator function.
+* To aid with refactoring from the previous version some equivalent versions of legacy structs are available
+  `legacy::{VariedSection, Section, SectionText}`. So in some cases you can just slap `legacy::` in front of the old
+  code and fix some `PxScale` usages and away you go. I'll deprecate and eventually remove this module.
+  ```rust
+  // 0.7
+  legacy::Section { text: "Hello", scale: PxScale::from(25.0), ..<_>::default() }
+  ```
+* `pixel_bounds` has been removed, use `glyph_bounds` instead. Pixel bound info is not available for OpenType glyphs
+  without calculating outlines. I've found it's almost always better to use `glyph_bounds` instead anyway,
+  if not please open an issue with your use case.
+* New crate _glyph_brush_draw_cache_ takes rusttype's `gpu_cache` module into the ab_glyph world
+  and starts to improve upon it.
+* New _glyph_brush_layout_ now providers `section_index` & `byte_index` for all laid out glyphs. It no longer
+  relies on any pixel bounding box info, which isn't fast to query with .otf fonts.
+* It's faster. `0.6` lags **~7-62%** slower than the new code (particularly in the worst case full-layout performance).
+  Rasterization is also **2-7x** faster using _ab_glyph_rasterizer_.
+
 
 # 0.6.3
 * Fix section color & alpha frame to frame changes to be incorrectly optimised as alpha only changes.
