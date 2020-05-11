@@ -799,48 +799,72 @@ impl DrawCache {
 
                     if self.multithread && glyph_count > 1 {
                         // multithread rasterization
-                        use crossbeam_deque::Steal;
-                        use std::{
-                            mem,
-                            sync::mpsc::{self, TryRecvError},
-                        };
+                        use crossbeam_channel::TryRecvError;
+                        use crossbeam_deque::Worker;
+                        use std::mem;
 
+                        let threads = rayon::current_num_threads().min(glyph_count);
                         let rasterize_queue = Arc::new(crossbeam_deque::Injector::new());
-                        let (to_main, from_stealers) = mpsc::channel();
+                        let (to_main, from_stealers) = crossbeam_channel::unbounded();
                         let pad_glyphs = self.pad_glyphs;
+
+                        let mut worker_qs: Vec<_> =
+                            (0..threads).map(|_| Worker::new_fifo()).collect();
+                        let stealers: Arc<Vec<_>> =
+                            Arc::new(worker_qs.iter().map(|w| w.stealer()).collect());
 
                         for el in draw_and_upload {
                             rasterize_queue.push(el);
                         }
 
-                        for _ in 0..rayon::current_num_threads()
-                            .min(glyph_count)
-                            .saturating_sub(1)
-                        {
+                        for _ in 0..threads.saturating_sub(1) {
                             let rasterize_queue = Arc::clone(&rasterize_queue);
+                            let stealers = Arc::clone(&stealers);
                             let to_main = to_main.clone();
+                            let local = worker_qs.pop().unwrap();
+
                             rayon::spawn(move || loop {
-                                match rasterize_queue.steal() {
-                                    Steal::Success((tex_coords, glyph)) => {
+                                let task = local.pop().or_else(|| {
+                                    std::iter::repeat_with(|| {
+                                        rasterize_queue.steal_batch_and_pop(&local).or_else(|| {
+                                            stealers.iter().map(|s| s.steal()).collect()
+                                        })
+                                    })
+                                    .find(|s| !s.is_retry())
+                                    .and_then(|s| s.success())
+                                });
+
+                                match task {
+                                    Some((tex_coords, glyph)) => {
                                         let pixels = draw_glyph(tex_coords, &glyph, pad_glyphs);
                                         to_main.send((tex_coords, pixels)).unwrap();
                                     }
-                                    Steal::Empty => break,
-                                    Steal::Retry => {}
+                                    None => break,
                                 }
                             });
                         }
                         mem::drop(to_main);
 
+                        let local = worker_qs.pop().unwrap();
                         let mut workers_finished = false;
                         loop {
-                            match rasterize_queue.steal() {
-                                Steal::Success((tex_coords, glyph)) => {
+                            let task = local.pop().or_else(|| {
+                                std::iter::repeat_with(|| {
+                                    rasterize_queue
+                                        .steal_batch_and_pop(&local)
+                                        .or_else(|| stealers.iter().map(|s| s.steal()).collect())
+                                })
+                                .find(|s| !s.is_retry())
+                                .and_then(|s| s.success())
+                            });
+
+                            match task {
+                                Some((tex_coords, glyph)) => {
                                     let pixels = draw_glyph(tex_coords, &glyph, pad_glyphs);
                                     uploader(tex_coords, pixels.as_slice());
                                 }
-                                Steal::Empty if workers_finished => break,
-                                Steal::Empty | Steal::Retry => {}
+                                None if workers_finished => break,
+                                None => {}
                             }
 
                             while !workers_finished {

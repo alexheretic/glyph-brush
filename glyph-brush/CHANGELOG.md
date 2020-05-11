@@ -28,8 +28,8 @@
   and starts to improve upon it.
 * New _glyph_brush_layout_ now providers `section_index` & `byte_index` for all laid out glyphs. It no longer
   relies on any pixel bounding box info, which isn't fast to query with .otf fonts.
-* It's faster. `0.6` lags **~7-62%** slower than the new code (particularly in the worst case full-layout performance).
-  Rasterization is also **2-7x** faster using _ab_glyph_rasterizer_.
+* It's faster. **~1.07-1.64x** faster than `0.6` (particularly in the worst case full-layout performance).
+  Rasterization is also **~2-7x** faster using _ab_glyph_rasterizer_.
 
 
 # 0.6.3
