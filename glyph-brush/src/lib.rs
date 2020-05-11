@@ -1,15 +1,12 @@
 //! ```
-//! use glyph_brush::{ab_glyph::FontArc, BrushAction, BrushError, GlyphBrushBuilder, legacy::Section};
+//! use glyph_brush::{ab_glyph::FontArc, BrushAction, BrushError, GlyphBrushBuilder, Section, Text};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let dejavu = FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf"))?;
 //! let mut glyph_brush = GlyphBrushBuilder::using_font(dejavu).build();
-//! # let some_other_section = Section { text: "another", ..Section::default() };
+//! # let some_other_section = Section::default();
 //!
-//! glyph_brush.queue(Section {
-//!     text: "Hello glyph_brush",
-//!     ..Section::default()
-//! });
+//! glyph_brush.queue(Section::default().add_text(Text::new("Hello glyph_brush")));
 //! glyph_brush.queue(some_other_section);
 //!
 //! # fn update_texture(_: glyph_brush::Rectangle<u32>, _: &[u8]) {}

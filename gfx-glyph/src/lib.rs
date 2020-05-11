@@ -18,7 +18,7 @@
 //! # Example
 //!
 //! ```no_run
-//! use gfx_glyph::{ab_glyph::FontArc, GlyphBrushBuilder, legacy::Section};
+//! use gfx_glyph::{ab_glyph::FontArc, GlyphBrushBuilder, Section, Text};
 //! # use old_school_gfx_glutin_ext::*;
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # let event_loop = glutin::event_loop::EventLoop::new();
@@ -33,11 +33,9 @@
 //! let dejavu = FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf"))?;
 //! let mut glyph_brush = GlyphBrushBuilder::using_font(dejavu).build(gfx_factory.clone());
 //!
-//! # let some_other_section = Section { text: "another", ..Section::default() };
-//! let section = Section {
-//!     text: "Hello gfx_glyph",
-//!     ..Section::default()
-//! };
+//! # let some_other_section = Section::default();
+//! let section = Section::default()
+//!     .add_text(Text::new("Hello gfx_glyph"));
 //!
 //! glyph_brush.queue(section);
 //! glyph_brush.queue(some_other_section);
@@ -125,7 +123,7 @@ pub fn default_transform<D: IntoDimensions>(d: D) -> [[f32; 4]; 4] {
 ///
 /// ```no_run
 /// # use gfx_glyph::{GlyphBrushBuilder};
-/// use gfx_glyph::legacy::Section;
+/// use gfx_glyph::{Section, Text};
 /// # use old_school_gfx_glutin_ext::*;
 /// # fn main() -> Result<(), String> {
 /// # let event_loop = glutin::event_loop::EventLoop::new();
@@ -139,12 +137,10 @@ pub fn default_transform<D: IntoDimensions>(d: D) -> [[f32; 4]; 4] {
 /// # let dejavu = gfx_glyph::ab_glyph::FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf")).unwrap();
 /// # let mut glyph_brush = GlyphBrushBuilder::using_font(dejavu)
 /// #     .build(gfx_factory.clone());
-/// # let some_other_section = Section { text: "another", ..Section::default() };
+/// # let some_other_section = Section::default();
 ///
-/// let section = Section {
-///     text: "Hello gfx_glyph",
-///     ..Section::default()
-/// };
+/// let section = Section::default()
+///     .add_text(Text::new("Hello gfx_glyph"));
 ///
 /// glyph_brush.queue(section);
 /// glyph_brush.queue(some_other_section);

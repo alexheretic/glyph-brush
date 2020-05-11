@@ -216,10 +216,7 @@ where
     /// # use glyph_brush::{ab_glyph::*, *};
     /// # let font: FontArc = unimplemented!();
     /// # let mut glyph_brush: GlyphBrush<()> = GlyphBrushBuilder::using_font(font).build();
-    /// glyph_brush.queue(legacy::Section {
-    ///     text: "Hello glyph_brush",
-    ///     ..<_>::default()
-    /// });
+    /// glyph_brush.queue(Section::default().add_text(Text::new("Hello glyph_brush")));
     /// ```
     pub fn queue<'a, S>(&mut self, section: S)
     where

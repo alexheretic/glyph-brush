@@ -115,15 +115,13 @@ pub trait GlyphCruncher<F: Font = FontArc, X: Clone = Extra> {
 /// # Example
 ///
 /// ```
-/// use glyph_brush::{ab_glyph::FontArc, GlyphCalculatorBuilder, GlyphCruncher, legacy::Section};
+/// use glyph_brush::{ab_glyph::FontArc, GlyphCalculatorBuilder, GlyphCruncher, Section, Text};
 ///
 /// let dejavu = FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf")).unwrap();
 /// let glyphs = GlyphCalculatorBuilder::using_font(dejavu).build();
 ///
-/// let section = Section {
-///     text: "Hello glyph_brush",
-///     ..<_>::default()
-/// };
+/// let section = Section::default()
+///     .add_text(Text::new("Hello glyph_brush"));
 ///
 /// // create the scope, equivalent to a lock on the cache when
 /// // dropped will clean unused cached calculations like a draw call
