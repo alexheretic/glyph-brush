@@ -13,7 +13,7 @@ use glutin::{
     event_loop::ControlFlow,
     Api, GlProfile, GlRequest,
 };
-use glyph_brush::{rusttype::*, *};
+use glyph_brush::{ab_glyph::*, *};
 use std::{
     env,
     ffi::CString,
@@ -61,8 +61,8 @@ fn main() -> Res<()> {
         )?;
     let window_ctx = unsafe { window_ctx.make_current().unwrap() };
 
-    let dejavu: &[u8] = include_bytes!("../../fonts/OpenSans-Light.ttf");
-    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
+    let dejavu = FontRef::try_from_slice(include_bytes!("../../fonts/OpenSans-Light.ttf"))?;
+    let mut glyph_brush = GlyphBrushBuilder::using_font(dejavu).build();
 
     // Load the OpenGL function pointers
     gl::load_with(|symbol| window_ctx.get_proc_address(symbol) as _);
@@ -224,41 +224,38 @@ fn main() -> Res<()> {
 
                 let width = dimensions.width as f32;
                 let height = dimensions.height as _;
-                let scale =
-                    Scale::uniform((font_size * window_ctx.window().scale_factor() as f32).round());
+                let scale = (font_size * window_ctx.window().scale_factor() as f32).round();
+                let base_text = Text::new(&text).with_scale(scale);
 
-                glyph_brush.queue(Section {
-                    text: &text,
-                    scale,
-                    screen_position: (0.0, 0.0),
-                    bounds: (width / 3.15, height),
-                    color: [0.9, 0.3, 0.3, 1.0],
-                    ..Section::default()
-                });
+                glyph_brush.queue(
+                    Section::default()
+                        .add_text(base_text.with_color([0.9, 0.3, 0.3, 1.0]))
+                        .with_bounds((width / 3.15, height)),
+                );
 
-                glyph_brush.queue(Section {
-                    text: &text,
-                    scale,
-                    screen_position: (width / 2.0, height / 2.0),
-                    bounds: (width / 3.15, height),
-                    color: [0.3, 0.9, 0.3, 1.0],
-                    layout: Layout::default()
-                        .h_align(HorizontalAlign::Center)
-                        .v_align(VerticalAlign::Center),
-                    ..Section::default()
-                });
+                glyph_brush.queue(
+                    Section::default()
+                        .add_text(base_text.with_color([0.3, 0.9, 0.3, 1.0]))
+                        .with_screen_position((width / 2.0, height / 2.0))
+                        .with_bounds((width / 3.15, height))
+                        .with_layout(
+                            Layout::default()
+                                .h_align(HorizontalAlign::Center)
+                                .v_align(VerticalAlign::Center),
+                        ),
+                );
 
-                glyph_brush.queue(Section {
-                    text: &text,
-                    scale,
-                    screen_position: (width, height),
-                    bounds: (width / 3.15, height),
-                    color: [0.3, 0.3, 0.9, 1.0],
-                    layout: Layout::default()
-                        .h_align(HorizontalAlign::Right)
-                        .v_align(VerticalAlign::Bottom),
-                    ..Section::default()
-                });
+                glyph_brush.queue(
+                    Section::default()
+                        .add_text(base_text.with_color([0.3, 0.3, 0.9, 1.0]))
+                        .with_screen_position((width, height))
+                        .with_bounds((width / 3.15, height))
+                        .with_layout(
+                            Layout::default()
+                                .h_align(HorizontalAlign::Right)
+                                .v_align(VerticalAlign::Bottom),
+                        ),
+                );
 
                 let mut brush_action;
                 loop {
@@ -269,8 +266,8 @@ fn main() -> Res<()> {
                             gl::TexSubImage2D(
                                 gl::TEXTURE_2D,
                                 0,
-                                rect.min.x as _,
-                                rect.min.y as _,
+                                rect.min[0] as _,
+                                rect.min[1] as _,
                                 rect.width() as _,
                                 rect.height() as _,
                                 gl::RED,
@@ -435,8 +432,7 @@ fn to_vertex(
         mut tex_coords,
         pixel_coords,
         bounds,
-        color,
-        z,
+        extra,
     }: glyph_brush::GlyphVertex,
 ) -> Vertex {
     let gl_bounds = bounds;
@@ -471,17 +467,17 @@ fn to_vertex(
     [
         gl_rect.min.x,
         gl_rect.max.y,
-        z,
+        extra.z,
         gl_rect.max.x,
         gl_rect.min.y,
         tex_coords.min.x,
         tex_coords.max.y,
         tex_coords.max.x,
         tex_coords.min.y,
-        color[0],
-        color[1],
-        color[2],
-        color[3],
+        extra.color[0],
+        extra.color[1],
+        extra.color[2],
+        extra.color[3],
     ]
 }
 

@@ -1,95 +1,99 @@
-use super::{Color, EolLineBreak, FontId, FontMap, SectionText};
 use crate::{
-    linebreak::{LineBreak, LineBreaker},
-    rusttype::{Scale, ScaledGlyph},
+    linebreak::{EolLineBreak, LineBreak, LineBreaker},
     words::Words,
+    FontId, SectionText,
 };
+use ab_glyph::*;
 use std::{
-    iter::{FusedIterator, Iterator},
-    marker::PhantomData,
-    mem, slice,
+    iter::{Enumerate, FusedIterator, Iterator},
+    mem,
     str::CharIndices,
 };
 
 /// Single character info
-pub(crate) struct Character<'font> {
-    pub glyph: ScaledGlyph<'font>,
-    pub color: Color,
+pub(crate) struct Character<'b, F: Font> {
+    pub glyph: Glyph,
+    pub scale_font: PxScaleFont<&'b F>,
     pub font_id: FontId,
     /// Line break proceeding this character.
     pub line_break: Option<LineBreak>,
     /// Equivalent to `char::is_control()`.
     pub control: bool,
+    /// Equivalent to `char::is_whitespace()`.
+    pub whitespace: bool,
+    /// Index of the `SectionText` this character is from.
+    pub section_index: usize,
+    /// Position of the char within the `SectionText` text.
+    pub byte_index: usize,
 }
 
 /// `Character` iterator
-pub(crate) struct Characters<'a, 'b, 'font, L, F>
+pub(crate) struct Characters<'a, 'b, L, F, S>
 where
-    'font: 'a + 'b,
+    F: Font + 'a + 'b,
     L: LineBreaker,
-    F: FontMap<'font>,
+    S: Iterator<Item = SectionText<'a>>,
 {
-    font_map: &'b F,
-    section_text: slice::Iter<'a, SectionText<'a>>,
+    fonts: &'b [F],
+    section_text: Enumerate<S>,
     line_breaker: L,
     part_info: Option<PartInfo<'a>>,
-    phantom: PhantomData<&'font ()>,
 }
 
 struct PartInfo<'a> {
-    section: &'a SectionText<'a>,
+    section_index: usize,
+    section: SectionText<'a>,
     info_chars: CharIndices<'a>,
     line_breaks: Box<dyn Iterator<Item = LineBreak> + 'a>,
     next_break: Option<LineBreak>,
 }
 
-impl<'a, 'b, 'font, L, F> Characters<'a, 'b, 'font, L, F>
+impl<'a, 'b, L, F, S> Characters<'a, 'b, L, F, S>
 where
     L: LineBreaker,
-    F: FontMap<'font>,
+    F: Font,
+    S: Iterator<Item = SectionText<'a>>,
 {
     /// Returns a new `Characters` iterator.
-    pub(crate) fn new(
-        font_map: &'b F,
-        section_text: slice::Iter<'a, SectionText<'a>>,
-        line_breaker: L,
-    ) -> Self {
+    pub(crate) fn new(fonts: &'b [F], section_text: S, line_breaker: L) -> Self {
         Self {
-            font_map,
-            section_text,
+            fonts,
+            section_text: section_text.enumerate(),
             line_breaker,
             part_info: None,
-            phantom: PhantomData,
         }
     }
 
     /// Wraps into a `Words` iterator.
-    pub(crate) fn words(self) -> Words<'a, 'b, 'font, L, F> {
+    pub(crate) fn words(self) -> Words<'a, 'b, L, F, S> {
         Words { characters: self }
     }
 }
 
-impl<'font, L, F> Iterator for Characters<'_, '_, 'font, L, F>
+impl<'a, 'b, L, F, S> Iterator for Characters<'a, 'b, L, F, S>
 where
     L: LineBreaker,
-    F: FontMap<'font>,
+    F: Font,
+    S: Iterator<Item = SectionText<'a>>,
 {
-    type Item = Character<'font>;
+    type Item = Character<'b, F>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if self.part_info.is_none() {
-            let mut section;
+            let mut index_and_section;
             loop {
-                section = self.section_text.next()?;
-                if valid_section(&section) {
+                index_and_section = self.section_text.next()?;
+                if valid_section(&index_and_section.1) {
                     break;
                 }
             }
+            let (section_index, section) = index_and_section;
             let line_breaks = self.line_breaker.line_breaks(section.text);
             self.part_info = Some(PartInfo {
+                section_index,
                 section,
-                info_chars: section.text.char_indices(),
+                info_chars: index_and_section.1.text.char_indices(),
                 line_breaks,
                 next_break: None,
             });
@@ -97,10 +101,10 @@ where
 
         {
             let PartInfo {
+                section_index,
                 section:
                     SectionText {
                         scale,
-                        color,
                         font_id,
                         text,
                     },
@@ -120,7 +124,9 @@ where
                     }
                 }
 
-                let glyph = self.font_map.font(*font_id).glyph(c).scaled(*scale);
+                let scale_font: PxScaleFont<&'b F> = self.fonts[*font_id].as_scaled(*scale);
+
+                let glyph = scale_font.scaled_glyph(c);
 
                 let c_len = c.len_utf8();
                 let mut line_break = next_break.filter(|b| b.offset() == byte_index + c_len);
@@ -131,10 +137,14 @@ where
 
                 return Some(Character {
                     glyph,
-                    color: *color,
+                    scale_font,
                     font_id: *font_id,
                     line_break,
                     control: c.is_control(),
+                    whitespace: c.is_whitespace(),
+
+                    section_index: *section_index,
+                    byte_index,
                 });
             }
         }
@@ -144,15 +154,16 @@ where
     }
 }
 
-impl<'font, L, F> FusedIterator for Characters<'_, '_, 'font, L, F>
+impl<'a, L, F, S> FusedIterator for Characters<'a, '_, L, F, S>
 where
     L: LineBreaker,
-    F: FontMap<'font>,
+    F: Font,
+    S: Iterator<Item = SectionText<'a>>,
 {
 }
 
 #[inline]
 fn valid_section(s: &SectionText<'_>) -> bool {
-    let Scale { x, y } = s.scale;
+    let PxScale { x, y } = s.scale;
     x > 0.0 && y > 0.0
 }

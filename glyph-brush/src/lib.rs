@@ -1,19 +1,16 @@
 //! ```
-//! use glyph_brush::{BrushAction, BrushError, GlyphBrushBuilder, Section};
+//! use glyph_brush::{ab_glyph::FontArc, BrushAction, BrushError, GlyphBrushBuilder, Section, Text};
 //!
-//! # fn main() -> Result<(), glyph_brush::BrushError> {
-//! let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-//! let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build();
-//! # let some_other_section = Section { text: "another", ..Section::default() };
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let dejavu = FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf"))?;
+//! let mut glyph_brush = GlyphBrushBuilder::using_font(dejavu).build();
+//! # let some_other_section = Section::default();
 //!
-//! glyph_brush.queue(Section {
-//!     text: "Hello glyph_brush",
-//!     ..Section::default()
-//! });
+//! glyph_brush.queue(Section::default().add_text(Text::new("Hello glyph_brush")));
 //! glyph_brush.queue(some_other_section);
 //!
-//! # fn update_texture(_: glyph_brush::rusttype::Rect<u32>, _: &[u8]) {}
-//! # let into_vertex = |_| ();
+//! # fn update_texture(_: glyph_brush::Rectangle<u32>, _: &[u8]) {}
+//! # fn into_vertex(v: glyph_brush::GlyphVertex) { () }
 //! match glyph_brush.process_queued(
 //!     |rect, tex_data| update_texture(rect, tex_data),
 //!     |vertex_data| into_vertex(vertex_data),
@@ -31,15 +28,19 @@
 //! # Ok(())
 //! # }
 //! ```
+mod extra;
 mod glyph_brush;
 mod glyph_calculator;
 mod owned_section;
 mod section;
 
-pub use crate::{glyph_brush::*, glyph_calculator::*, owned_section::*, section::*};
+pub mod legacy;
+
+pub use crate::{extra::*, glyph_brush::*, glyph_calculator::*, owned_section::*, section::*};
+pub use glyph_brush_draw_cache::Rectangle;
 pub use glyph_brush_layout::*;
 
-use glyph_brush_layout::rusttype::*;
+use glyph_brush_layout::ab_glyph::*;
 
 /// A "practically collision free" `Section` hasher
 #[cfg(not(target_arch = "wasm32"))]
@@ -52,22 +53,9 @@ pub type DefaultSectionHasher = std::hash::BuildHasherDefault<twox_hash::XxHash>
 fn default_section_hasher() {
     use std::hash::{BuildHasher, Hash, Hasher};
 
-    let section_a = Section {
-        text: "Hovered Tile: Some((0, 0))",
-        screen_position: (5.0, 60.0),
-        scale: Scale { x: 20.0, y: 20.0 },
-        color: [1.0, 1.0, 1.0, 1.0],
-        ..<_>::default()
-    };
-    let section_b = Section {
-        text: "Hovered Tile: Some((1, 0))",
-        screen_position: (5.0, 60.0),
-        scale: Scale { x: 20.0, y: 20.0 },
-        color: [1.0, 1.0, 1.0, 1.0],
-        ..<_>::default()
-    };
+    let section_a = Section::default().add_text(Text::new("Hovered Tile: Some((0, 0))"));
+    let section_b = Section::default().add_text(Text::new("Hovered Tile: Some((1, 0))"));
     let hash = |s: &Section| {
-        let s: VariedSection = s.into();
         let mut hasher = DefaultSectionHasher::default().build_hasher();
         s.hash(&mut hasher);
         hasher.finish()

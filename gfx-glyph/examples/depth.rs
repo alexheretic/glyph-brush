@@ -2,7 +2,7 @@ use gfx::{
     format::{Depth, Srgba8},
     Device,
 };
-use gfx_glyph::*;
+use gfx_glyph::{ab_glyph::*, *};
 use glutin::{
     event::{Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
@@ -47,13 +47,13 @@ fn main() -> Result<(), Box<dyn Error>> {
             .build_windowed(window_builder, &event_loop)?
             .init_gfx::<Srgba8, Depth>();
 
-    let fonts: Vec<&[u8]> = vec![
-        include_bytes!("../../fonts/DejaVuSans.ttf"),
-        include_bytes!("../../fonts/OpenSans-Italic.ttf"),
+    let fonts = vec![
+        FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf"))?,
+        FontArc::try_from_slice(include_bytes!("../../fonts/OpenSans-Italic.ttf"))?,
     ];
     let italic_font = FontId(1);
 
-    let mut glyph_brush = GlyphBrushBuilder::using_fonts_bytes(fonts)
+    let mut glyph_brush = GlyphBrushBuilder::using_fonts(fonts)
         .initial_cache_size((512, 512))
         .build(factory.clone());
 
@@ -65,7 +65,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         *control_flow = ControlFlow::Poll;
 
         match event {
-            Event::MainEventsCleared => window_ctx.window().request_redraw(),
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::KeyboardInput {
                     input:
@@ -82,7 +81,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
                 _ => (),
             },
-            Event::RedrawRequested(_) => {
+            Event::MainEventsCleared => {
                 encoder.clear(&main_color, [0.02, 0.02, 0.02, 1.0]);
                 encoder.clear_depth(&main_depth, 1.0);
 
@@ -90,27 +89,32 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let (width, height) = (f32::from(width), f32::from(height));
 
                 // first section is queued, and therefore drawn, first with lower z
-                glyph_brush.queue(Section {
-                    screen_position: (width / 2.0, 100.0),
-                    bounds: (width, height - 100.0),
-                    text: "On top",
-                    scale: Scale::uniform(95.0),
-                    color: [0.8, 0.8, 0.8, 1.0],
-                    font_id: italic_font,
-                    layout: Layout::default().h_align(HorizontalAlign::Center),
-                    z: 0.2,
-                });
+                glyph_brush.queue(
+                    Section::default()
+                        .add_text(
+                            Text::new("On top")
+                                .with_scale(95.0)
+                                .with_color([0.8, 0.8, 0.8, 1.0])
+                                .with_z(0.2)
+                                .with_font_id(italic_font),
+                        )
+                        .with_screen_position((width / 2.0, 100.0))
+                        .with_bounds((width, height - 100.0))
+                        .with_layout(Layout::default().h_align(HorizontalAlign::Center)),
+                );
 
                 // 2nd section is drawn last but with higher z,
                 // draws are subject to depth testing
-                glyph_brush.queue(Section {
-                    bounds: (width, height),
-                    text: &include_str!("lipsum.txt").replace("\n\n", "").repeat(10),
-                    scale: Scale::uniform(30.0),
-                    color: [0.05, 0.05, 0.1, 1.0],
-                    z: 1.0,
-                    ..Section::default()
-                });
+                glyph_brush.queue(
+                    Section::default()
+                        .add_text(
+                            Text::new(&include_str!("lipsum.txt").replace("\n\n", "").repeat(10))
+                                .with_scale(30.0)
+                                .with_color([0.05, 0.05, 0.1, 1.0])
+                                .with_z(1.0),
+                        )
+                        .with_bounds((width, height)),
+                );
 
                 glyph_brush
                     .use_queue()

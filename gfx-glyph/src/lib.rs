@@ -5,7 +5,7 @@
     clippy::redundant_closure
 )]
 
-//! Fast GPU cached text rendering using gfx-rs & rusttype.
+//! Fast GPU cached text rendering using gfx-rs & ab_glyph.
 //!
 //! Makes use of three kinds of caching to optimise frame performance.
 //!
@@ -18,9 +18,9 @@
 //! # Example
 //!
 //! ```no_run
-//! use gfx_glyph::{GlyphBrushBuilder, Section};
+//! use gfx_glyph::{ab_glyph::FontArc, GlyphBrushBuilder, Section, Text};
 //! # use old_school_gfx_glutin_ext::*;
-//! # fn main() -> Result<(), String> {
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # let event_loop = glutin::event_loop::EventLoop::new();
 //! # let window_builder = glutin::window::WindowBuilder::new();
 //! # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
@@ -30,14 +30,12 @@
 //! #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
 //! # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
 //!
-//! let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-//! let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build(gfx_factory.clone());
+//! let dejavu = FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf"))?;
+//! let mut glyph_brush = GlyphBrushBuilder::using_font(dejavu).build(gfx_factory.clone());
 //!
-//! # let some_other_section = Section { text: "another", ..Section::default() };
-//! let section = Section {
-//!     text: "Hello gfx_glyph",
-//!     ..Section::default()
-//! };
+//! # let some_other_section = Section::default();
+//! let section = Section::default()
+//!     .add_text(Text::new("Hello gfx_glyph"));
 //!
 //! glyph_brush.queue(section);
 //! glyph_brush.queue(some_other_section);
@@ -54,10 +52,9 @@ mod draw_builder;
 
 pub use crate::{builder::*, draw_builder::*};
 pub use glyph_brush::{
-    rusttype::{self, Font, Point, PositionedGlyph, Rect, Scale, SharedBytes},
-    BuiltInLineBreaker, FontId, FontMap, GlyphCruncher, GlyphPositioner, HorizontalAlign, Layout,
-    LineBreak, LineBreaker, OwnedSectionText, OwnedVariedSection, PositionedGlyphIter, Section,
-    SectionGeometry, SectionText, VariedSection, VerticalAlign,
+    ab_glyph, legacy, BuiltInLineBreaker, Extra, FontId, GlyphCruncher, GlyphPositioner,
+    HorizontalAlign, Layout, LineBreak, LineBreaker, OwnedSection, OwnedText, Section,
+    SectionGeometry, SectionGlyph, SectionGlyphIter, SectionText, Text, VerticalAlign,
 };
 
 use crate::pipe::{glyph_pipe, GlyphVertex, IntoDimensions, RawAndFormat};
@@ -67,14 +64,13 @@ use gfx::{
     texture,
     traits::FactoryExt,
 };
-use glyph_brush::{rusttype::point, BrushAction, BrushError, Color, DefaultSectionHasher};
+use glyph_brush::{ab_glyph::*, BrushAction, BrushError, DefaultSectionHasher};
 use log::{log_enabled, warn};
 use std::{
     borrow::Cow,
     error::Error,
     fmt,
     hash::{BuildHasher, Hash},
-    i32,
 };
 
 // Type for the generated glyph cache texture
@@ -127,7 +123,7 @@ pub fn default_transform<D: IntoDimensions>(d: D) -> [[f32; 4]; 4] {
 ///
 /// ```no_run
 /// # use gfx_glyph::{GlyphBrushBuilder};
-/// use gfx_glyph::Section;
+/// use gfx_glyph::{Section, Text};
 /// # use old_school_gfx_glutin_ext::*;
 /// # fn main() -> Result<(), String> {
 /// # let event_loop = glutin::event_loop::EventLoop::new();
@@ -138,15 +134,13 @@ pub fn default_transform<D: IntoDimensions>(d: D) -> [[f32; 4]; 4] {
 /// #         .unwrap()
 /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
 /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
-/// # let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-/// # let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu)
+/// # let dejavu = gfx_glyph::ab_glyph::FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf")).unwrap();
+/// # let mut glyph_brush = GlyphBrushBuilder::using_font(dejavu)
 /// #     .build(gfx_factory.clone());
-/// # let some_other_section = Section { text: "another", ..Section::default() };
+/// # let some_other_section = Section::default();
 ///
-/// let section = Section {
-///     text: "Hello gfx_glyph",
-///     ..Section::default()
-/// };
+/// let section = Section::default()
+///     .add_text(Text::new("Hello gfx_glyph"));
 ///
 /// glyph_brush.queue(section);
 /// glyph_brush.queue(some_other_section);
@@ -159,7 +153,7 @@ pub fn default_transform<D: IntoDimensions>(d: D) -> [[f32; 4]; 4] {
 /// # Caching behaviour
 ///
 /// Calls to [`GlyphBrush::queue`](#method.queue),
-/// [`GlyphBrush::pixel_bounds`](#method.pixel_bounds), [`GlyphBrush::glyphs`](#method.glyphs)
+/// [`GlyphBrush::glyph_bounds`](#method.glyph_bounds), [`GlyphBrush::glyphs`](#method.glyphs)
 /// calculate the positioned glyphs for a section.
 /// This is cached so future calls to any of the methods for the same section are much
 /// cheaper. In the case of [`GlyphBrush::queue`](#method.queue) the calculations will also be
@@ -168,72 +162,89 @@ pub fn default_transform<D: IntoDimensions>(d: D) -> [[f32; 4]; 4] {
 /// The cache for a section will be **cleared** after a
 /// [`.use_queue().draw(..)`](struct.DrawBuilder.html#method.draw) call when that section has not been used since
 /// the previous draw call.
-pub struct GlyphBrush<'font, R: gfx::Resources, F: gfx::Factory<R>, H = DefaultSectionHasher> {
+pub struct GlyphBrush<R: gfx::Resources, GF: gfx::Factory<R>, F = FontArc, H = DefaultSectionHasher>
+{
     font_cache_tex: (
         gfx::handle::Texture<R, TexSurface>,
         gfx_core::handle::ShaderResourceView<R, f32>,
     ),
     texture_filter_method: texture::FilterMethod,
-    factory: F,
+    factory: GF,
     program: gfx::handle::Program<R>,
     draw_cache: Option<DrawnGlyphBrush<R>>,
-    glyph_brush: glyph_brush::GlyphBrush<'font, GlyphVertex, H>,
+    glyph_brush: glyph_brush::GlyphBrush<GlyphVertex, Extra, F, H>,
 
     // config
     depth_test: gfx::state::Depth,
 }
 
-impl<R: gfx::Resources, F: gfx::Factory<R>, H> fmt::Debug for GlyphBrush<'_, R, F, H> {
-    #[inline]
+impl<R: gfx::Resources, GF: gfx::Factory<R>, F, H> fmt::Debug for GlyphBrush<R, GF, F, H> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "GlyphBrush")
     }
 }
 
-impl<'font, R, F, H> GlyphCruncher<'font> for GlyphBrush<'font, R, F, H>
+impl<R, GF, F, H> GlyphBrush<R, GF, F, H>
 where
     R: gfx::Resources,
-    F: gfx::Factory<R>,
+    GF: gfx::Factory<R>,
+    H: BuildHasher,
+    F: Font,
+{
+    /// Adds an additional font to the one(s) initially added on build.
+    ///
+    /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
+    pub fn add_font(&mut self, font: F) -> FontId {
+        self.glyph_brush.add_font(font)
+    }
+}
+
+impl<R, GF, F, H> GlyphCruncher<F, Extra> for GlyphBrush<R, GF, F, H>
+where
+    F: Font,
+    R: gfx::Resources,
+    GF: gfx::Factory<R>,
     H: BuildHasher,
 {
-    #[inline]
-    fn pixel_bounds_custom_layout<'a, S, L>(
-        &mut self,
-        section: S,
-        custom_layout: &L,
-    ) -> Option<Rect<i32>>
-    where
-        L: GlyphPositioner + Hash,
-        S: Into<Cow<'a, VariedSection<'a>>>,
-    {
-        self.glyph_brush
-            .pixel_bounds_custom_layout(section, custom_layout)
-    }
-
     #[inline]
     fn glyphs_custom_layout<'a, 'b, S, L>(
         &'b mut self,
         section: S,
         custom_layout: &L,
-    ) -> PositionedGlyphIter<'b, 'font>
+    ) -> SectionGlyphIter<'b>
     where
         L: GlyphPositioner + Hash,
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, Section<'a>>>,
     {
         self.glyph_brush
             .glyphs_custom_layout(section, custom_layout)
     }
 
     #[inline]
-    fn fonts(&self) -> &[Font<'font>] {
+    fn fonts(&self) -> &[F] {
         self.glyph_brush.fonts()
+    }
+
+    #[inline]
+    fn glyph_bounds_custom_layout<'a, S, L>(
+        &mut self,
+        section: S,
+        custom_layout: &L,
+    ) -> Option<Rect>
+    where
+        L: GlyphPositioner + Hash,
+        S: Into<Cow<'a, Section<'a>>>,
+    {
+        self.glyph_brush
+            .glyph_bounds_custom_layout(section, custom_layout)
     }
 }
 
-impl<'font, R, F, H> GlyphBrush<'font, R, F, H>
+impl<R, GF, F, H> GlyphBrush<R, GF, F, H>
 where
+    F: Font + Sync,
     R: gfx::Resources,
-    F: gfx::Factory<R>,
+    GF: gfx::Factory<R>,
     H: BuildHasher,
 {
     /// Queues a section/layout to be drawn by the next call of
@@ -244,7 +255,7 @@ where
     #[inline]
     pub fn queue<'a, S>(&mut self, section: S)
     where
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, Section<'a>>>,
     {
         self.glyph_brush.queue(section)
     }
@@ -266,14 +277,15 @@ where
     /// #         .unwrap()
     /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
     /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
-    /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(&[])
+    /// # let font: gfx_glyph::ab_glyph::FontArc = unimplemented!();
+    /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(font)
     /// #     .build(gfx_factory.clone());
     /// glyph_brush.use_queue().draw(&mut gfx_encoder, &gfx_color)?;
     /// # Ok(())
     /// # }
     /// ```
     #[inline]
-    pub fn use_queue(&mut self) -> DrawBuilder<'_, 'font, R, F, H, ()> {
+    pub fn use_queue(&mut self) -> DrawBuilder<'_, F, R, GF, H, ()> {
         DrawBuilder {
             brush: self,
             transform: None,
@@ -293,7 +305,7 @@ where
     pub fn queue_custom_layout<'a, S, G>(&mut self, section: S, custom_layout: &G)
     where
         G: GlyphPositioner,
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, Section<'a>>>,
     {
         self.glyph_brush.queue_custom_layout(section, custom_layout)
     }
@@ -303,11 +315,11 @@ where
     #[inline]
     pub fn queue_pre_positioned(
         &mut self,
-        glyphs: Vec<(PositionedGlyph<'font>, Color, FontId)>,
-        bounds: Rect<f32>,
-        z: f32,
+        glyphs: Vec<SectionGlyph>,
+        extra: Vec<Extra>,
+        bounds: Rect,
     ) {
-        self.glyph_brush.queue_pre_positioned(glyphs, bounds, z)
+        self.glyph_brush.queue_pre_positioned(glyphs, extra, bounds)
     }
 
     /// Retains the section in the cache as if it had been used in the last draw-frame.
@@ -317,7 +329,7 @@ where
     #[inline]
     pub fn keep_cached_custom_layout<'a, S, G>(&mut self, section: S, custom_layout: &G)
     where
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, Section<'a>>>,
         G: GlyphPositioner,
     {
         self.glyph_brush
@@ -331,7 +343,7 @@ where
     #[inline]
     pub fn keep_cached<'a, S>(&mut self, section: S)
     where
-        S: Into<Cow<'a, VariedSection<'a>>>,
+        S: Into<Cow<'a, Section<'a>>>,
     {
         self.glyph_brush.keep_cached(section)
     }
@@ -340,7 +352,7 @@ where
     ///
     /// The `FontId` corresponds to the index of the font data.
     #[inline]
-    pub fn fonts(&self) -> &[Font<'_>] {
+    pub fn fonts(&self) -> &[F] {
         self.glyph_brush.fonts()
     }
 
@@ -364,7 +376,7 @@ where
 
             brush_action = self.glyph_brush.process_queued(
                 |rect, tex_data| {
-                    let offset = [rect.min.x as u16, rect.min.y as u16];
+                    let offset = [rect.min[0] as u16, rect.min[1] as u16];
                     let size = [rect.width() as u16, rect.height() as u16];
                     update_texture(&mut encoder, &tex, offset, size, tex_data);
                 },
@@ -529,45 +541,6 @@ where
             instances: None,
         }
     }
-
-    /// Adds an additional font to the one(s) initially added on build.
-    ///
-    /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use gfx_glyph::{GlyphBrushBuilder, Section};
-    /// # use old_school_gfx_glutin_ext::*;
-    /// # let event_loop = glutin::event_loop::EventLoop::new();
-    /// # let window_builder = glutin::window::WindowBuilder::new();
-    /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
-    /// #     glutin::ContextBuilder::new()
-    /// #         .build_windowed(window_builder, &event_loop)
-    /// #         .unwrap()
-    /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
-    /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
-    ///
-    /// // dejavu is built as default `FontId(0)`
-    /// let dejavu: &[u8] = include_bytes!("../../fonts/DejaVuSans.ttf");
-    /// let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(dejavu).build(gfx_factory.clone());
-    ///
-    /// // some time later, add another font referenced by a new `FontId`
-    /// let open_sans_italic: &[u8] = include_bytes!("../../fonts/OpenSans-Italic.ttf");
-    /// let open_sans_italic_id = glyph_brush.add_font_bytes(open_sans_italic);
-    /// # glyph_brush.use_queue().draw(&mut gfx_encoder, &gfx_color).unwrap();
-    /// # let _ = open_sans_italic_id;
-    /// ```
-    pub fn add_font_bytes<'a: 'font, B: Into<SharedBytes<'a>>>(&mut self, font_data: B) -> FontId {
-        self.glyph_brush.add_font_bytes(font_data)
-    }
-
-    /// Adds an additional font to the one(s) initially added on build.
-    ///
-    /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
-    pub fn add_font<'a: 'font>(&mut self, font_data: Font<'a>) -> FontId {
-        self.glyph_brush.add_font(font_data)
-    }
 }
 
 struct DrawnGlyphBrush<R: gfx::Resources> {
@@ -601,8 +574,7 @@ fn to_vertex(
         mut tex_coords,
         pixel_coords,
         bounds,
-        color,
-        z,
+        extra,
     }: glyph_brush::GlyphVertex,
 ) -> GlyphVertex {
     let gl_bounds = bounds;
@@ -635,23 +607,23 @@ fn to_vertex(
     }
 
     GlyphVertex {
-        left_top: [gl_rect.min.x, gl_rect.max.y, z],
+        left_top: [gl_rect.min.x, gl_rect.max.y, extra.z],
         right_bottom: [gl_rect.max.x, gl_rect.min.y],
         tex_left_top: [tex_coords.min.x, tex_coords.max.y],
         tex_right_bottom: [tex_coords.max.x, tex_coords.min.y],
-        color,
+        color: extra.color,
     }
 }
 
 // Creates a gfx texture with the given data
-fn create_texture<F, R>(
-    factory: &mut F,
+fn create_texture<GF, R>(
+    factory: &mut GF,
     width: u32,
     height: u32,
 ) -> Result<(TexSurfaceHandle<R>, TexShaderView<R>), Box<dyn Error>>
 where
     R: gfx::Resources,
-    F: gfx::Factory<R>,
+    GF: gfx::Factory<R>,
 {
     let kind = texture::Kind::D2(
         width as texture::Size,

@@ -1,5 +1,8 @@
 # Unreleased
-* Use advance-width of final glyph in a line for center & right alignment instead of pixel bounds. This produces more consistent results.
+* Rework crate switching from rusttype to ab_glyph.
+  - Layout returns `SectionGlyph`s which contain `section_index` & string `byte_index`.
+  - Drop support for `Color` which didn't affect layout & can now be associated to sections without built-in support.
+  - Glyph bounding boxes are no longer used at all during layout. This means invisible glyphs, like ' ', are now generally included.
 
 # 0.1.9
 * Fix consistency of section bounds by removing usage of glyph pixel bounds during word layout, instead always relying on advance-width.

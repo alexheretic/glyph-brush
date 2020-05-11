@@ -1,18 +1,17 @@
-use super::{Color, FontId, FontMap, HorizontalAlign, VerticalAlign};
-use crate::{
-    linebreak::LineBreaker,
-    words::{RelativePositionedGlyph, Words, ZERO_V_METRICS},
-};
-use full_rusttype::{point, vector, PositionedGlyph, VMetrics};
+use super::{HorizontalAlign, SectionGlyph, SectionText, VerticalAlign};
+use crate::{linebreak::LineBreaker, words::*};
+use ab_glyph::*;
 use std::iter::{FusedIterator, Iterator, Peekable};
 
 /// A line of `Word`s limited to a max width bound.
-pub(crate) struct Line<'font> {
-    pub glyphs: Vec<(RelativePositionedGlyph<'font>, Color, FontId)>,
+#[derive(Default)]
+pub(crate) struct Line {
+    pub glyphs: Vec<SectionGlyph>,
     pub max_v_metrics: VMetrics,
+    pub rightmost: f32,
 }
 
-impl<'font> Line<'font> {
+impl Line {
     #[inline]
     pub(crate) fn line_height(&self) -> f32 {
         self.max_v_metrics.ascent - self.max_v_metrics.descent + self.max_v_metrics.line_gap
@@ -20,11 +19,11 @@ impl<'font> Line<'font> {
 
     /// Returns line glyphs positioned on the screen and aligned.
     pub fn aligned_on_screen(
-        self,
+        mut self,
         screen_position: (f32, f32),
         h_align: HorizontalAlign,
         v_align: VerticalAlign,
-    ) -> Vec<(PositionedGlyph<'font>, Color, FontId)> {
+    ) -> Vec<SectionGlyph> {
         if self.glyphs.is_empty() {
             return Vec::new();
         }
@@ -37,10 +36,7 @@ impl<'font> Line<'font> {
             // - Central alignment is attained from left by shifting the line
             //   leftwards by half the rightmost x distance from render position
             HorizontalAlign::Center | HorizontalAlign::Right => {
-                let mut shift_left = {
-                    let last_glyph = &self.glyphs.last().unwrap().0;
-                    last_glyph.relative.x + last_glyph.glyph.h_metrics().advance_width
-                };
+                let mut shift_left = self.rightmost;
                 if h_align == HorizontalAlign::Center {
                     shift_left /= 2.0;
                 }
@@ -63,9 +59,10 @@ impl<'font> Line<'font> {
         };
 
         self.glyphs
-            .into_iter()
-            .map(|(glyph, color, font_id)| (glyph.screen_positioned(screen_pos), color, font_id))
-            .collect()
+            .iter_mut()
+            .for_each(|sg| sg.glyph.position += screen_pos);
+
+        self.glyphs
     }
 }
 
@@ -75,34 +72,35 @@ impl<'font> Line<'font> {
 ///
 /// Note: Will always have at least one word, if possible, even if the word itself
 /// breaks the `width_bound`.
-pub(crate) struct Lines<'a, 'b, 'font, L, F>
+pub(crate) struct Lines<'a, 'b, L, F, S>
 where
-    'font: 'a + 'b,
     L: LineBreaker,
-    F: FontMap<'font>,
+    F: Font,
+    S: Iterator<Item = SectionText<'a>>,
 {
-    pub(crate) words: Peekable<Words<'a, 'b, 'font, L, F>>,
+    pub(crate) words: Peekable<Words<'a, 'b, L, F, S>>,
     pub(crate) width_bound: f32,
 }
 
-impl<'font, L: LineBreaker, F: FontMap<'font>> Iterator for Lines<'_, '_, 'font, L, F> {
-    type Item = Line<'font>;
+impl<'a, L, F, S> Iterator for Lines<'a, '_, L, F, S>
+where
+    L: LineBreaker,
+    F: Font,
+    S: Iterator<Item = SectionText<'a>>,
+{
+    type Item = Line;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut caret = vector(0.0, 0.0);
-        let mut line = Line {
-            glyphs: Vec::new(),
-            max_v_metrics: ZERO_V_METRICS,
-        };
+        let mut caret = point(0.0, 0.0);
+        let mut line = Line::default();
 
         let mut progressed = false;
 
         while let Some(word) = self.words.peek() {
-            let word_in_bounds = {
-                let word_x = caret.x + word.layout_width_no_trail;
-                // Reduce float errors by using relative "<= width bound" check
-                word_x < self.width_bound || approx::relative_eq!(word_x, self.width_bound)
-            };
+            let word_right = caret.x + word.layout_width_no_trail;
+            // Reduce float errors by using relative "<= width bound" check
+            let word_in_bounds =
+                word_right < self.width_bound || approx::relative_eq!(word_right, self.width_bound);
 
             // only if `progressed` means the first word is allowed to overlap the bounds
             if !word_in_bounds && progressed {
@@ -112,23 +110,24 @@ impl<'font, L: LineBreaker, F: FontMap<'font>> Iterator for Lines<'_, '_, 'font,
             let word = self.words.next().unwrap();
             progressed = true;
 
-            if word.max_v_metrics.ascent > line.max_v_metrics.ascent {
+            line.rightmost = word_right;
+
+            if word.max_v_metrics.height() > line.max_v_metrics.height() {
                 let diff_y = word.max_v_metrics.ascent - caret.y;
                 caret.y += diff_y;
 
                 // modify all smaller lined glyphs to occupy the new larger line
-                for (glyph, ..) in &mut line.glyphs {
-                    glyph.relative.y += diff_y;
+                for SectionGlyph { glyph, .. } in &mut line.glyphs {
+                    glyph.position.y += diff_y;
                 }
 
                 line.max_v_metrics = word.max_v_metrics;
             }
 
-            line.glyphs
-                .extend(word.glyphs.into_iter().map(|(mut g, color, font_id)| {
-                    g.relative = g.relative + caret;
-                    (g, color, font_id)
-                }));
+            line.glyphs.extend(word.glyphs.into_iter().map(|mut sg| {
+                sg.glyph.position += caret;
+                sg
+            }));
 
             caret.x += word.layout_width;
 
@@ -141,4 +140,10 @@ impl<'font, L: LineBreaker, F: FontMap<'font>> Iterator for Lines<'_, '_, 'font,
     }
 }
 
-impl<'font, L: LineBreaker, F: FontMap<'font>> FusedIterator for Lines<'_, '_, 'font, L, F> {}
+impl<'a, L, F, S> FusedIterator for Lines<'a, '_, L, F, S>
+where
+    L: LineBreaker,
+    F: Font,
+    S: Iterator<Item = SectionText<'a>>,
+{
+}

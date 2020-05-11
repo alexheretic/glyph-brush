@@ -3,14 +3,14 @@ name = "glyph_brush_layout"
 version = "0.1.9"
 authors = ["Alex Butler <alexheretic@gmail.com>"]
 edition = "2018"
-description = "Text layout for rusttype"
-repository = "https://github.com/alexheretic/gfx-glyph"
+description = "Text layout for ab_glyph"
+repository = "https://github.com/alexheretic/glyph-brush"
 keywords = ["layout", "text"]
 license = "Apache-2.0"
 readme="README.md"
 
 [dependencies]
-full_rusttype = { version = "0.8", package = "rusttype" }
+ab_glyph = "0.1"
 xi-unicode = "0.2"
 approx = "0.3.2"
 

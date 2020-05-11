@@ -4,13 +4,14 @@
 //! * Resize window to adjust layout
 //! * Scroll to modify font size
 //! * Type to add/remove text
-//! * Ctrl-Scroll to zoom in/out using a transform, this is cheap but notice how rusttype can't
+//! * Ctrl-Scroll to zoom in/out using a transform, this is cheap but notice how ab_glyph can't
 //!   render at full quality without the correct pixel information.
 use cgmath::{Matrix4, Rad, Transform, Vector3};
 use gfx::{
     format::{Depth, Srgba8},
     Device,
 };
+use gfx_glyph::ab_glyph;
 use glutin::{
     event::{
         ElementState, Event, KeyboardInput, ModifiersState, MouseScrollDelta, VirtualKeyCode,
@@ -66,8 +67,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             .build_windowed(window_builder, &event_loop)?
             .init_gfx::<Srgba8, Depth>();
 
-    let font: &[u8] = include_bytes!("../../fonts/OpenSans-Light.ttf");
-    let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font_bytes(font)
+    let font = ab_glyph::FontArc::try_from_slice(include_bytes!("../../fonts/OpenSans-Light.ttf"))?;
+    let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(font)
         .initial_cache_size((1024, 1024))
         .build(factory.clone());
 
@@ -88,7 +89,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         *control_flow = ControlFlow::Poll;
 
         match event {
-            Event::MainEventsCleared => window_ctx.window().request_redraw(),
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::ModifiersChanged(new_mods) => modifiers = new_mods,
                 WindowEvent::KeyboardInput {
@@ -183,57 +183,61 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
                 _ => (),
             },
-            Event::RedrawRequested(_) => {
+            Event::MainEventsCleared => {
                 encoder.clear(&main_color, [0.02, 0.02, 0.02, 1.0]);
 
                 let (width, height, ..) = main_color.get_dimensions();
                 let (width, height) = (f32::from(width), f32::from(height));
-                let scale = Scale::uniform(font_size * window_ctx.window().scale_factor() as f32);
+                let scale = font_size * window_ctx.window().scale_factor() as f32;
 
                 // The section is all the info needed for the glyph brush to render a 'section' of text.
-                // Use `..Section::default()` to skip the bits you don't care about
-                let section = gfx_glyph::Section {
-                    text: &text,
-                    scale,
-                    screen_position: (0.0, 0.0),
-                    bounds: (width / 3.15, height),
-                    color: [0.9, 0.3, 0.3, 1.0],
-                    ..Section::default()
-                };
+                let section = gfx_glyph::Section::default()
+                    .add_text(
+                        Text::new(&text)
+                            .with_scale(scale)
+                            .with_color([0.9, 0.3, 0.3, 1.0]),
+                    )
+                    .with_bounds((width / 3.15, height));
 
-                // bounds of a section can be fetched with `pixel_bounds`
-                let _bounds: Option<Rect<i32>> = glyph_brush.pixel_bounds(section);
-
-                // Adds a section & layout to the queue for the next call to `use_queue().draw(..)`, this
-                // can be called multiple times for different sections that want to use the same
-                // font and gpu cache
-                // This step computes the glyph positions, this is cached to avoid unnecessary recalculation
-                glyph_brush.queue(section);
+                // Adds a section & layout to the queue for the next call to `use_queue().draw(..)`,
+                // this can be called multiple times for different sections that want to use the
+                // same font and gpu cache.
+                // This step computes the glyph positions, this is cached to avoid unnecessary
+                // recalculation.
+                glyph_brush.queue(&section);
 
                 use gfx_glyph::*;
-                glyph_brush.queue(Section {
-                    text: &text,
-                    scale,
-                    screen_position: (width / 2.0, height / 2.0),
-                    bounds: (width / 3.15, height),
-                    color: [0.3, 0.9, 0.3, 1.0],
-                    layout: Layout::default()
-                        .h_align(HorizontalAlign::Center)
-                        .v_align(VerticalAlign::Center),
-                    ..Section::default()
-                });
+                glyph_brush.queue(
+                    Section::default()
+                        .add_text(
+                            Text::new(&text)
+                                .with_scale(scale)
+                                .with_color([0.3, 0.9, 0.3, 1.0]),
+                        )
+                        .with_screen_position((width / 2.0, height / 2.0))
+                        .with_bounds((width / 3.15, height))
+                        .with_layout(
+                            Layout::default()
+                                .h_align(HorizontalAlign::Center)
+                                .v_align(VerticalAlign::Center),
+                        ),
+                );
 
-                glyph_brush.queue(Section {
-                    text: &text,
-                    scale,
-                    screen_position: (width, height),
-                    bounds: (width / 3.15, height),
-                    color: [0.3, 0.3, 0.9, 1.0],
-                    layout: Layout::default()
-                        .h_align(HorizontalAlign::Right)
-                        .v_align(VerticalAlign::Bottom),
-                    ..Section::default()
-                });
+                glyph_brush.queue(
+                    Section::default()
+                        .add_text(
+                            Text::new(&text)
+                                .with_scale(scale)
+                                .with_color([0.3, 0.3, 0.9, 1.0]),
+                        )
+                        .with_screen_position((width, height))
+                        .with_bounds((width / 3.15, height))
+                        .with_layout(
+                            Layout::default()
+                                .h_align(HorizontalAlign::Right)
+                                .v_align(VerticalAlign::Bottom),
+                        ),
+                );
 
                 // Rotation
                 let offset =

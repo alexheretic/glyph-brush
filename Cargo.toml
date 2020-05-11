@@ -1,2 +1,2 @@
 [workspace]
-members = ["gfx-glyph", "glyph-brush", "glyph-brush-layout"]
+members = ["gfx-glyph", "glyph-brush", "layout", "draw-cache"]

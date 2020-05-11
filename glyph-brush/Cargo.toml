@@ -3,23 +3,23 @@ name = "glyph_brush"
 version = "0.6.3"
 authors = ["Alex Butler <alexheretic@gmail.com>"]
 edition = "2018"
-description = "Fast cached text render library using rusttype"
-repository = "https://github.com/alexheretic/gfx-glyph"
+description = "Fast cached text render library using ab_glyph"
+repository = "https://github.com/alexheretic/glyph-brush"
 keywords = ["font", "ttf", "truetype", "text"]
 license = "Apache-2.0"
 readme="README.md"
 
 [dependencies]
-glyph_brush_layout = { version = "0.1.9", path = "../glyph-brush-layout" }
+glyph_brush_layout = { version = "0.1.9", path = "../layout" }
+glyph_brush_draw_cache = { version = "0.1", path = "../draw-cache" }
 log = "0.4.4"
 ordered-float = "1"
-full_rusttype = { version = "0.8", features = ["gpu_cache"], package = "rusttype" }
 rustc-hash = "1"
 twox-hash = "1"
 
 [dev-dependencies]
 env_logger = { version = "0.7", default-features = false }
-once_cell = "1"
+once_cell = "1.3"
 gl = "0.14"
 glutin = "0.24"
 spin_sleep = "1"

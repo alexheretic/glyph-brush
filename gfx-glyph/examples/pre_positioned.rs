@@ -3,7 +3,7 @@ use gfx::{
     format::{Depth, Srgba8},
     Device,
 };
-use gfx_glyph::{rusttype, GlyphPositioner};
+use gfx_glyph::{ab_glyph::*, *};
 use glutin::{
     event::{Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
@@ -49,7 +49,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .init_gfx::<Srgba8, Depth>();
 
     let font: &[u8] = include_bytes!("../../fonts/OpenSans-Light.ttf");
-    let font = gfx_glyph::Font::from_bytes(font)?;
+    let font = FontRef::try_from_slice(font)?;
     let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(font.clone())
         .initial_cache_size((1024, 1024))
         .build(factory.clone());
@@ -60,6 +60,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let (width, height, ..) = main_color.get_dimensions();
     let (width, height) = (f32::from(width), f32::from(height));
+    let color = [0.8, 0.8, 0.8, 1.0];
 
     let glyphs: Vec<_> = gfx_glyph::Layout::default().calculate_glyphs(
         &[font],
@@ -69,9 +70,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
         &[gfx_glyph::SectionText {
             text: include_str!("lipsum.txt"),
-            color: [0.8, 0.8, 0.8, 1.0],
-            scale: rusttype::Scale::uniform(30.0),
-            ..<_>::default()
+            scale: PxScale::from(30.0),
+            font_id: FontId(0),
         }],
     );
 
@@ -79,7 +79,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         *control_flow = ControlFlow::Poll;
 
         match event {
-            Event::MainEventsCleared => window_ctx.window().request_redraw(),
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::KeyboardInput {
                     input:
@@ -96,16 +95,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
                 _ => (),
             },
-            Event::RedrawRequested(_) => {
+            Event::MainEventsCleared => {
                 encoder.clear(&main_color, [0.02, 0.02, 0.02, 1.0]);
 
                 glyph_brush.queue_pre_positioned(
                     glyphs.clone(),
-                    rusttype::Rect {
-                        min: rusttype::point(0.0, 0.0),
-                        max: rusttype::point(width, height),
+                    vec![Extra { color, z: 0.0 }],
+                    Rect {
+                        min: point(0.0, 0.0),
+                        max: point(width, height),
                     },
-                    0.0,
                 );
 
                 glyph_brush
