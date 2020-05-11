@@ -79,7 +79,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         *control_flow = ControlFlow::Poll;
 
         match event {
-            Event::MainEventsCleared => window_ctx.window().request_redraw(),
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::KeyboardInput {
                     input:
@@ -96,7 +95,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
                 _ => (),
             },
-            Event::RedrawRequested(_) => {
+            Event::MainEventsCleared => {
                 encoder.clear(&main_color, [0.02, 0.02, 0.02, 1.0]);
 
                 glyph_brush.queue_pre_positioned(

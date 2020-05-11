@@ -402,12 +402,9 @@ mod test {
         let mut glyphs = glyphs.cache_scope();
 
         let scale = PxScale::from(16.0);
-        let section = legacy::Section {
-            text: "Hello World",
-            screen_position: (0.0, 0.0),
-            scale,
-            ..<_>::default()
-        };
+        let section = Section::default()
+            .add_text(Text::new("Hello World").with_scale(scale))
+            .with_screen_position((0.0, 0.0));
 
         let g_bounds = glyphs.glyph_bounds(&section).expect("None bounds");
 
@@ -432,14 +429,10 @@ mod test {
         let glyphs = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build();
         let mut glyphs = glyphs.cache_scope();
 
-        let section = legacy::Section {
-            text: "Hello\n\
-                   World",
-            screen_position: (0.0, 20.0),
-            bounds: (f32::INFINITY, 20.0),
-            scale: PxScale::from(16.0),
-            ..<_>::default()
-        };
+        let section = Section::default()
+            .add_text(Text::new("Hello\nWorld").with_scale(16.0))
+            .with_screen_position((0.0, 20.0))
+            .with_bounds((f32::INFINITY, 20.0));
 
         let g_bounds = glyphs.glyph_bounds(&section).expect("None bounds");
         let bounds_rect =
@@ -507,21 +500,15 @@ mod test {
         let calc = GlyphCalculatorBuilder::using_font(OPEN_SANS_LIGHT.clone()).build();
         let mut calc = calc.cache_scope();
 
-        let section = legacy::Section {
-            text: "Eins Zwei Drei Vier Funf",
-            scale: PxScale::from(20.0),
-            ..<_>::default()
-        };
+        let section =
+            Section::default().add_text(Text::new("Eins Zwei Drei Vier Funf ").with_scale(20.0));
 
         let glyph_bounds = calc.glyph_bounds(&section).expect("None bounds");
+        let glyphs: Vec<_> = calc.glyphs(&section).cloned().collect();
 
         // identical section with bounds that should be wide enough
-        let bounded_section = legacy::Section {
-            bounds: (glyph_bounds.width(), glyph_bounds.height()),
-            ..section
-        };
+        let bounded_section = section.with_bounds((glyph_bounds.width(), glyph_bounds.height()));
 
-        let glyphs: Vec<_> = calc.glyphs(&section).cloned().collect();
         let bounded_glyphs: Vec<_> = calc.glyphs(&bounded_section).collect();
 
         assert_eq!(glyphs.len(), bounded_glyphs.len());
@@ -538,21 +525,15 @@ mod test {
         let calc = GlyphCalculatorBuilder::using_font(OPEN_SANS_LIGHT.clone()).build();
         let mut calc = calc.cache_scope();
 
-        let section = legacy::Section {
-            text: "Eins Zwei Drei Vier Funf ",
-            scale: PxScale::from(20.0),
-            ..<_>::default()
-        };
+        let section =
+            Section::default().add_text(Text::new("Eins Zwei Drei Vier Funf ").with_scale(20.0));
 
         let glyph_bounds = calc.glyph_bounds(&section).expect("None bounds");
+        let glyphs: Vec<_> = calc.glyphs(&section).cloned().collect();
 
         // identical section with bounds that should be wide enough
-        let bounded_section = legacy::Section {
-            bounds: (glyph_bounds.width(), glyph_bounds.height()),
-            ..section
-        };
+        let bounded_section = section.with_bounds((glyph_bounds.width(), glyph_bounds.height()));
 
-        let glyphs: Vec<_> = calc.glyphs(&section).cloned().collect();
         let bounded_glyphs: Vec<_> = calc.glyphs(&bounded_section).collect();
 
         assert_eq!(glyphs.len(), bounded_glyphs.len());
@@ -570,20 +551,13 @@ mod test {
         let calc = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build();
         let mut calc = calc.cache_scope();
 
-        let section = legacy::Section {
-            text: "Eins Zwei Drei Vier Funf",
-            ..<_>::default()
-        };
+        let section = Section::default().add_text(Text::new("Eins Zwei Drei Vier Funf"));
 
         let glyph_bounds = calc.glyph_bounds(&section).expect("None bounds");
+        let glyphs: Vec<_> = calc.glyphs(&section).cloned().collect();
 
         // identical section with bounds that should be wide enough
-        let bounded_section = legacy::Section {
-            bounds: (glyph_bounds.width(), glyph_bounds.height()),
-            ..section
-        };
-
-        let glyphs: Vec<_> = calc.glyphs(&section).cloned().collect();
+        let bounded_section = section.with_bounds((glyph_bounds.width(), glyph_bounds.height()));
         let bounded_glyphs: Vec<_> = calc.glyphs(&bounded_section).collect();
 
         assert_eq!(glyphs.len(), bounded_glyphs.len());

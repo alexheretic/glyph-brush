@@ -89,7 +89,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         *control_flow = ControlFlow::Poll;
 
         match event {
-            Event::MainEventsCleared => window_ctx.window().request_redraw(),
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::ModifiersChanged(new_mods) => modifiers = new_mods,
                 WindowEvent::KeyboardInput {
@@ -184,55 +183,61 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
                 _ => (),
             },
-            Event::RedrawRequested(_) => {
+            Event::MainEventsCleared => {
                 encoder.clear(&main_color, [0.02, 0.02, 0.02, 1.0]);
 
                 let (width, height, ..) = main_color.get_dimensions();
                 let (width, height) = (f32::from(width), f32::from(height));
-                let scale =
-                    ab_glyph::PxScale::from(font_size * window_ctx.window().scale_factor() as f32);
+                let scale = font_size * window_ctx.window().scale_factor() as f32;
 
                 // The section is all the info needed for the glyph brush to render a 'section' of text.
-                // Use `..Section::default()` to skip the bits you don't care about
-                let section = gfx_glyph::legacy::Section {
-                    text: &text,
-                    scale,
-                    screen_position: (0.0, 0.0),
-                    bounds: (width / 3.15, height),
-                    color: [0.9, 0.3, 0.3, 1.0],
-                    ..<_>::default()
-                };
+                let section = gfx_glyph::Section::default()
+                    .add_text(
+                        Text::new(&text)
+                            .with_scale(scale)
+                            .with_color([0.9, 0.3, 0.3, 1.0]),
+                    )
+                    .with_bounds((width / 3.15, height));
 
-                // Adds a section & layout to the queue for the next call to `use_queue().draw(..)`, this
-                // can be called multiple times for different sections that want to use the same
-                // font and gpu cache
-                // This step computes the glyph positions, this is cached to avoid unnecessary recalculation
-                glyph_brush.queue(section);
+                // Adds a section & layout to the queue for the next call to `use_queue().draw(..)`,
+                // this can be called multiple times for different sections that want to use the
+                // same font and gpu cache.
+                // This step computes the glyph positions, this is cached to avoid unnecessary
+                // recalculation.
+                glyph_brush.queue(&section);
 
                 use gfx_glyph::*;
-                glyph_brush.queue(legacy::Section {
-                    text: &text,
-                    scale,
-                    screen_position: (width / 2.0, height / 2.0),
-                    bounds: (width / 3.15, height),
-                    color: [0.3, 0.9, 0.3, 1.0],
-                    layout: Layout::default()
-                        .h_align(HorizontalAlign::Center)
-                        .v_align(VerticalAlign::Center),
-                    ..<_>::default()
-                });
+                glyph_brush.queue(
+                    Section::default()
+                        .add_text(
+                            Text::new(&text)
+                                .with_scale(scale)
+                                .with_color([0.3, 0.9, 0.3, 1.0]),
+                        )
+                        .with_screen_position((width / 2.0, height / 2.0))
+                        .with_bounds((width / 3.15, height))
+                        .with_layout(
+                            Layout::default()
+                                .h_align(HorizontalAlign::Center)
+                                .v_align(VerticalAlign::Center),
+                        ),
+                );
 
-                glyph_brush.queue(legacy::Section {
-                    text: &text,
-                    scale,
-                    screen_position: (width, height),
-                    bounds: (width / 3.15, height),
-                    color: [0.3, 0.3, 0.9, 1.0],
-                    layout: Layout::default()
-                        .h_align(HorizontalAlign::Right)
-                        .v_align(VerticalAlign::Bottom),
-                    ..<_>::default()
-                });
+                glyph_brush.queue(
+                    Section::default()
+                        .add_text(
+                            Text::new(&text)
+                                .with_scale(scale)
+                                .with_color([0.3, 0.3, 0.9, 1.0]),
+                        )
+                        .with_screen_position((width, height))
+                        .with_bounds((width / 3.15, height))
+                        .with_layout(
+                            Layout::default()
+                                .h_align(HorizontalAlign::Right)
+                                .v_align(VerticalAlign::Bottom),
+                        ),
+                );
 
                 // Rotation
                 let offset =

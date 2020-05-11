@@ -75,15 +75,13 @@ fn render_1_large_section_partially(c: &mut Criterion) {
 
     let mut glyph_brush = GlyphBrushBuilder::using_font(font).build();
 
-    let section = legacy::Section {
-        text: LOTS_OF_LIPSUM,
-        bounds: (600.0, 600.0),
-        ..<_>::default()
-    };
+    let section = Section::default()
+        .add_text(Text::new(LOTS_OF_LIPSUM))
+        .with_bounds((600.0, 600.0));
 
     c.bench_function("render_1_large_section_partially", |b| {
         b.iter(|| {
-            glyph_brush.queue(section);
+            glyph_brush.queue(&section);
             glyph_brush
                 .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
                 .unwrap();
@@ -101,15 +99,13 @@ fn no_cache_render_1_large_section_partially(c: &mut Criterion) {
         .cache_glyph_drawing(false)
         .build();
 
-    let section = legacy::Section {
-        text: LOTS_OF_LIPSUM,
-        bounds: (600.0, 600.0),
-        ..<_>::default()
-    };
+    let section = Section::default()
+        .add_text(Text::new(LOTS_OF_LIPSUM))
+        .with_bounds((600.0, 600.0));
 
     c.bench_function("no_cache_render_1_large_section_partially", |b| {
         b.iter(|| {
-            glyph_brush.queue(section);
+            glyph_brush.queue(&section);
             glyph_brush
                 .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
                 .unwrap();
@@ -123,17 +119,15 @@ fn render_v_center_1_large_section_partially(c: &mut Criterion) {
 
     let mut glyph_brush = GlyphBrushBuilder::using_font(font).build();
 
-    let section = legacy::Section {
-        text: LOTS_OF_LIPSUM,
-        screen_position: (0.0, 300.0),
-        bounds: (600.0, 600.0),
-        layout: Layout::default().v_align(VerticalAlign::Center),
-        ..<_>::default()
-    };
+    let section = Section::default()
+        .add_text(Text::new(LOTS_OF_LIPSUM))
+        .with_screen_position((0.0, 300.0))
+        .with_bounds((600.0, 600.0))
+        .with_layout(Layout::default().v_align(VerticalAlign::Center));
 
     c.bench_function("render_v_center_1_large_section_partially", |b| {
         b.iter(|| {
-            glyph_brush.queue(section);
+            glyph_brush.queue(&section);
             glyph_brush
                 .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
                 .unwrap();
@@ -150,17 +144,15 @@ fn no_cache_render_v_center_1_large_section_partially(c: &mut Criterion) {
         .cache_glyph_drawing(false)
         .build();
 
-    let section = legacy::Section {
-        text: LOTS_OF_LIPSUM,
-        screen_position: (0.0, 300.0),
-        bounds: (600.0, 600.0),
-        layout: Layout::default().v_align(VerticalAlign::Center),
-        ..<_>::default()
-    };
+    let section = Section::default()
+        .add_text(Text::new(LOTS_OF_LIPSUM))
+        .with_screen_position((0.0, 300.0))
+        .with_bounds((600.0, 600.0))
+        .with_layout(Layout::default().v_align(VerticalAlign::Center));
 
     c.bench_function("no_cache_render_v_center_1_large_section_partially", |b| {
         b.iter(|| {
-            glyph_brush.queue(section);
+            glyph_brush.queue(&section);
             glyph_brush
                 .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
                 .unwrap();
@@ -174,17 +166,15 @@ fn render_v_bottom_1_large_section_partially(c: &mut Criterion) {
 
     let mut glyph_brush = GlyphBrushBuilder::using_font(font).build();
 
-    let section = legacy::Section {
-        text: LOTS_OF_LIPSUM,
-        screen_position: (0.0, 600.0),
-        bounds: (600.0, 600.0),
-        layout: Layout::default().v_align(VerticalAlign::Bottom),
-        ..<_>::default()
-    };
+    let section = Section::default()
+        .add_text(Text::new(LOTS_OF_LIPSUM))
+        .with_screen_position((0.0, 600.0))
+        .with_bounds((600.0, 600.0))
+        .with_layout(Layout::default().v_align(VerticalAlign::Bottom));
 
     c.bench_function("render_v_bottom_1_large_section_partially", |b| {
         b.iter(|| {
-            glyph_brush.queue(section);
+            glyph_brush.queue(&section);
             glyph_brush
                 .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
                 .unwrap();
@@ -202,17 +192,15 @@ fn no_cache_render_v_bottom_1_large_section_partially(c: &mut Criterion) {
         .cache_glyph_drawing(false)
         .build();
 
-    let section = legacy::Section {
-        text: LOTS_OF_LIPSUM,
-        screen_position: (0.0, 600.0),
-        bounds: (600.0, 600.0),
-        layout: Layout::default().v_align(VerticalAlign::Bottom),
-        ..<_>::default()
-    };
+    let section = Section::default()
+        .add_text(Text::new(LOTS_OF_LIPSUM))
+        .with_screen_position((0.0, 600.0))
+        .with_bounds((600.0, 600.0))
+        .with_layout(Layout::default().v_align(VerticalAlign::Bottom));
 
     c.bench_function("no_cache_render_v_bottom_1_large_section_partially", |b| {
         b.iter(|| {
-            glyph_brush.queue(section);
+            glyph_brush.queue(&section);
             glyph_brush
                 .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
                 .unwrap();
@@ -228,18 +216,18 @@ fn render_100_small_sections_fully(c: &mut Criterion) {
 
     let mut sections = vec![];
     for i in 0..100 {
-        sections.push(legacy::Section {
-            text: SMALL_LIPSUM,
-            screen_position: (i as f32, 0.0),
-            bounds: (100.0, f32::INFINITY),
-            ..<_>::default()
-        });
+        sections.push(
+            Section::default()
+                .add_text(Text::new(SMALL_LIPSUM))
+                .with_screen_position((i as f32, 0.0))
+                .with_bounds((100.0, f32::INFINITY)),
+        );
     }
 
     c.bench_function("render_100_small_sections_fully", |b| {
         b.iter(|| {
             for section in &sections {
-                glyph_brush.queue(*section);
+                glyph_brush.queue(section);
             }
             glyph_brush
                 .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
@@ -260,18 +248,18 @@ fn no_cache_render_100_small_sections_fully(c: &mut Criterion) {
 
     let mut sections = vec![];
     for i in 0..100 {
-        sections.push(legacy::Section {
-            text: SMALL_LIPSUM,
-            screen_position: (i as f32, 0.0),
-            bounds: (100.0, f32::INFINITY),
-            ..<_>::default()
-        });
+        sections.push(
+            Section::default()
+                .add_text(Text::new(SMALL_LIPSUM))
+                .with_screen_position((i as f32, 0.0))
+                .with_bounds((100.0, f32::INFINITY)),
+        );
     }
 
     c.bench_function("no_cache_render_100_small_sections_fully", |b| {
         b.iter(|| {
             for section in &sections {
-                glyph_brush.queue(*section);
+                glyph_brush.queue(section);
             }
             glyph_brush
                 .process_queued(|_rect, _tex_data| {}, gl_to_vertex)
@@ -299,25 +287,19 @@ fn continually_modify_end_text_of_1_of_3(c: &mut Criterion) {
         .iter()
         .map(|s| {
             vec![
-                legacy::Section {
-                    text: s,
-                    bounds: (600.0, f32::INFINITY),
-                    ..<_>::default()
-                },
-                legacy::Section {
-                    text,
-                    screen_position: (600.0, 0.0),
-                    bounds: (600.0, f32::INFINITY),
-                    layout: Layout::default().h_align(HorizontalAlign::Center),
-                    ..<_>::default()
-                },
-                legacy::Section {
-                    text,
-                    screen_position: (1200.0, 0.0),
-                    bounds: (600.0, f32::INFINITY),
-                    layout: Layout::default().h_align(HorizontalAlign::Right),
-                    ..<_>::default()
-                },
+                Section::default()
+                    .add_text(Text::new(s))
+                    .with_bounds((600.0, f32::INFINITY)),
+                Section::default()
+                    .add_text(Text::new(text))
+                    .with_screen_position((600.0, 0.0))
+                    .with_bounds((600.0, f32::INFINITY))
+                    .with_layout(Layout::default().h_align(HorizontalAlign::Center)),
+                Section::default()
+                    .add_text(Text::new(text))
+                    .with_screen_position((1200.0, 0.0))
+                    .with_bounds((600.0, f32::INFINITY))
+                    .with_layout(Layout::default().h_align(HorizontalAlign::Right)),
             ]
         })
         .collect();
@@ -346,25 +328,19 @@ fn continually_modify_start_text_of_1_of_3(c: &mut Criterion) {
         .iter()
         .map(|s| {
             vec![
-                legacy::Section {
-                    text: s,
-                    bounds: (600.0, f32::INFINITY),
-                    ..<_>::default()
-                },
-                legacy::Section {
-                    text,
-                    screen_position: (600.0, 0.0),
-                    bounds: (600.0, f32::INFINITY),
-                    layout: Layout::default().h_align(HorizontalAlign::Center),
-                    ..<_>::default()
-                },
-                legacy::Section {
-                    text,
-                    screen_position: (1200.0, 0.0),
-                    bounds: (600.0, f32::INFINITY),
-                    layout: Layout::default().h_align(HorizontalAlign::Right),
-                    ..<_>::default()
-                },
+                Section::default()
+                    .add_text(Text::new(s))
+                    .with_bounds((600.0, f32::INFINITY)),
+                Section::default()
+                    .add_text(Text::new(text))
+                    .with_screen_position((600.0, 0.0))
+                    .with_bounds((600.0, f32::INFINITY))
+                    .with_layout(Layout::default().h_align(HorizontalAlign::Center)),
+                Section::default()
+                    .add_text(Text::new(text))
+                    .with_screen_position((1200.0, 0.0))
+                    .with_bounds((600.0, f32::INFINITY))
+                    .with_layout(Layout::default().h_align(HorizontalAlign::Right)),
             ]
         })
         .collect();
@@ -398,25 +374,19 @@ fn continually_modify_middle_text_of_1_of_3(c: &mut Criterion) {
         .iter()
         .map(|s| {
             vec![
-                legacy::Section {
-                    text: s,
-                    bounds: (600.0, f32::INFINITY),
-                    ..<_>::default()
-                },
-                legacy::Section {
-                    text,
-                    screen_position: (600.0, 0.0),
-                    bounds: (600.0, f32::INFINITY),
-                    layout: Layout::default().h_align(HorizontalAlign::Center),
-                    ..<_>::default()
-                },
-                legacy::Section {
-                    text,
-                    screen_position: (1200.0, 0.0),
-                    bounds: (600.0, f32::INFINITY),
-                    layout: Layout::default().h_align(HorizontalAlign::Right),
-                    ..<_>::default()
-                },
+                Section::default()
+                    .add_text(Text::new(s))
+                    .with_bounds((600.0, f32::INFINITY)),
+                Section::default()
+                    .add_text(Text::new(text))
+                    .with_screen_position((600.0, 0.0))
+                    .with_bounds((600.0, f32::INFINITY))
+                    .with_layout(Layout::default().h_align(HorizontalAlign::Center)),
+                Section::default()
+                    .add_text(Text::new(text))
+                    .with_screen_position((1200.0, 0.0))
+                    .with_bounds((600.0, f32::INFINITY))
+                    .with_layout(Layout::default().h_align(HorizontalAlign::Right)),
             ]
         })
         .collect();
@@ -438,25 +408,19 @@ fn continually_modify_bounds_of_1_of_3(c: &mut Criterion) {
         .into_iter()
         .map(|width| {
             vec![
-                legacy::Section {
-                    text,
-                    bounds: (width as f32, f32::INFINITY),
-                    ..<_>::default()
-                },
-                legacy::Section {
-                    text,
-                    screen_position: (600.0, 0.0),
-                    bounds: (600.0, f32::INFINITY),
-                    layout: Layout::default().h_align(HorizontalAlign::Center),
-                    ..<_>::default()
-                },
-                legacy::Section {
-                    text,
-                    screen_position: (1200.0, 0.0),
-                    bounds: (600.0, f32::INFINITY),
-                    layout: Layout::default().h_align(HorizontalAlign::Right),
-                    ..<_>::default()
-                },
+                Section::default()
+                    .add_text(Text::new(text))
+                    .with_bounds((width as f32, f32::INFINITY)),
+                Section::default()
+                    .add_text(Text::new(text))
+                    .with_screen_position((600.0, 0.0))
+                    .with_bounds((600.0, f32::INFINITY))
+                    .with_layout(Layout::default().h_align(HorizontalAlign::Center)),
+                Section::default()
+                    .add_text(Text::new(text))
+                    .with_screen_position((1200.0, 0.0))
+                    .with_bounds((600.0, f32::INFINITY))
+                    .with_layout(Layout::default().h_align(HorizontalAlign::Right)),
             ]
         })
         .collect();
@@ -482,26 +446,19 @@ fn continually_modify_color_of_1_of_3(c: &mut Criterion) {
     .into_iter()
     .map(|color| {
         vec![
-            legacy::Section {
-                text,
-                color,
-                bounds: (600.0, f32::INFINITY),
-                ..<_>::default()
-            },
-            legacy::Section {
-                text,
-                screen_position: (600.0, 0.0),
-                bounds: (600.0, f32::INFINITY),
-                layout: Layout::default().h_align(HorizontalAlign::Center),
-                ..<_>::default()
-            },
-            legacy::Section {
-                text,
-                screen_position: (1200.0, 0.0),
-                bounds: (600.0, f32::INFINITY),
-                layout: Layout::default().h_align(HorizontalAlign::Right),
-                ..<_>::default()
-            },
+            Section::default()
+                .add_text(Text::new(text).with_color(color))
+                .with_bounds((600.0, f32::INFINITY)),
+            Section::default()
+                .add_text(Text::new(text))
+                .with_screen_position((600.0, 0.0))
+                .with_bounds((600.0, f32::INFINITY))
+                .with_layout(Layout::default().h_align(HorizontalAlign::Center)),
+            Section::default()
+                .add_text(Text::new(text))
+                .with_screen_position((1200.0, 0.0))
+                .with_bounds((600.0, f32::INFINITY))
+                .with_layout(Layout::default().h_align(HorizontalAlign::Right)),
         ]
     })
     .collect();
@@ -526,54 +483,20 @@ fn continually_modify_alpha_of_1_of_3(c: &mut Criterion) {
     .into_iter()
     .map(|alpha| {
         vec![
-            Section {
-                text: vec![
-                    Text {
-                        text: "Heading\n",
-                        extra: Extra {
-                            color: [1.0, 1.0, 0.0, alpha],
-                            z: 0.0,
-                        },
-                        ..<_>::default()
-                    },
-                    Text {
-                        text,
-                        extra: Extra {
-                            color: [1.0, 1.0, 0.0, alpha],
-                            z: 0.0,
-                        },
-                        ..<_>::default()
-                    },
-                ],
-                bounds: (600.0, f32::INFINITY),
-                ..<_>::default()
-            },
-            Section {
-                text: vec![Text {
-                    text,
-                    extra: Extra {
-                        color: [0.0, 0.0, 0.0, 1.0],
-                        z: 0.0,
-                    },
-                    ..<_>::default()
-                }],
-                screen_position: (600.0, 0.0),
-                bounds: (600.0, f32::INFINITY),
-                layout: Layout::default().h_align(HorizontalAlign::Center),
-            },
-            Section {
-                text: vec![Text {
-                    text,
-                    extra: Extra {
-                        color: [0.0, 0.0, 0.0, 1.0],
-                        z: 0.0,
-                    },
-                    ..<_>::default()
-                }],
-                screen_position: (1200.0, 0.0),
-                bounds: (600.0, f32::INFINITY),
-                layout: Layout::default().h_align(HorizontalAlign::Right),
-            },
+            Section::default()
+                .add_text(Text::new("Heading\n").with_color([1.0, 1.0, 0.0, alpha]))
+                .add_text(Text::new(text).with_color([1.0, 1.0, 0.0, alpha]))
+                .with_bounds((600.0, f32::INFINITY)),
+            Section::default()
+                .add_text(Text::new(text))
+                .with_screen_position((600.0, 0.0))
+                .with_bounds((600.0, f32::INFINITY))
+                .with_layout(Layout::default().h_align(HorizontalAlign::Center)),
+            Section::default()
+                .add_text(Text::new(text))
+                .with_screen_position((1200.0, 0.0))
+                .with_bounds((600.0, f32::INFINITY))
+                .with_layout(Layout::default().h_align(HorizontalAlign::Right)),
         ]
     })
     .collect();
@@ -595,26 +518,20 @@ fn continually_modify_position_of_1_of_3(c: &mut Criterion) {
         .into_iter()
         .map(|(x, y)| {
             vec![
-                legacy::Section {
-                    text,
-                    screen_position: (x as f32, y as f32),
-                    bounds: (600.0, f32::INFINITY),
-                    ..<_>::default()
-                },
-                legacy::Section {
-                    text,
-                    screen_position: (600.0, 0.0),
-                    bounds: (600.0, f32::INFINITY),
-                    layout: Layout::default().h_align(HorizontalAlign::Center),
-                    ..<_>::default()
-                },
-                legacy::Section {
-                    text,
-                    screen_position: (1200.0, 0.0),
-                    bounds: (600.0, f32::INFINITY),
-                    layout: Layout::default().h_align(HorizontalAlign::Right),
-                    ..<_>::default()
-                },
+                Section::default()
+                    .add_text(Text::new(text))
+                    .with_screen_position((x as f32, y as f32))
+                    .with_bounds((600.0, f32::INFINITY)),
+                Section::default()
+                    .add_text(Text::new(text))
+                    .with_screen_position((600.0, 0.0))
+                    .with_bounds((600.0, f32::INFINITY))
+                    .with_layout(Layout::default().h_align(HorizontalAlign::Center)),
+                Section::default()
+                    .add_text(Text::new(text))
+                    .with_screen_position((1200.0, 0.0))
+                    .with_bounds((600.0, f32::INFINITY))
+                    .with_layout(Layout::default().h_align(HorizontalAlign::Right)),
             ]
         })
         .collect();

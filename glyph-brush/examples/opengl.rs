@@ -224,41 +224,38 @@ fn main() -> Res<()> {
 
                 let width = dimensions.width as f32;
                 let height = dimensions.height as _;
-                let scale =
-                    PxScale::from((font_size * window_ctx.window().scale_factor() as f32).round());
+                let scale = (font_size * window_ctx.window().scale_factor() as f32).round();
+                let base_text = Text::new(&text).with_scale(scale);
 
-                glyph_brush.queue(legacy::Section {
-                    text: &text,
-                    scale,
-                    screen_position: (0.0, 0.0),
-                    bounds: (width / 3.15, height),
-                    color: [0.9, 0.3, 0.3, 1.0],
-                    ..<_>::default()
-                });
+                glyph_brush.queue(
+                    Section::default()
+                        .add_text(base_text.with_color([0.9, 0.3, 0.3, 1.0]))
+                        .with_bounds((width / 3.15, height)),
+                );
 
-                glyph_brush.queue(legacy::Section {
-                    text: &text,
-                    scale,
-                    screen_position: (width / 2.0, height / 2.0),
-                    bounds: (width / 3.15, height),
-                    color: [0.3, 0.9, 0.3, 1.0],
-                    layout: Layout::default()
-                        .h_align(HorizontalAlign::Center)
-                        .v_align(VerticalAlign::Center),
-                    ..<_>::default()
-                });
+                glyph_brush.queue(
+                    Section::default()
+                        .add_text(base_text.with_color([0.3, 0.9, 0.3, 1.0]))
+                        .with_screen_position((width / 2.0, height / 2.0))
+                        .with_bounds((width / 3.15, height))
+                        .with_layout(
+                            Layout::default()
+                                .h_align(HorizontalAlign::Center)
+                                .v_align(VerticalAlign::Center),
+                        ),
+                );
 
-                glyph_brush.queue(legacy::Section {
-                    text: &text,
-                    scale,
-                    screen_position: (width, height),
-                    bounds: (width / 3.15, height),
-                    color: [0.3, 0.3, 0.9, 1.0],
-                    layout: Layout::default()
-                        .h_align(HorizontalAlign::Right)
-                        .v_align(VerticalAlign::Bottom),
-                    ..<_>::default()
-                });
+                glyph_brush.queue(
+                    Section::default()
+                        .add_text(base_text.with_color([0.3, 0.3, 0.9, 1.0]))
+                        .with_screen_position((width, height))
+                        .with_bounds((width / 3.15, height))
+                        .with_layout(
+                            Layout::default()
+                                .h_align(HorizontalAlign::Right)
+                                .v_align(VerticalAlign::Bottom),
+                        ),
+                );
 
                 let mut brush_action;
                 loop {

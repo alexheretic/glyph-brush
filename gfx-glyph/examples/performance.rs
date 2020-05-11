@@ -67,7 +67,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         *control_flow = ControlFlow::Poll;
 
         match event {
-            Event::MainEventsCleared => window_ctx.window().request_redraw(),
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::KeyboardInput {
                     input:
@@ -114,36 +113,38 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
                 _ => (),
             },
-            Event::RedrawRequested(_) => {
+            Event::MainEventsCleared => {
                 encoder.clear(&main_color, [0.02, 0.02, 0.02, 1.0]);
 
                 let (width, height, ..) = main_color.get_dimensions();
                 let (width, height) = (f32::from(width), f32::from(height));
                 let scale = PxScale::from(font_size * window_ctx.window().scale_factor() as f32);
 
-                // The section is all the info needed for the glyph brush to render a 'section' of text
-                // can use `..Section::default()` to skip the bits you don't care about
-                let section = legacy::Section {
-                    text: &text,
-                    scale,
-                    bounds: (width, height),
-                    color: [0.8, 0.8, 0.8, 1.0],
-                    layout: Layout::default().line_breaker(BuiltInLineBreaker::AnyCharLineBreaker),
-                    ..<_>::default()
-                };
+                // The section is all the info needed for the glyph brush to render a 'section' of text.
+                let section = Section::default()
+                    .add_text(
+                        Text::new(&text)
+                            .with_scale(scale)
+                            .with_color([0.8, 0.8, 0.8, 1.0]),
+                    )
+                    .with_bounds((width, height))
+                    .with_layout(
+                        Layout::default().line_breaker(BuiltInLineBreaker::AnyCharLineBreaker),
+                    );
 
-                // Adds a section & layout to the queue for the next call to `use_queue().draw(..)`, this
-                // can be called multiple times for different sections that want to use the same
-                // font and gpu cache
-                // This step computes the glyph positions, this is cached to avoid unnecessary recalculation
+                // Adds a section & layout to the queue for the next call to `use_queue().draw(..)`,
+                // this can be called multiple times for different sections that want to use the
+                // same font and gpu cache.
+                // This step computes the glyph positions, this is cached to avoid unnecessary
+                // recalculation.
                 glyph_brush.queue(&section);
 
-                // Finally once per frame you want to actually draw all the sections you've submitted
-                // with `queue` calls.
+                // Finally once per frame you want to actually draw all the sections you've
+                // submitted with `queue` calls.
                 //
-                // Note: Drawing in the case the text is unchanged from the previous frame (a common case)
-                // is essentially free as the vertices are reused &  gpu cache updating interaction
-                // can be skipped.
+                // Note: Drawing in the case the text is unchanged from the previous frame
+                // (a common case) is essentially free as the vertices are reused &  gpu cache
+                // updating interaction can be skipped.
                 glyph_brush
                     .use_queue()
                     .draw(&mut encoder, &main_color)
