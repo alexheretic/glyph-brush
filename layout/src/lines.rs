@@ -76,7 +76,6 @@ pub(crate) struct Lines<'a, 'b, L, F, S>
 where
     L: LineBreaker,
     F: Font,
-
     S: Iterator<Item = SectionText<'a>>,
 {
     pub(crate) words: Peekable<Words<'a, 'b, L, F, S>>,
@@ -87,7 +86,6 @@ impl<'a, L, F, S> Iterator for Lines<'a, '_, L, F, S>
 where
     L: LineBreaker,
     F: Font,
-
     S: Iterator<Item = SectionText<'a>>,
 {
     type Item = Line;
@@ -146,7 +144,6 @@ impl<'a, L, F, S> FusedIterator for Lines<'a, '_, L, F, S>
 where
     L: LineBreaker,
     F: Font,
-
     S: Iterator<Item = SectionText<'a>>,
 {
 }

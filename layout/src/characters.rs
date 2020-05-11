@@ -6,7 +6,6 @@ use crate::{
 use ab_glyph::*;
 use std::{
     iter::{Enumerate, FusedIterator, Iterator},
-    marker::PhantomData,
     mem,
     str::CharIndices,
 };
@@ -31,16 +30,14 @@ pub(crate) struct Character<'b, F: Font> {
 /// `Character` iterator
 pub(crate) struct Characters<'a, 'b, L, F, S>
 where
-    F: 'a + 'b,
+    F: Font + 'a + 'b,
     L: LineBreaker,
-    F: Font,
     S: Iterator<Item = SectionText<'a>>,
 {
     fonts: &'b [F],
     section_text: Enumerate<S>,
     line_breaker: L,
     part_info: Option<PartInfo<'a>>,
-    phantom: PhantomData<F>,
 }
 
 struct PartInfo<'a> {
@@ -64,7 +61,6 @@ where
             section_text: section_text.enumerate(),
             line_breaker,
             part_info: None,
-            phantom: PhantomData,
         }
     }
 
