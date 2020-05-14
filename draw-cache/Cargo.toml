@@ -10,7 +10,7 @@ license = "Apache-2.0"
 readme="README.md"
 
 [dependencies]
-ab_glyph = "0.1"
+ab_glyph = "0.2"
 linked-hash-map = "0.5"
 rustc-hash = "1"
 

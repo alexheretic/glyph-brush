@@ -47,10 +47,10 @@ impl Default for Section<'static, Extra> {
     }
 }
 
-impl Section<'_, ()> {
+impl<'a, X> Section<'a, X> {
     #[inline]
-    pub fn new<'a, X>() -> Section<'a, X> {
-        Section {
+    pub fn new() -> Self {
+        Self {
             screen_position: (0.0, 0.0),
             bounds: (f32::INFINITY, f32::INFINITY),
             layout: Layout::default(),
@@ -164,7 +164,7 @@ impl<X: Default> Default for Text<'static, X> {
 
 impl<'a, X> Text<'a, X> {
     #[inline]
-    pub fn with_text<'b>(self, text: &'b str) -> Text<'b, X> {
+    pub fn with_text(self, text: &str) -> Text<'_, X> {
         Text {
             text,
             scale: self.scale,

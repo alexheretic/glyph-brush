@@ -433,8 +433,7 @@ mod test {
             .with_bounds((f32::INFINITY, 20.0));
 
         let g_bounds = glyphs.glyph_bounds(&section).expect("None bounds");
-        let bounds_rect =
-            Layout::default().bounds_rect(&SectionGeometry::from(&Section::from(section)));
+        let bounds_rect = Layout::default().bounds_rect(&SectionGeometry::from(&section));
 
         assert!(
             bounds_rect.min.y <= g_bounds.min.y as f32,
