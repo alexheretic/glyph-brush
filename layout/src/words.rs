@@ -79,7 +79,7 @@ where
     }
 }
 
-impl<'a, 'b, L, F: 'b, S> Iterator for Words<'a, 'b, L, F, S>
+impl<'a, L, F, S> Iterator for Words<'a, '_, L, F, S>
 where
     L: LineBreaker,
     F: Font,

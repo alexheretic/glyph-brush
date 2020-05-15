@@ -30,7 +30,7 @@ pub(crate) struct Character<'b, F: Font> {
 /// `Character` iterator
 pub(crate) struct Characters<'a, 'b, L, F, S>
 where
-    F: Font + 'a + 'b,
+    F: Font,
     L: LineBreaker,
     S: Iterator<Item = SectionText<'a>>,
 {
