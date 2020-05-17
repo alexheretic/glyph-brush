@@ -6,8 +6,8 @@
 //! use glyph_brush_layout::{ab_glyph::*, *};
 //! # fn main() -> Result<(), InvalidFont> {
 //!
-//! let dejavu = FontRef::try_from_slice(&include_bytes!("../../fonts/DejaVuSans.ttf")[..])?;
-//! let garamond = FontRef::try_from_slice(&include_bytes!("../../fonts/GaramondNo8-Reg.ttf")[..])?;
+//! let dejavu = FontRef::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf"))?;
+//! let garamond = FontRef::try_from_slice(include_bytes!("../../fonts/GaramondNo8-Reg.ttf"))?;
 //!
 //! // Simple font mapping: FontId(0) -> deja vu sans, FontId(1) -> garamond
 //! let fonts = &[dejavu, garamond];

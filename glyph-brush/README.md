@@ -15,7 +15,28 @@ Makes extensive use of caching to optimise frame performance.
 The crate is designed to be easily wrapped to create a convenient render API specific version, for example [gfx-glyph](https://github.com/alexheretic/gfx-glyph/tree/master/gfx-glyph).
 
 ```rust
-//TODO
+use glyph_brush::{ab_glyph::FontArc, BrushAction, BrushError, GlyphBrushBuilder, Section, Text};
+
+let dejavu = FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf"))?;
+let mut glyph_brush = GlyphBrushBuilder::using_font(dejavu).build();
+
+glyph_brush.queue(Section::default().add_text(Text::new("Hello glyph_brush")));
+glyph_brush.queue(some_other_section);
+
+match glyph_brush.process_queued(
+    |rect, tex_data| update_texture(rect, tex_data),
+    |vertex_data| into_vertex(vertex_data),
+) {
+    Ok(BrushAction::Draw(vertices)) => {
+        // Draw new vertices.
+    }
+    Ok(BrushAction::ReDraw) => {
+        // Re-draw last frame's vertices unmodified.
+    }
+    Err(BrushError::TextureTooSmall { suggested }) => {
+        // Enlarge texture + glyph_brush texture cache and retry.
+    }
+}
 ```
 
 ## Examples
