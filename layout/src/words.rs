@@ -109,18 +109,17 @@ where
         } in &mut self.characters
         {
             progress = true;
-            {
-                max_v_metrics = max_v_metrics.max(scale_font.into());
+            
+            max_v_metrics = max_v_metrics.max(scale_font.into());
 
-                if let Some(id) = last_glyph_id.take() {
-                    caret += scale_font.kern(id, glyph.id);
-                }
-                last_glyph_id = Some(glyph.id);
+            if let Some(id) = last_glyph_id.take() {
+                caret += scale_font.kern(id, glyph.id);
             }
-
-            let advance_width = scale_font.h_advance(glyph.id);
+            last_glyph_id = Some(glyph.id);
 
             if !control {
+                let advance_width = scale_font.h_advance(glyph.id);
+
                 glyph.position = point(caret, 0.0);
                 glyphs.push(SectionGlyph {
                     glyph,

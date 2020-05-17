@@ -112,7 +112,9 @@ where
 
             line.rightmost = word_right;
 
-            if word.max_v_metrics.height() > line.max_v_metrics.height() {
+            if (line.glyphs.is_empty() || !word.glyphs.is_empty())
+                && word.max_v_metrics.height() > line.max_v_metrics.height()
+            {
                 let diff_y = word.max_v_metrics.ascent - caret.y;
                 caret.y += diff_y;
 
