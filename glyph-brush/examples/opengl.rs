@@ -21,9 +21,9 @@ use std::{
     mem, ptr, str,
 };
 
-type Res<T> = Result<T, Box<dyn std::error::Error>>;
+pub type Res<T> = Result<T, Box<dyn std::error::Error>>;
 /// `[left_top * 3, right_bottom * 2, tex_left_top * 2, tex_right_bottom * 2, color * 4]`
-type Vertex = [GLfloat; 13];
+pub type Vertex = [GLfloat; 13];
 
 macro_rules! gl_assert_ok {
     () => {{
@@ -32,6 +32,7 @@ macro_rules! gl_assert_ok {
     }};
 }
 
+#[allow(unused)] // it _is_ used
 fn main() -> Res<()> {
     env_logger::init();
 
@@ -67,86 +68,17 @@ fn main() -> Res<()> {
     // Load the OpenGL function pointers
     gl::load_with(|symbol| window_ctx.get_proc_address(symbol) as _);
 
-    // Create GLSL shaders
-    let vs = compile_shader(include_str!("shader/vert.glsl"), gl::VERTEX_SHADER)?;
-    let fs = compile_shader(include_str!("shader/frag.glsl"), gl::FRAGMENT_SHADER)?;
-    let program = link_program(vs, fs)?;
-
     let max_image_dimension = {
         let mut value = 0 as gl::types::GLint;
         unsafe { gl::GetIntegerv(gl::MAX_TEXTURE_SIZE, &mut value) };
         value as u32
     };
 
-    let mut vao = 0;
-    let mut vbo = 0;
     let mut texture = GlGlyphTexture::new(glyph_brush.texture_dimensions());
 
     let mut dimensions = window_ctx.window().inner_size();
 
-    let transform_uniform = unsafe {
-        // Create Vertex Array Object
-        gl::GenVertexArrays(1, &mut vao);
-        gl::BindVertexArray(vao);
-
-        // Create a Vertex Buffer Object
-        gl::GenBuffers(1, &mut vbo);
-        gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-
-        // Use shader program
-        gl::UseProgram(program);
-        gl::BindFragDataLocation(program, 0, CString::new("out_color")?.as_ptr());
-
-        // Specify the layout of the vertex data
-        let uniform = gl::GetUniformLocation(program, CString::new("transform")?.as_ptr());
-        if uniform < 0 {
-            return Err(format!("GetUniformLocation(\"transform\") -> {}", uniform).into());
-        }
-        let transform = ortho(
-            0.0,
-            dimensions.width as _,
-            0.0,
-            dimensions.height as _,
-            1.0,
-            -1.0,
-        );
-        gl::UniformMatrix4fv(uniform, 1, 0, transform.as_ptr());
-
-        let mut offset = 0;
-        for (v_field, float_count) in &[
-            ("left_top", 3),
-            ("right_bottom", 2),
-            ("tex_left_top", 2),
-            ("tex_right_bottom", 2),
-            ("color", 4),
-        ] {
-            let attr = gl::GetAttribLocation(program, CString::new(*v_field)?.as_ptr());
-            if attr < 0 {
-                return Err(format!("{} GetAttribLocation -> {}", v_field, attr).into());
-            }
-            gl::VertexAttribPointer(
-                attr as _,
-                *float_count,
-                gl::FLOAT,
-                gl::FALSE as _,
-                mem::size_of::<Vertex>() as _,
-                offset as _,
-            );
-            gl::EnableVertexAttribArray(attr as _);
-            gl::VertexAttribDivisor(attr as _, 1);
-
-            offset += float_count * 4;
-        }
-
-        // Enabled alpha blending
-        gl::Enable(gl::BLEND);
-        gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
-        // Use srgb for consistency with other examples
-        gl::Enable(gl::FRAMEBUFFER_SRGB);
-        gl::ClearColor(0.02, 0.02, 0.02, 1.0);
-
-        uniform
-    };
+    let mut text_pipe = GlTextPipe::new(dimensions)?;
 
     let mut text: String = include_str!("text/lipsum.txt").into();
     let mut font_size: f32 = 18.0;
@@ -210,16 +142,8 @@ fn main() -> Res<()> {
                     window_ctx.resize(window_size); // update context with new size
                     unsafe {
                         gl::Viewport(0, 0, dimensions.width as _, dimensions.height as _);
-                        let transform = ortho(
-                            0.0,
-                            dimensions.width as _,
-                            0.0,
-                            dimensions.height as _,
-                            1.0,
-                            -1.0,
-                        );
-                        gl::UniformMatrix4fv(transform_uniform, 1, 0, transform.as_ptr());
                     }
+                    text_pipe.update_geometry(window_size);
                 }
 
                 let width = dimensions.width as f32;
@@ -302,35 +226,14 @@ fn main() -> Res<()> {
                     }
                 }
                 match brush_action.unwrap() {
-                    BrushAction::Draw(vertices) => {
-                        // Draw new vertices
-                        vertex_count = vertices.len();
-                        unsafe {
-                            if vertex_max < vertex_count {
-                                gl::BufferData(
-                                    gl::ARRAY_BUFFER,
-                                    (vertex_count * mem::size_of::<Vertex>()) as GLsizeiptr,
-                                    vertices.as_ptr() as _,
-                                    gl::DYNAMIC_DRAW,
-                                );
-                            } else {
-                                gl::BufferSubData(
-                                    gl::ARRAY_BUFFER,
-                                    0,
-                                    (vertex_count * mem::size_of::<Vertex>()) as GLsizeiptr,
-                                    vertices.as_ptr() as _,
-                                );
-                            }
-                        }
-                        vertex_max = vertex_max.max(vertex_count);
-                    }
+                    BrushAction::Draw(vertices) => text_pipe.upload_vertices(&vertices),
                     BrushAction::ReDraw => {}
                 }
 
                 unsafe {
                     gl::Clear(gl::COLOR_BUFFER_BIT);
-                    gl::DrawArraysInstanced(gl::TRIANGLE_STRIP, 0, 4, vertex_count as _);
                 }
+                text_pipe.draw();
 
                 window_ctx.swap_buffers().unwrap();
 
@@ -342,19 +245,12 @@ fn main() -> Res<()> {
                 loop_helper.loop_sleep();
                 loop_helper.loop_start();
             }
-            Event::LoopDestroyed => unsafe {
-                gl::DeleteProgram(program);
-                gl::DeleteShader(fs);
-                gl::DeleteShader(vs);
-                gl::DeleteBuffers(1, &vbo);
-                gl::DeleteVertexArrays(1, &vao);
-            },
             _ => (),
         }
     });
 }
 
-fn gl_err_to_str(err: u32) -> &'static str {
+pub fn gl_err_to_str(err: u32) -> &'static str {
     match err {
         gl::INVALID_ENUM => "INVALID_ENUM",
         gl::INVALID_VALUE => "INVALID_VALUE",
@@ -367,7 +263,7 @@ fn gl_err_to_str(err: u32) -> &'static str {
     }
 }
 
-fn compile_shader(src: &str, ty: GLenum) -> Res<GLuint> {
+pub fn compile_shader(src: &str, ty: GLenum) -> Res<GLuint> {
     let shader;
     unsafe {
         shader = gl::CreateShader(ty);
@@ -398,7 +294,7 @@ fn compile_shader(src: &str, ty: GLenum) -> Res<GLuint> {
     Ok(shader)
 }
 
-fn link_program(vs: GLuint, fs: GLuint) -> Res<GLuint> {
+pub fn link_program(vs: GLuint, fs: GLuint) -> Res<GLuint> {
     unsafe {
         let program = gl::CreateProgram();
         gl::AttachShader(program, vs);
@@ -427,7 +323,7 @@ fn link_program(vs: GLuint, fs: GLuint) -> Res<GLuint> {
 }
 
 #[inline]
-fn to_vertex(
+pub fn to_vertex(
     glyph_brush::GlyphVertex {
         mut tex_coords,
         pixel_coords,
@@ -482,7 +378,7 @@ fn to_vertex(
 }
 
 #[rustfmt::skip]
-fn ortho(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32) -> [f32; 16] {
+pub fn ortho(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32) -> [f32; 16] {
     let tx = -(right + left) / (right - left);
     let ty = -(top + bottom) / (top - bottom);
     let tz = -(far + near) / (far - near);
@@ -494,12 +390,12 @@ fn ortho(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32) -> [
     ]
 }
 
-struct GlGlyphTexture {
-    name: GLuint,
+pub struct GlGlyphTexture {
+    pub name: GLuint,
 }
 
 impl GlGlyphTexture {
-    fn new((width, height): (u32, u32)) -> Self {
+    pub fn new((width, height): (u32, u32)) -> Self {
         let mut name = 0;
         unsafe {
             // Create a texture for the glyphs
@@ -527,12 +423,175 @@ impl GlGlyphTexture {
             Self { name }
         }
     }
+
+    pub fn clear(&self) {
+        unsafe {
+            gl::BindTexture(gl::TEXTURE_2D, self.name);
+            gl::ClearTexImage(
+                self.name,
+                0,
+                gl::RED,
+                gl::UNSIGNED_BYTE,
+                [12_u8].as_ptr() as _,
+            );
+            gl_assert_ok!();
+        }
+    }
 }
 
 impl Drop for GlGlyphTexture {
     fn drop(&mut self) {
         unsafe {
             gl::DeleteTextures(1, &self.name);
+        }
+    }
+}
+
+pub struct GlTextPipe {
+    shaders: [GLuint; 2],
+    program: GLuint,
+    vao: GLuint,
+    vbo: GLuint,
+    transform_uniform: GLint,
+    vertex_count: usize,
+    vertex_buffer_len: usize,
+}
+
+impl GlTextPipe {
+    pub fn new(window_size: glutin::dpi::PhysicalSize<u32>) -> Res<Self> {
+        let (w, h) = (window_size.width as f32, window_size.height as f32);
+
+        let vs = compile_shader(include_str!("shader/text.vs"), gl::VERTEX_SHADER)?;
+        let fs = compile_shader(include_str!("shader/text.fs"), gl::FRAGMENT_SHADER)?;
+        let program = link_program(vs, fs)?;
+
+        let mut vao = 0;
+        let mut vbo = 0;
+
+        let transform_uniform = unsafe {
+            // Create Vertex Array Object
+            gl::GenVertexArrays(1, &mut vao);
+            gl::BindVertexArray(vao);
+
+            // Create a Vertex Buffer Object
+            gl::GenBuffers(1, &mut vbo);
+            gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
+
+            // Use shader program
+            gl::UseProgram(program);
+            gl::BindFragDataLocation(program, 0, CString::new("out_color")?.as_ptr());
+
+            // Specify the layout of the vertex data
+            let uniform = gl::GetUniformLocation(program, CString::new("transform")?.as_ptr());
+            if uniform < 0 {
+                return Err(format!("GetUniformLocation(\"transform\") -> {}", uniform).into());
+            }
+            let transform = ortho(0.0, w, 0.0, h, 1.0, -1.0);
+            gl::UniformMatrix4fv(uniform, 1, 0, transform.as_ptr());
+
+            let mut offset = 0;
+            for (v_field, float_count) in &[
+                ("left_top", 3),
+                ("right_bottom", 2),
+                ("tex_left_top", 2),
+                ("tex_right_bottom", 2),
+                ("color", 4),
+            ] {
+                let attr = gl::GetAttribLocation(program, CString::new(*v_field)?.as_ptr());
+                if attr < 0 {
+                    return Err(format!("{} GetAttribLocation -> {}", v_field, attr).into());
+                }
+                gl::VertexAttribPointer(
+                    attr as _,
+                    *float_count,
+                    gl::FLOAT,
+                    gl::FALSE as _,
+                    mem::size_of::<Vertex>() as _,
+                    offset as _,
+                );
+                gl::EnableVertexAttribArray(attr as _);
+                gl::VertexAttribDivisor(attr as _, 1);
+
+                offset += float_count * 4;
+            }
+
+            // Enabled alpha blending
+            gl::Enable(gl::BLEND);
+            gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+            // Use srgb for consistency with other examples
+            gl::Enable(gl::FRAMEBUFFER_SRGB);
+            gl::ClearColor(0.02, 0.02, 0.02, 1.0);
+            gl_assert_ok!();
+
+            uniform
+        };
+
+        Ok(Self {
+            shaders: [vs, fs],
+            program,
+            vao,
+            vbo,
+            transform_uniform,
+            vertex_count: 0,
+            vertex_buffer_len: 0,
+        })
+    }
+
+    pub fn upload_vertices(&mut self, vertices: &[Vertex]) {
+        // Draw new vertices
+        self.vertex_count = vertices.len();
+
+        unsafe {
+            gl::BindVertexArray(self.vao);
+            gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
+            if self.vertex_buffer_len < self.vertex_count {
+                gl::BufferData(
+                    gl::ARRAY_BUFFER,
+                    (self.vertex_count * mem::size_of::<Vertex>()) as GLsizeiptr,
+                    vertices.as_ptr() as _,
+                    gl::DYNAMIC_DRAW,
+                );
+                self.vertex_buffer_len = self.vertex_count;
+            } else {
+                gl::BufferSubData(
+                    gl::ARRAY_BUFFER,
+                    0,
+                    (self.vertex_count * mem::size_of::<Vertex>()) as GLsizeiptr,
+                    vertices.as_ptr() as _,
+                );
+            }
+            gl_assert_ok!();
+        }
+    }
+
+    pub fn update_geometry(&self, window_size: glutin::dpi::PhysicalSize<u32>) {
+        let (w, h) = (window_size.width as f32, window_size.height as f32);
+        let transform = ortho(0.0, w, 0.0, h, 1.0, -1.0);
+
+        unsafe {
+            gl::UseProgram(self.program);
+            gl::UniformMatrix4fv(self.transform_uniform, 1, 0, transform.as_ptr());
+            gl_assert_ok!();
+        }
+    }
+
+    pub fn draw(&self) {
+        unsafe {
+            gl::UseProgram(self.program);
+            gl::BindVertexArray(self.vao);
+            gl::DrawArraysInstanced(gl::TRIANGLE_STRIP, 0, 4, self.vertex_count as _);
+            gl_assert_ok!();
+        }
+    }
+}
+
+impl Drop for GlTextPipe {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteProgram(self.program);
+            self.shaders.iter().for_each(|s| gl::DeleteShader(*s));
+            gl::DeleteBuffers(1, &self.vbo);
+            gl::DeleteVertexArrays(1, &self.vao);
         }
     }
 }
