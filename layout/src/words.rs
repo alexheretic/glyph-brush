@@ -109,7 +109,7 @@ where
         } in &mut self.characters
         {
             progress = true;
-            
+
             max_v_metrics = max_v_metrics.max(scale_font.into());
 
             if let Some(id) = last_glyph_id.take() {
