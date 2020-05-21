@@ -111,7 +111,7 @@ fn bench_high_position_tolerance(c: &mut Criterion) {
             for (index, glyph) in glyphs.iter().enumerate().filter(|(_, g)| g.id != *space_id) {
                 let rect = cache.rect_for(font_id, glyph);
                 assert!(
-                    rect.is_ok(),
+                    rect.is_some(),
                     "Gpu cache rect lookup failed ({:?}) for glyph index {}, id {}",
                     rect,
                     index,
@@ -143,7 +143,7 @@ fn bench_ttf_font(c: &mut Criterion) {
             for (index, glyph) in glyphs.iter().enumerate().filter(|(_, g)| g.id != *space_id) {
                 let rect = cache.rect_for(font_id, glyph);
                 assert!(
-                    rect.is_ok(),
+                    rect.is_some(),
                     "Gpu cache rect lookup failed ({:?}) for glyph index {}, id {}",
                     rect,
                     index,
@@ -175,7 +175,7 @@ fn bench_otf_font(c: &mut Criterion) {
             for (index, glyph) in glyphs.iter().enumerate().filter(|(_, g)| g.id != *space_id) {
                 let rect = cache.rect_for(font_id, glyph);
                 assert!(
-                    rect.is_ok(),
+                    rect.is_some(),
                     "Gpu cache rect lookup failed ({:?}) for glyph index {}, id {}",
                     rect,
                     index,
@@ -222,7 +222,7 @@ fn bench_multi_font(c: &mut Criterion) {
                 for (index, glyph) in glyphs.iter().enumerate().filter(|(_, g)| g.id != *space_id) {
                     let rect = cache.rect_for(font_id, glyph);
                     assert!(
-                        rect.is_ok(),
+                        rect.is_some(),
                         "Gpu cache rect lookup failed ({:?}) for font {} glyph index {}, id {}",
                         rect,
                         font_id,
@@ -267,7 +267,7 @@ fn bench_multi_font_population(c: &mut Criterion) {
                 for (index, glyph) in glyphs.iter().enumerate().filter(|(_, g)| g.id != *space_id) {
                     let rect = cache.rect_for(font_id, glyph);
                     assert!(
-                        rect.is_ok(),
+                        rect.is_some(),
                         "Gpu cache rect lookup failed ({:?}) for font {} glyph index {}, id {}",
                         rect,
                         font_id,
@@ -335,7 +335,7 @@ fn bench_moving_text(c: &mut Criterion) {
                 for (index, glyph) in glyphs.iter().enumerate().filter(|(_, g)| g.id != *space_id) {
                     let rect = cache.rect_for(font_id, glyph);
                     assert!(
-                        rect.is_ok(),
+                        rect.is_some(),
                         "Gpu cache rect lookup failed ({:?}) for font {} glyph index {}, id {}",
                         rect,
                         font_id,
@@ -390,7 +390,7 @@ fn bench_resizing(c: &mut Criterion) {
                 for (index, glyph) in glyphs.iter().enumerate().filter(|(_, g)| g.id != *space_id) {
                     let rect = cache.rect_for(font_id, glyph);
                     assert!(
-                        rect.is_ok(),
+                        rect.is_some(),
                         "Gpu cache rect lookup failed ({:?}) for font {} glyph index {}, id {}",
                         rect,
                         font_id,
@@ -462,7 +462,7 @@ fn bench_moving_text_thrashing(c: &mut Criterion) {
                     {
                         let rect = cache.rect_for(font_id, glyph);
                         assert!(
-                            rect.is_ok(),
+                            rect.is_some(),
                             "Gpu cache rect lookup failed ({:?}) for font {} glyph index {}, id {}",
                             rect,
                             font_id,

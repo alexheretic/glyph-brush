@@ -1,8 +1,46 @@
+//! Rasterization cache for [ab_glyph](https://github.com/alexheretic/ab-glyph). Manages a
+//! updates to a texture (e.g. one stored on a GPU) drawing new glyphs, reusing & reordering
+//! as necessary.
+//!
+//! # Example
+//! ```no_run
+//! # fn main() -> Result<(), glyph_brush_draw_cache::CacheWriteErr> {
+//! use glyph_brush_draw_cache::DrawCache;
+//!
+//! // build a cache with default settings
+//! let mut draw_cache = DrawCache::builder().build();
+//!
+//! # let glyphs: Vec<(usize, ab_glyph::Glyph)> = Vec::new();
+//! # let fonts: Vec<ab_glyph::FontArc> = Vec::new();
+//! # fn update_texture(_: glyph_brush_draw_cache::Rectangle<u32>, _: &[u8]) {}
+//! // queue up some glyphs to store in the cache
+//! for (font_id, glyph) in glyphs {
+//!     draw_cache.queue_glyph(font_id, glyph);
+//! }
+//!
+//! // process everything in the queue, rasterizing & uploading as necessary
+//! draw_cache.cache_queued(&fonts, |rect, tex_data| update_texture(rect, tex_data))?;
+//!
+//! // access a given glyph's texture position & pixel position for the texture quad
+//! # let font_id = 0;
+//! # let glyph: ab_glyph::Glyph = todo!();
+//! match draw_cache.rect_for(font_id, &glyph) {
+//!     Some((tex_coords, px_coords)) => {}
+//!     None => {/* The glyph has no outline, or wasn't queued up to be cached */}
+//! }
+//! # Ok(()) }
+//! ```
+
 mod geometry;
+
+/// Re-exported ab_glyph types.
+pub mod ab_glyph {
+    pub use ab_glyph::*;
+}
 
 pub use geometry::Rectangle;
 
-use ab_glyph::*;
+use ::ab_glyph::*;
 use linked_hash_map::LinkedHashMap;
 #[cfg(not(target_arch = "wasm32"))]
 use rayon::prelude::*;
@@ -400,23 +438,6 @@ impl DrawCacheBuilder {
     }
 }
 
-/// Returned from `DrawCache::rect_for`.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum CacheReadErr {
-    /// Indicates that the requested glyph is not present in the cache, or
-    /// has no outline.
-    GlyphNotCached,
-}
-impl fmt::Display for CacheReadErr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            CacheReadErr::GlyphNotCached => "Glyph not cached",
-        }
-        .fmt(f)
-    }
-}
-impl error::Error for CacheReadErr {}
-
 /// Returned from `DrawCache::cache_queued`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum CacheWriteErr {
@@ -427,6 +448,7 @@ pub enum CacheWriteErr {
     /// cache is completely cleared before the attempt.
     NoRoomForWholeQueue,
 }
+
 impl fmt::Display for CacheWriteErr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
@@ -920,19 +942,8 @@ impl DrawCache {
     ///
     /// Ensure that `font_id` matches the `font_id` that was passed to
     /// `queue_glyph` with this `glyph`.
-    pub fn rect_for(
-        &self,
-        font_id: usize,
-        glyph: &Glyph,
-    ) -> Result<Option<TextureCoords>, CacheReadErr> {
-        // if glyph.pixel_bounding_box().is_none() {
-        //     return Ok(None);
-        // }
-
-        let (row, index) = self
-            .all_glyphs
-            .get(&self.lossy_info_for(font_id, glyph))
-            .ok_or(CacheReadErr::GlyphNotCached)?;
+    pub fn rect_for(&self, font_id: usize, glyph: &Glyph) -> Option<TextureCoords> {
+        let (row, index) = self.all_glyphs.get(&self.lossy_info_for(font_id, glyph))?;
 
         let (tex_width, tex_height) = (self.width as f32, self.height as f32);
 
@@ -966,7 +977,7 @@ impl DrawCache {
             ) + glyph.position,
         };
 
-        Ok(Some((uv_rect, equivalent_bounds)))
+        Some((uv_rect, equivalent_bounds))
     }
 }
 
@@ -1222,7 +1233,7 @@ mod test {
                 assert_eq!(rect.height(), expected_height);
             })
             .unwrap();
-        let (uv, _screen_rect) = cache.rect_for(0, &glyph).unwrap().unwrap();
+        let (uv, _screen_rect) = cache.rect_for(0, &glyph).unwrap();
 
         assert_relative_eq!(uv.min.x, 0.015_625);
         assert_relative_eq!(uv.min.y, 0.015_625);

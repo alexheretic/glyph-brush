@@ -707,10 +707,8 @@ impl<V, X> Glyphed<V, X> {
         self.vertices.reserve(glyphs.len());
         self.vertices.extend(glyphs.iter().filter_map(|sg| {
             match texture_cache.rect_for(sg.font_id.0, &sg.glyph) {
-                // `Err(_)`: no texture for this glyph. This may not be an error as some
-                // glyphs are invisible.
-                Err(_) | Ok(None) => None,
-                Ok(Some((tex_coords, pixel_coords))) => {
+                None => None,
+                Some((tex_coords, pixel_coords)) => {
                     if pixel_coords.min.x as f32 > bounds.max.x
                         || pixel_coords.min.y as f32 > bounds.max.y
                         || bounds.min.x > pixel_coords.max.x as f32

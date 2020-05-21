@@ -1,5 +1,6 @@
 use core::ops;
 
+/// A rectangle, with top-left corner at min, and bottom-right corner at max.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Rectangle<N> {
     pub min: [N; 2],
