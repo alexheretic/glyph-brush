@@ -544,7 +544,7 @@ where
     /// So `false` means either this glyph is invisible, like `' '`, or hasn't been queued &
     /// processed yet.
     #[inline]
-    pub fn is_cached(&self, font_id: FontId, glyph: &Glyph) -> bool {
+    pub fn is_draw_cached(&self, font_id: FontId, glyph: &Glyph) -> bool {
         self.texture_cache.rect_for(font_id.0, glyph).is_some()
     }
 }
@@ -832,7 +832,7 @@ mod glyph_brush_test {
     use super::*;
 
     #[test]
-    fn is_cached() {
+    fn is_draw_cached() {
         let font_a = FontRef::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf")).unwrap();
         let font_b = FontRef::try_from_slice(include_bytes!("../../fonts/Exo2-Light.otf")).unwrap();
         let unqueued_glyph = font_a.glyph_id('c').with_scale(50.0);
@@ -849,19 +849,19 @@ mod glyph_brush_test {
         assert_eq!(glyphs.len(), 4);
 
         // nothing was cached because `process_queued` has not been called yet.
-        assert!(!brush.is_cached(FontId(0), &glyphs[0]));
-        assert!(!brush.is_cached(FontId(0), &glyphs[1]));
-        assert!(!brush.is_cached(FontId(1), &glyphs[2]));
-        assert!(!brush.is_cached(FontId(1), &glyphs[3]));
-        assert!(!brush.is_cached(FontId(0), &unqueued_glyph));
+        assert!(!brush.is_draw_cached(FontId(0), &glyphs[0]));
+        assert!(!brush.is_draw_cached(FontId(0), &glyphs[1]));
+        assert!(!brush.is_draw_cached(FontId(1), &glyphs[2]));
+        assert!(!brush.is_draw_cached(FontId(1), &glyphs[3]));
+        assert!(!brush.is_draw_cached(FontId(0), &unqueued_glyph));
 
         brush.process_queued(|_, _| {}, |_| ()).unwrap();
 
         // visible glyphs that were queued have now been cached.
-        assert!(brush.is_cached(FontId(0), &glyphs[0]));
-        assert!(!brush.is_cached(FontId(0), &glyphs[1]));
-        assert!(brush.is_cached(FontId(1), &glyphs[2]));
-        assert!(!brush.is_cached(FontId(1), &glyphs[3]));
-        assert!(!brush.is_cached(FontId(0), &unqueued_glyph));
+        assert!(brush.is_draw_cached(FontId(0), &glyphs[0]));
+        assert!(!brush.is_draw_cached(FontId(0), &glyphs[1]));
+        assert!(brush.is_draw_cached(FontId(1), &glyphs[2]));
+        assert!(!brush.is_draw_cached(FontId(1), &glyphs[3]));
+        assert!(!brush.is_draw_cached(FontId(0), &unqueued_glyph));
     }
 }
