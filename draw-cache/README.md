@@ -13,3 +13,5 @@ See the **draw_cache_guts** example to see how it works _(run it from the top le
 ```
 cargo run --example draw_cache_guts
 ```
+
+![](https://user-images.githubusercontent.com/2331607/82690363-f97a9380-9c53-11ea-97bc-6f3397cde00f.png)
