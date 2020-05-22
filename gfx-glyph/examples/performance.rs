@@ -54,7 +54,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let dejavu = FontRef::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf"))?;
     let mut glyph_brush = GlyphBrushBuilder::using_font(dejavu)
         .initial_cache_size((2048, 2048))
-        .gpu_cache_position_tolerance(1.0)
+        .draw_cache_position_tolerance(1.0)
         .build(factory.clone());
 
     let mut text: String = include_str!("loads-of-unicode.txt").into();
