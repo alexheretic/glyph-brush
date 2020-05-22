@@ -53,8 +53,8 @@ fn main() -> Res<()> {
 
     let dejavu = FontRef::try_from_slice(include_bytes!("../../fonts/OpenSans-Light.ttf"))?;
     let mut glyph_brush = GlyphBrushBuilder::using_font(dejavu)
-        // .gpu_cache_position_tolerance(2.0) // ignore subpixel differences totally
-        // .gpu_cache_scale_tolerance(1000.0) // ignore scale differences
+        // .draw_cache_position_tolerance(2.0) // ignore subpixel differences totally
+        // .draw_cache_scale_tolerance(1000.0) // ignore scale differences
         .build();
 
     // Load the OpenGL function pointers

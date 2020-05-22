@@ -18,9 +18,9 @@ use std::hash::BuildHasher;
 pub struct GlyphBrushBuilder<F = FontArc, H = DefaultSectionHasher> {
     pub font_data: Vec<F>,
     pub cache_glyph_positioning: bool,
-    pub cache_glyph_drawing: bool,
+    pub cache_redraws: bool,
     pub section_hasher: H,
-    pub gpu_cache_builder: DrawCacheBuilder,
+    pub draw_cache_builder: DrawCacheBuilder,
     _private_construction: (),
 }
 
@@ -41,9 +41,9 @@ impl GlyphBrushBuilder<()> {
         GlyphBrushBuilder {
             font_data: Vec::new(),
             cache_glyph_positioning: true,
-            cache_glyph_drawing: true,
+            cache_redraws: true,
             section_hasher: DefaultSectionHasher::default(),
-            gpu_cache_builder: DrawCache::builder()
+            draw_cache_builder: DrawCache::builder()
                 .dimensions(256, 256)
                 .scale_tolerance(0.5)
                 .position_tolerance(0.1)
@@ -89,9 +89,9 @@ impl<F, H> GlyphBrushBuilder<F, H> {
         GlyphBrushBuilder {
             font_data,
             cache_glyph_positioning: self.cache_glyph_positioning,
-            cache_glyph_drawing: self.cache_glyph_drawing,
+            cache_redraws: self.cache_redraws,
             section_hasher: self.section_hasher,
-            gpu_cache_builder: self.gpu_cache_builder,
+            draw_cache_builder: self.draw_cache_builder,
             _private_construction: (),
         }
     }
@@ -111,7 +111,7 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
     ///
     /// Defaults to `(256, 256)`
     pub fn initial_cache_size(mut self, (w, h): (u32, u32)) -> Self {
-        self.gpu_cache_builder = self.gpu_cache_builder.dimensions(w, h);
+        self.draw_cache_builder = self.draw_cache_builder.dimensions(w, h);
         self
     }
 
@@ -121,8 +121,8 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
     /// Defaults to `0.5`
     ///
     /// See docs for `glyph_brush_draw_cache::DrawCache`
-    pub fn gpu_cache_scale_tolerance(mut self, tolerance: f32) -> Self {
-        self.gpu_cache_builder = self.gpu_cache_builder.scale_tolerance(tolerance);
+    pub fn draw_cache_scale_tolerance(mut self, tolerance: f32) -> Self {
+        self.draw_cache_builder = self.draw_cache_builder.scale_tolerance(tolerance);
         self
     }
 
@@ -133,8 +133,8 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
     /// Defaults to `0.1`
     ///
     /// See docs for `glyph_brush_draw_cache::DrawCache`
-    pub fn gpu_cache_position_tolerance(mut self, tolerance: f32) -> Self {
-        self.gpu_cache_builder = self.gpu_cache_builder.position_tolerance(tolerance);
+    pub fn draw_cache_position_tolerance(mut self, tolerance: f32) -> Self {
+        self.draw_cache_builder = self.draw_cache_builder.position_tolerance(tolerance);
         self
     }
 
@@ -146,8 +146,8 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
     /// Defaults to `false`
     ///
     /// See docs for `glyph_brush_draw_cache::DrawCache`
-    pub fn gpu_cache_align_4x4(mut self, align: bool) -> Self {
-        self.gpu_cache_builder = self.gpu_cache_builder.align_4x4(align);
+    pub fn draw_cache_align_4x4(mut self, align: bool) -> Self {
+        self.draw_cache_builder = self.draw_cache_builder.align_4x4(align);
         self
     }
 
@@ -157,7 +157,7 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
     ///
     /// Improves performance. Should only disable if using a custom GlyphPositioner that is
     /// impure according to it's inputs, so caching a previous call is not desired. Disabling
-    /// also disables [`cache_glyph_drawing`](#method.cache_glyph_drawing).
+    /// also disables [`cache_redraws`](#method.cache_redraws).
     ///
     /// Defaults to `true`
     pub fn cache_glyph_positioning(mut self, cache: bool) -> Self {
@@ -165,14 +165,15 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
         self
     }
 
-    /// Sets optimising drawing by reusing the last draw requesting an identical draw queue.
+    /// Sets optimising vertex drawing by reusing the last draw requesting an identical draw queue.
+    /// Will result in the usage of [`BrushAction::ReDraw`](enum.BrushAction.html#variant.ReDraw).
     ///
     /// Improves performance. Is disabled if
     /// [`cache_glyph_positioning`](#method.cache_glyph_positioning) is disabled.
     ///
     /// Defaults to `true`
-    pub fn cache_glyph_drawing(mut self, cache: bool) -> Self {
-        self.cache_glyph_drawing = cache;
+    pub fn cache_redraws(mut self, cache_redraws: bool) -> Self {
+        self.cache_redraws = cache_redraws;
         self
     }
 
@@ -198,8 +199,8 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
             section_hasher,
             font_data: self.font_data,
             cache_glyph_positioning: self.cache_glyph_positioning,
-            cache_glyph_drawing: self.cache_glyph_drawing,
-            gpu_cache_builder: self.gpu_cache_builder,
+            cache_redraws: self.cache_redraws,
+            draw_cache_builder: self.draw_cache_builder,
             _private_construction: (),
         }
     }
@@ -208,7 +209,7 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
     pub fn build<V, X>(self) -> GlyphBrush<V, X, F, H> {
         GlyphBrush {
             fonts: self.font_data,
-            texture_cache: self.gpu_cache_builder.build(),
+            texture_cache: self.draw_cache_builder.build(),
 
             last_draw: <_>::default(),
             section_buffer: <_>::default(),
@@ -220,7 +221,7 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
             keep_in_cache: <_>::default(),
 
             cache_glyph_positioning: self.cache_glyph_positioning,
-            cache_glyph_drawing: self.cache_glyph_drawing && self.cache_glyph_positioning,
+            cache_redraws: self.cache_redraws && self.cache_glyph_positioning,
 
             section_hasher: self.section_hasher,
 
@@ -255,11 +256,11 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
 /// * `add_font_bytes`
 /// * `add_font`
 /// * `initial_cache_size`
-/// * `gpu_cache_scale_tolerance`
-/// * `gpu_cache_position_tolerance`
-/// * `gpu_cache_align_4x4`
+/// * `draw_cache_scale_tolerance`
+/// * `draw_cache_position_tolerance`
+/// * `draw_cache_align_4x4`
 /// * `cache_glyph_positioning`
-/// * `cache_glyph_drawing`
+/// * `cache_redraws`
 ///
 /// # Example
 /// ```
@@ -324,8 +325,8 @@ macro_rules! delegate_glyph_brush_builder_fns {
         /// Defaults to `0.5`
         ///
         /// See docs for `glyph_brush_draw_cache::DrawCache`
-        pub fn gpu_cache_scale_tolerance(mut self, tolerance: f32) -> Self {
-            self.$inner = self.$inner.gpu_cache_scale_tolerance(tolerance);
+        pub fn draw_cache_scale_tolerance(mut self, tolerance: f32) -> Self {
+            self.$inner = self.$inner.draw_cache_scale_tolerance(tolerance);
             self
         }
 
@@ -336,8 +337,8 @@ macro_rules! delegate_glyph_brush_builder_fns {
         /// Defaults to `0.1`
         ///
         /// See docs for `glyph_brush_draw_cache::DrawCache`
-        pub fn gpu_cache_position_tolerance(mut self, tolerance: f32) -> Self {
-            self.$inner = self.$inner.gpu_cache_position_tolerance(tolerance);
+        pub fn draw_cache_position_tolerance(mut self, tolerance: f32) -> Self {
+            self.$inner = self.$inner.draw_cache_position_tolerance(tolerance);
             self
         }
 
@@ -349,8 +350,8 @@ macro_rules! delegate_glyph_brush_builder_fns {
         /// Defaults to `false`
         ///
         /// See docs for `glyph_brush_draw_cache::DrawCache`
-        pub fn gpu_cache_align_4x4(mut self, b: bool) -> Self {
-            self.$inner = self.$inner.gpu_cache_align_4x4(b);
+        pub fn draw_cache_align_4x4(mut self, b: bool) -> Self {
+            self.$inner = self.$inner.draw_cache_align_4x4(b);
             self
         }
 
@@ -360,7 +361,7 @@ macro_rules! delegate_glyph_brush_builder_fns {
         ///
         /// Improves performance. Should only disable if using a custom GlyphPositioner that is
         /// impure according to it's inputs, so caching a previous call is not desired. Disabling
-        /// also disables [`cache_glyph_drawing`](#method.cache_glyph_drawing).
+        /// also disables [`cache_redraws`](#method.cache_redraws).
         ///
         /// Defaults to `true`
         pub fn cache_glyph_positioning(mut self, cache: bool) -> Self {
@@ -374,8 +375,8 @@ macro_rules! delegate_glyph_brush_builder_fns {
         /// [`cache_glyph_positioning`](#method.cache_glyph_positioning) is disabled.
         ///
         /// Defaults to `true`
-        pub fn cache_glyph_drawing(mut self, cache: bool) -> Self {
-            self.$inner = self.$inner.cache_glyph_drawing(cache);
+        pub fn cache_redraws(mut self, cache: bool) -> Self {
+            self.$inner = self.$inner.cache_redraws(cache);
             self
         }
     };

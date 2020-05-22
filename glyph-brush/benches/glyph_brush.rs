@@ -52,7 +52,7 @@ fn no_cache_render_3_medium_sections_fully(c: &mut Criterion) {
 
     let mut glyph_brush = GlyphBrushBuilder::using_font(font)
         .cache_glyph_positioning(false)
-        .cache_glyph_drawing(false)
+        .cache_redraws(false)
         .build();
 
     let sections = three_medium_sections();
@@ -96,7 +96,7 @@ fn no_cache_render_1_large_section_partially(c: &mut Criterion) {
 
     let mut glyph_brush = GlyphBrushBuilder::using_font(font)
         .cache_glyph_positioning(false)
-        .cache_glyph_drawing(false)
+        .cache_redraws(false)
         .build();
 
     let section = Section::default()
@@ -141,7 +141,7 @@ fn no_cache_render_v_center_1_large_section_partially(c: &mut Criterion) {
 
     let mut glyph_brush = GlyphBrushBuilder::using_font(font)
         .cache_glyph_positioning(false)
-        .cache_glyph_drawing(false)
+        .cache_redraws(false)
         .build();
 
     let section = Section::default()
@@ -189,7 +189,7 @@ fn no_cache_render_v_bottom_1_large_section_partially(c: &mut Criterion) {
 
     let mut glyph_brush = GlyphBrushBuilder::using_font(font)
         .cache_glyph_positioning(false)
-        .cache_glyph_drawing(false)
+        .cache_redraws(false)
         .build();
 
     let section = Section::default()
@@ -243,7 +243,7 @@ fn no_cache_render_100_small_sections_fully(c: &mut Criterion) {
 
     let mut glyph_brush = GlyphBrushBuilder::using_font(font)
         .cache_glyph_positioning(false)
-        .cache_glyph_drawing(false)
+        .cache_redraws(false)
         .build();
 
     let mut sections = vec![];

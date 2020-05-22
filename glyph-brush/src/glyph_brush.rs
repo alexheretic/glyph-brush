@@ -43,8 +43,8 @@ type SectionHash = u64;
 /// to it's draw positioning.
 ///
 /// This behaviour can be adjusted with
-/// [`GlyphBrushBuilder::gpu_cache_position_tolerance`]
-/// (struct.GlyphBrushBuilder.html#method.gpu_cache_position_tolerance).
+/// [`GlyphBrushBuilder::draw_cache_position_tolerance`]
+/// (struct.GlyphBrushBuilder.html#method.draw_cache_position_tolerance).
 pub struct GlyphBrush<V, X = Extra, F = FontArc, H = DefaultSectionHasher> {
     fonts: Vec<F>,
     texture_cache: DrawCache,
@@ -66,7 +66,7 @@ pub struct GlyphBrush<V, X = Extra, F = FontArc, H = DefaultSectionHasher> {
 
     // config
     cache_glyph_positioning: bool,
-    cache_glyph_drawing: bool,
+    cache_redraws: bool,
 
     section_hasher: H,
 
@@ -463,7 +463,7 @@ where
             },
         };
 
-        let result = if !self.cache_glyph_drawing
+        let result = if !self.cache_redraws
             || self.last_draw != draw_info
             || self.last_pre_positioned != self.pre_positioned
         {
@@ -560,9 +560,9 @@ impl<F: Font + Clone, V, X, H: BuildHasher + Clone> GlyphBrush<V, X, F, H> {
     pub fn to_builder(&self) -> GlyphBrushBuilder<F, H> {
         let mut builder = GlyphBrushBuilder::using_fonts(self.fonts.clone())
             .cache_glyph_positioning(self.cache_glyph_positioning)
-            .cache_glyph_drawing(self.cache_glyph_drawing)
+            .cache_redraws(self.cache_redraws)
             .section_hasher(self.section_hasher.clone());
-        builder.gpu_cache_builder = self.texture_cache.to_builder();
+        builder.draw_cache_builder = self.texture_cache.to_builder();
         builder
     }
 }
