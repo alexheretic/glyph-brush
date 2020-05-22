@@ -28,6 +28,8 @@
   and starts to improve upon it.
 * New _glyph_brush_layout_ now providers `section_index` & `byte_index` for all laid out glyphs. It no longer
   relies on any pixel bounding box info, which isn't fast to query with .otf fonts. This also means invisible glyphs, like ' ', are now generally included and hence will be returned by `GlyphCruncher::glyphs`.
+* Rename `gpu_cache_*` methods to `draw_cache_*`.
+* Rename `cache_glyph_drawing` to `cache_redraws` for clarity.
 * It's faster. **~1.07-1.64x** faster than `0.6` (particularly in the worst case full-layout performance).
   Rasterization is also **~2-7x** faster using _ab_glyph_rasterizer_.
 
