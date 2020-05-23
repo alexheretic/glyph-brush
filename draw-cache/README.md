@@ -7,6 +7,27 @@ Rasterization cache for [ab_glyph](https://github.com/alexheretic/ab-glyph) used
 * Manages a texture. Draws glyphs into it and provides texture rect lookup for glyphs.
 * Automatic re-use & reordering when needed.
 
+```rust
+use glyph_brush_draw_cache::DrawCache;
+
+// build a cache with default settings
+let mut draw_cache = DrawCache::builder().build();
+
+// queue up some glyphs to store in the cache
+for (font_id, glyph) in glyphs {
+    draw_cache.queue_glyph(font_id, glyph);
+}
+
+// process everything in the queue, rasterizing & uploading as necessary
+draw_cache.cache_queued(&fonts, |rect, tex_data| update_texture(rect, tex_data))?;
+
+// access a given glyph's texture position & pixel position for the texture quad
+match draw_cache.rect_for(font_id, &glyph) {
+    Some((tex_coords, px_coords)) => {}
+    None => {/* The glyph has no outline, or wasn't queued up to be cached */}
+}
+```
+
 ## Example
 See the **draw_cache_guts** example to see how it works _(run it from the top level)_.
 

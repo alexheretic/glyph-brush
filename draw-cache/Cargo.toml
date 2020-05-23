@@ -21,7 +21,7 @@ rayon = "1.3"
 
 [dev-dependencies]
 approx = { version = "0.3", default-features = false }
-glyph_brush_layout = { version = "*", path = "../layout" }
+glyph_brush_layout = { version = "0.2", path = "../layout" }
 criterion = "0.3"
 once_cell = "1.3"
 
