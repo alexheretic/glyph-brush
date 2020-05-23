@@ -1,7 +1,7 @@
 glyph_brush_layout
 [![crates.io](https://img.shields.io/crates/v/glyph_brush_layout.svg)](https://crates.io/crates/glyph_brush_layout)
 [![Documentation](https://docs.rs/glyph_brush_layout/badge.svg)](https://docs.rs/glyph_brush_layout)
-================
+==================
 Text layout for [ab_glyph](https://github.com/alexheretic/ab-glyph).
 
 * Generic positioning & linebreaking traits.
