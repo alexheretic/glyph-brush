@@ -1,4 +1,4 @@
-# Unreleased
+# 0.7
 * **OpenType (.otf) fonts are now supported** in addition to .ttf fonts. They're just as fast as .ttf fonts too.
 * Rework crate switching from _rusttype_ to _ab_glyph_. ab_glyph is re-exported to `glyph_brush::ab_glyph`,
   rusttype types are gone, e.g. all usage of `rusttype::Scale` is replaced with `ab_glyph::PxScale`.
@@ -42,7 +42,6 @@
 * Add `GlyphBrush::is_draw_cached` which can be used to tell if a given queued & processed glyph is visible or not.
 * It's faster. **~1.07-1.64x** faster than `0.6` (particularly in the worst case full-layout performance).
   Rasterization is also **~2-7x** faster using _ab_glyph_rasterizer_.
-
 
 # 0.6.3
 * Fix section color & alpha frame to frame changes to be incorrectly optimised as alpha only changes.

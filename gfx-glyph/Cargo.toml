@@ -13,7 +13,7 @@ readme="README.md"
 backtrace = "0.3"
 gfx = "0.18"
 gfx_core = "0.9"
-glyph_brush = { version = "0.6", path = "../glyph-brush" }
+glyph_brush = { version = "0.7", path = "../glyph-brush" }
 log = "0.4"
 
 [dev-dependencies]
