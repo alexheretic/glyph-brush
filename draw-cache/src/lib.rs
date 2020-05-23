@@ -489,8 +489,7 @@ fn normalised_offset_from_position(position: Point) -> Point {
     offset
 }
 
-/// An implementation of a dynamic GPU glyph cache. See the module documentation
-/// for more information.
+/// Dynamic rasterization draw cache.
 pub struct DrawCache {
     scale_tolerance: f32,
     position_tolerance: f32,
