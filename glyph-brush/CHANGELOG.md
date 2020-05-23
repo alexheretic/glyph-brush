@@ -24,7 +24,8 @@
 * `pixel_bounds` has been removed, use `glyph_bounds` instead. Pixel bound info is not available for OpenType glyphs
   without calculating outlines. I've found it's almost always better to use `glyph_bounds` instead anyway,
   if not please open an issue with your use case.
-* Rename `gpu_cache_*` methods to `draw_cache_*`.
+* Rename `gpu_cache_*` methods to `draw_cache_*`. Also note, overriding the default _position_tolerance_ may be less necessary as the new
+  draw cache features subpixel position error correction.
   ```rust
   // 0.7
   GlyphBrushBuilder::using_font(font).draw_cache_position_tolerance(0.1).build()
