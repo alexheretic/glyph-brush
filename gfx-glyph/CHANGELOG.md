@@ -1,4 +1,4 @@
-# Unreleased
+# 0.17
 * Rework crate switching from rusttype to ab_glyph. See
   [glyph_brush changelog](https://github.com/alexheretic/glyph-brush/blob/master/glyph-brush/CHANGELOG.md#07).
 
