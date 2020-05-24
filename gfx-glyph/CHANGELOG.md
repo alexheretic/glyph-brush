@@ -1,6 +1,6 @@
 # 0.17
-* Rework crate switching from rusttype to ab_glyph. See
-  [glyph_brush changelog](https://github.com/alexheretic/glyph-brush/blob/master/glyph-brush/CHANGELOG.md#07).
+* **OpenType (.otf) fonts are now supported** in addition to .ttf fonts.
+* Rework crate switching from rusttype to ab_glyph. See [glyph_brush changelog](https://github.com/alexheretic/glyph-brush/blob/master/glyph-brush/CHANGELOG.md#07).
 
 # 0.16
 * Remove deprecated `GlyphBrush::draw_queued` (use `use_queue()`).
