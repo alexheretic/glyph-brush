@@ -665,9 +665,9 @@ impl DrawCache {
             // tallest first gives better packing
             // can use 'sort_unstable' as order of equal elements is unimportant
             uncached_outlined.sort_unstable_by(|(_, ga), (_, gb)| {
-                gb.bounds()
+                gb.px_bounds()
                     .height()
-                    .partial_cmp(&ga.bounds().height())
+                    .partial_cmp(&ga.px_bounds().height())
                     .unwrap_or(core::cmp::Ordering::Equal)
             });
 
@@ -675,7 +675,7 @@ impl DrawCache {
             let mut draw_and_upload = Vec::with_capacity(uncached_outlined.len());
 
             'per_glyph: for (glyph_info, outlined) in uncached_outlined {
-                let bounds = outlined.bounds();
+                let bounds = outlined.px_bounds();
 
                 let (unaligned_width, unaligned_height) = {
                     if self.pad_glyphs {

@@ -1,6 +1,6 @@
 [package]
 name = "glyph_brush_draw_cache"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Alex Butler <alexheretic@gmail.com>"]
 edition = "2018"
 description = "Texture draw cache for ab_glyph"
@@ -10,7 +10,7 @@ license = "Apache-2.0"
 readme="README.md"
 
 [dependencies]
-ab_glyph = "0.2.1"
+ab_glyph = "0.2.2"
 linked-hash-map = "0.5"
 rustc-hash = "1"
 

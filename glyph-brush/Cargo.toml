@@ -11,7 +11,7 @@ readme="README.md"
 
 [dependencies]
 glyph_brush_layout = { version = "0.2", path = "../layout" }
-glyph_brush_draw_cache = { version = "0.1", path = "../draw-cache" }
+glyph_brush_draw_cache = { version = "0.1.1", path = "../draw-cache" }
 log = "0.4.4"
 ordered-float = "1"
 rustc-hash = "1"

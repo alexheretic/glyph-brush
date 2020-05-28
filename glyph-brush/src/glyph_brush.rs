@@ -123,29 +123,18 @@ where
             .positioned
             .glyphs()
             .fold(None, |b: Option<Rect>, sg| {
-                let sfont = self.fonts[sg.font_id.0].as_scaled(sg.glyph.scale);
-                let pos = sg.glyph.position;
-                let lbound = Rect {
-                    min: point(
-                        pos.x - sfont.h_side_bearing(sg.glyph.id),
-                        pos.y - sfont.ascent(),
-                    ),
-                    max: point(
-                        pos.x + sfont.h_advance(sg.glyph.id),
-                        pos.y - sfont.descent(),
-                    ),
-                };
+                let bounds = self.fonts[sg.font_id.0].glyph_bounds(&sg.glyph);
                 b.map(|b| {
-                    let min_x = b.min.x.min(lbound.min.x);
-                    let max_x = b.max.x.max(lbound.max.x);
-                    let min_y = b.min.y.min(lbound.min.y);
-                    let max_y = b.max.y.max(lbound.max.y);
+                    let min_x = b.min.x.min(bounds.min.x);
+                    let max_x = b.max.x.max(bounds.max.x);
+                    let min_y = b.min.y.min(bounds.min.y);
+                    let max_y = b.max.y.max(bounds.max.y);
                     Rect {
                         min: point(min_x, min_y),
                         max: point(max_x, max_y),
                     }
                 })
-                .or_else(|| Some(lbound))
+                .or_else(|| Some(bounds))
             })
             .map(|mut b| {
                 // cap the glyph bounds to the layout specified max bounds
