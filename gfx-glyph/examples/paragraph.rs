@@ -80,7 +80,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut font_size: f32 = 18.0;
     let mut zoom: f32 = 1.0;
     let mut angle = 0.0;
-    let mut ctrl = false;
     let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(250.0);
 
     let mut modifiers = ModifiersState::default();
@@ -116,17 +115,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                     VirtualKeyCode::Back => {
                         text.pop();
                     }
-                    VirtualKeyCode::LControl | VirtualKeyCode::RControl => ctrl = true,
                     _ => (),
                 },
-                WindowEvent::KeyboardInput {
-                    input:
-                        KeyboardInput {
-                            state: ElementState::Released,
-                            ..
-                        },
-                    ..
-                } => ctrl = false,
                 WindowEvent::ReceivedCharacter(c) => {
                     if c != '\u{7f}' && c != '\u{8}' {
                         text.push(c);

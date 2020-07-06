@@ -341,8 +341,8 @@ where
             let active = mem::take(&mut self.keep_in_cache);
             self.calculate_glyph_cache
                 .retain(|key, _| active.contains(key));
-            mem::replace(&mut self.keep_in_cache, active);
 
+            self.keep_in_cache = active;
             self.keep_in_cache.clear();
 
             self.section_buffer.clear();
