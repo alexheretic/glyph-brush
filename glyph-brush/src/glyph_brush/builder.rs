@@ -246,7 +246,7 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
     /// assert_eq!(glyph_brush.texture_dimensions(), (64, 64));
     /// ```
     pub fn rebuild<V, X>(self, brush: &mut GlyphBrush<V, X, F, H>) {
-        std::mem::replace(brush, self.build());
+        *brush = self.build();
     }
 }
 
