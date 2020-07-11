@@ -478,7 +478,7 @@ mod test {
             glyphs: vec![SectionGlyph {
                 section_index: 0,
                 byte_index: 0,
-                glyph: glyph,
+                glyph,
                 font_id: FontId(0),
             }],
             extra: vec![Extra { color, z: 0.444 }],

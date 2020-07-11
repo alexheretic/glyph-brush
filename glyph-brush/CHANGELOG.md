@@ -1,3 +1,6 @@
+# Unreleased
+* Update _ordered-float_ to `2`.
+
 # 0.7
 * **OpenType (.otf) fonts are now supported** in addition to .ttf fonts. They're just as fast as .ttf fonts too.
 * Rework crate switching from _rusttype_ to _ab_glyph_. ab_glyph is re-exported to `glyph_brush::ab_glyph`,

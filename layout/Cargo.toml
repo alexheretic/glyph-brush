@@ -16,4 +16,4 @@ approx = "0.3.2"
 
 [dev-dependencies]
 once_cell = "1"
-ordered-float = "1"
+ordered-float = "2"
