@@ -107,16 +107,13 @@ fn main() -> Result<(), Box<dyn Error>> {
                     input:
                         KeyboardInput {
                             state: ElementState::Pressed,
-                            virtual_keycode: Some(keypress),
+                            virtual_keycode: Some(VirtualKeyCode::Back),
                             ..
                         },
                     ..
-                } => match keypress {
-                    VirtualKeyCode::Back => {
-                        text.pop();
-                    }
-                    _ => (),
-                },
+                } => {
+                    text.pop();
+                }
                 WindowEvent::ReceivedCharacter(c) => {
                     if c != '\u{7f}' && c != '\u{8}' {
                         text.push(c);
