@@ -1,4 +1,4 @@
-# Unreleased 0.1.1
+# 0.1.1
 * Require _ab_glyph_ 0.2.2.
 
 # 0.1
