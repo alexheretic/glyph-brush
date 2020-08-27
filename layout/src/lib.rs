@@ -110,12 +110,10 @@ pub trait GlyphPositioner: Hash {
     }
 }
 
-// #[non_exhaustive] TODO use when stable
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum GlyphChange {
     /// Only the geometry has changed, contains the old geometry
     Geometry(SectionGeometry),
     Unknown,
-    #[doc(hidden)]
-    __Nonexhaustive,
 }

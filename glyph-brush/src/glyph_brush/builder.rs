@@ -15,13 +15,13 @@ use std::hash::BuildHasher;
 /// let mut glyph_brush: GlyphBrush<Vertex> =
 ///     GlyphBrushBuilder::using_font(dejavu).build();
 /// ```
+#[non_exhaustive]
 pub struct GlyphBrushBuilder<F = FontArc, H = DefaultSectionHasher> {
     pub font_data: Vec<F>,
     pub cache_glyph_positioning: bool,
     pub cache_redraws: bool,
     pub section_hasher: H,
     pub draw_cache_builder: DrawCacheBuilder,
-    _private_construction: (),
 }
 
 impl GlyphBrushBuilder<()> {
@@ -48,7 +48,6 @@ impl GlyphBrushBuilder<()> {
                 .scale_tolerance(0.5)
                 .position_tolerance(0.1)
                 .align_4x4(false),
-            _private_construction: (),
         }
     }
 }
@@ -92,7 +91,6 @@ impl<F, H> GlyphBrushBuilder<F, H> {
             cache_redraws: self.cache_redraws,
             section_hasher: self.section_hasher,
             draw_cache_builder: self.draw_cache_builder,
-            _private_construction: (),
         }
     }
 }
@@ -201,7 +199,6 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
             cache_glyph_positioning: self.cache_glyph_positioning,
             cache_redraws: self.cache_redraws,
             draw_cache_builder: self.draw_cache_builder,
-            _private_construction: (),
         }
     }
 
