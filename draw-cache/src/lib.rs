@@ -40,7 +40,7 @@ pub mod ab_glyph {
 
 pub use geometry::Rectangle;
 
-use ::ab_glyph::*;
+use crate::ab_glyph::*;
 use linked_hash_map::LinkedHashMap;
 #[cfg(not(target_arch = "wasm32"))]
 use rayon::prelude::*;
@@ -814,11 +814,10 @@ impl DrawCache {
             }
 
             if queue_success {
-                #[cfg(not(target_arch = "wasm32"))]
                 {
                     let glyph_count = draw_and_upload.len();
 
-                    if self.multithread && glyph_count > 1 {
+                    if self.multithread && glyph_count > 1 && cfg!(not(target_arch = "wasm32")) {
                         // multithread rasterization
                         use crossbeam_channel::TryRecvError;
                         use crossbeam_deque::Worker;
@@ -904,13 +903,6 @@ impl DrawCache {
                             let pixels = draw_glyph(tex_coords, &outlined, self.pad_glyphs);
                             uploader(tex_coords, pixels.as_slice());
                         }
-                    }
-                }
-                #[cfg(target_arch = "wasm32")]
-                {
-                    for (tex_coords, outlined) in draw_and_upload {
-                        let pixels = draw_glyph(tex_coords, &outlined, self.pad_glyphs);
-                        uploader(tex_coords, pixels.as_slice());
                     }
                 }
             }
