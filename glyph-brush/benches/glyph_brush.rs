@@ -3,6 +3,7 @@ use glyph_brush::{ab_glyph::*, *};
 use std::{borrow::Cow, f32};
 
 const TEST_FONT: &[u8] = include_bytes!("../../fonts/DejaVuSansMono.ttf");
+const TEST_OTF_FONT: &[u8] = include_bytes!("../../fonts/Exo2-Light.otf");
 const LIPSUM: &str = include_str!("lipsum.txt");
 const LOTS_OF_LIPSUM: &str = include_str!("lots_of_lipsum.txt");
 const SMALL_LIPSUM: &str = include_str!("small_lipsum.txt");
@@ -541,6 +542,54 @@ fn continually_modify_position_of_1_of_3(c: &mut Criterion) {
     });
 }
 
+/// Zooming into text.
+/// * Scales increase & decrease according to quadratic ease-out.
+/// * Positions & bounds shift around as the scale changes.
+fn continually_zoom(c: &mut Criterion) {
+    let _ = env_logger::try_init();
+    let font = FontRef::try_from_slice(TEST_OTF_FONT).unwrap();
+
+    let mut brush = GlyphBrushBuilder::using_font(font)
+        .initial_cache_size((768, 768))
+        .build();
+    let text = LIPSUM;
+
+    let variants: Vec<_> = (0..500)
+        .chain((1..=500).rev())
+        .map(|v| {
+            let factor = v as f32 / 500.0;
+            // ease between pixel heights 12 -> 36
+            let scale = quad_ease_out(factor, 12.0, 24.0, 1.0);
+
+            vec![
+                Section::default()
+                    .add_text(Text::new(text).with_scale(scale))
+                    .with_screen_position((-200.0 * factor, 0.0))
+                    .with_bounds((600.0 + 600.0 * factor, f32::INFINITY)),
+                Section::default()
+                    .add_text(Text::new(text))
+                    .with_screen_position((600.0, 0.0))
+                    .with_bounds((600.0 + 600.0 * factor, f32::INFINITY))
+                    .with_layout(Layout::default().h_align(HorizontalAlign::Center)),
+                Section::default()
+                    .add_text(Text::new(text))
+                    .with_screen_position((1200.0 + 200.0 * factor, 0.0))
+                    .with_bounds((600.0 + 600.0 * factor, f32::INFINITY))
+                    .with_layout(Layout::default().h_align(HorizontalAlign::Right)),
+            ]
+        })
+        .collect();
+
+    c.bench_function("continually_zoom", |b| {
+        bench_variants(b, &variants, &mut brush)
+    });
+}
+
+fn quad_ease_out(t: f32, b: f32, c: f32, d: f32) -> f32 {
+    let t = t / d;
+    -c * t * (t - 2.0) + b
+}
+
 /// Renders a different set of sections each run by
 /// cycling through the provided `variants`
 #[inline]
@@ -633,6 +682,7 @@ criterion_group!(
     continually_modify_color_of_1_of_3,
     continually_modify_alpha_of_1_of_3,
     continually_modify_position_of_1_of_3,
+    continually_zoom,
 );
 
 criterion_group!(
