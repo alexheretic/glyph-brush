@@ -188,7 +188,7 @@ fn bench_otf_font(c: &mut Criterion) {
 
 /// Benchmark using multiple fonts with default tolerances
 fn bench_multi_font(c: &mut Criterion) {
-    c.bench_function("mutli_font", |b| {
+    c.bench_function("multi_font", |b| {
         // Use a smaller amount of the test string, to offset the extra font-glyph
         // bench load
         let up_to_index = TEST_STR
