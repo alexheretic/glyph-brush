@@ -137,9 +137,9 @@ impl<X: Hash> Hash for Section<'_, X> {
 /// `SectionText` + extra.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Text<'a, X = Extra> {
-    /// Text to render
+    /// Text to render.
     pub text: &'a str,
-    /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
+    /// Pixel scale of text. Defaults to 16.
     pub scale: PxScale,
     /// Font id to use for this section.
     ///

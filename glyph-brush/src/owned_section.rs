@@ -87,9 +87,9 @@ impl<'a> From<&'a OwnedSection> for Cow<'a, Section<'a>> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct OwnedText<X = Extra> {
-    /// Text to render
+    /// Text to render.
     pub text: String,
-    /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
+    /// Pixel scale of text. Defaults to 16.
     pub scale: PxScale,
     /// Font id to use for this section.
     ///
