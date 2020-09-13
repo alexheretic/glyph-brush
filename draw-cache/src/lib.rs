@@ -140,6 +140,8 @@ struct Row {
     height: u32,
     /// Pixel width current in use by glyphs
     width: u32,
+    /// Does the row have any glyphs that need to be cached?
+    dirty: bool,
     glyphs: Vec<GlyphTexInfo>,
 }
 
@@ -196,6 +198,7 @@ pub struct DrawCacheBuilder {
     pad_glyphs: bool,
     align_4x4: bool,
     multithread: bool,
+    cpu_cache: bool,
 }
 
 impl Default for DrawCacheBuilder {
@@ -207,6 +210,7 @@ impl Default for DrawCacheBuilder {
             pad_glyphs: true,
             align_4x4: false,
             multithread: true,
+            cpu_cache: false,
         }
     }
 }
@@ -336,6 +340,19 @@ impl DrawCacheBuilder {
         self.multithread = multithread;
         self
     }
+    /// Cache the rasterized glyphs in CPU-side memory. When enabled,
+    /// `cache_queued` will return any _rows_ of glyphs that have been updated
+    /// (as opposed to individual glyphs). When multiple contiguous rows are
+    /// updated, they are sent to the `cache_queued` user-supplied `uploader`
+    /// function as a single chunk. The result is a minimization of calls to
+    /// `uploader`, which in turn can minimize the number of update operations
+    /// to one's GPU cache.
+    ///
+    /// Currently forces single-threaded rasterization.
+    pub fn cpu_cache(mut self, cpu_cache: bool) -> Self {
+        self.cpu_cache = cpu_cache;
+        self
+    }
 
     fn validated(self) -> Self {
         assert!(self.scale_tolerance >= 0.0);
@@ -343,7 +360,7 @@ impl DrawCacheBuilder {
         let scale_tolerance = self.scale_tolerance.max(0.001);
         let position_tolerance = self.position_tolerance.max(0.001);
         #[cfg(not(target_arch = "wasm32"))]
-        let multithread = self.multithread && rayon::current_num_threads() > 1;
+        let multithread = self.multithread && rayon::current_num_threads() > 1 && !self.cpu_cache;
         Self {
             scale_tolerance,
             position_tolerance,
@@ -375,6 +392,7 @@ impl DrawCacheBuilder {
             pad_glyphs,
             align_4x4,
             multithread,
+            cpu_cache,
         } = self.validated();
 
         DrawCache {
@@ -398,6 +416,11 @@ impl DrawCacheBuilder {
             pad_glyphs,
             align_4x4,
             multithread,
+            cpu_cache: if cpu_cache {
+                Some(ByteArray2d::zeros(width as usize, height as usize))
+            } else {
+                None
+            },
         }
     }
 
@@ -425,6 +448,7 @@ impl DrawCacheBuilder {
             pad_glyphs,
             align_4x4,
             multithread,
+            cpu_cache,
         } = self.validated();
 
         cache.width = width;
@@ -434,6 +458,11 @@ impl DrawCacheBuilder {
         cache.pad_glyphs = pad_glyphs;
         cache.align_4x4 = align_4x4;
         cache.multithread = multithread;
+        cache.cpu_cache = if cpu_cache {
+            Some(ByteArray2d::zeros(width as usize, height as usize))
+        } else {
+            None
+        };
         cache.clear();
     }
 }
@@ -505,6 +534,7 @@ pub struct DrawCache {
     pad_glyphs: bool,
     align_4x4: bool,
     multithread: bool,
+    cpu_cache: Option<ByteArray2d>,
 }
 
 impl DrawCache {
@@ -547,6 +577,13 @@ impl DrawCache {
         self.all_glyphs.clear();
     }
 
+    /// Marks all rows as not dirty
+    pub fn clean_rows(&mut self) {
+        for (_, row) in self.rows.iter_mut() {
+            row.dirty = false;
+        }
+    }
+
     /// Clears the glyph queue.
     pub fn clear_queue(&mut self) {
         self.queue.clear();
@@ -561,6 +598,7 @@ impl DrawCache {
             pad_glyphs: self.pad_glyphs,
             align_4x4: self.align_4x4,
             multithread: self.multithread,
+            cpu_cache: self.cpu_cache.is_some(),
         }
     }
 
@@ -611,6 +649,8 @@ impl DrawCache {
         let from_empty = self.all_glyphs.is_empty();
 
         {
+            self.clean_rows();
+
             let (mut in_use_rows, uncached_glyphs) = {
                 let mut in_use_rows =
                     HashSet::with_capacity_and_hasher(self.rows.len(), FxBuildHasher::default());
@@ -771,6 +811,7 @@ impl DrawCache {
                             width: 0,
                             height: aligned_height,
                             glyphs: Vec::new(),
+                            dirty: true,
                         },
                     );
                     row_top = Some(gap_start);
@@ -804,6 +845,7 @@ impl DrawCache {
                         ),
                     },
                 });
+                row.dirty = true;
                 row.width += aligned_width;
                 in_use_rows.insert(row_top);
 
@@ -900,8 +942,53 @@ impl DrawCache {
                     } else {
                         // single thread rasterization
                         for (tex_coords, outlined) in draw_and_upload {
-                            let pixels = draw_glyph(tex_coords, &outlined, self.pad_glyphs);
-                            uploader(tex_coords, pixels.as_slice());
+                            if let Some(cpu_cache) = self.cpu_cache.as_mut() {
+                                draw_glyph_onto_buffer(
+                                    cpu_cache,
+                                    tex_coords,
+                                    &outlined,
+                                    self.pad_glyphs,
+                                );
+                            } else {
+                                let pixels = draw_glyph(tex_coords, &outlined, self.pad_glyphs);
+                                uploader(tex_coords, pixels.as_slice());
+                            }
+                        }
+                    }
+
+                    if let Some(cpu_cache) = self.cpu_cache.as_ref() {
+                        let mut dirty_rows = self
+                            .rows
+                            .iter()
+                            .filter(|(_, r)| r.dirty)
+                            .collect::<Vec<_>>();
+
+                        // Find contiguous slices of dirty rows
+                        dirty_rows.sort_by(|(top_a, _), (top_b, _)| top_a.cmp(top_b));
+                        let mut slices: Vec<(u32, u32)> = vec![];
+                        for (top, row) in dirty_rows {
+                            if let Some(slice) = slices.last_mut() {
+                                if slice.1 == *top {
+                                    slice.1 = top + row.height;
+                                } else {
+                                    slices.push((*top, top + row.height));
+                                }
+                            } else {
+                                slices.push((*top, top + row.height));
+                            }
+                        }
+
+                        // Send contiguous slices to uploader
+                        for (top, bottom) in slices {
+                            let tex_coords = Rectangle {
+                                min: [0, top],
+                                max: [self.width, bottom],
+                            };
+                            uploader(
+                                tex_coords,
+                                &cpu_cache.as_slice()
+                                    [(self.width * top) as usize..(self.width * bottom) as usize],
+                            );
                         }
                     }
                 }
@@ -969,6 +1056,33 @@ impl DrawCache {
         };
 
         Some((uv_rect, equivalent_bounds))
+    }
+}
+
+#[inline]
+fn draw_glyph_onto_buffer(
+    buffer: &mut ByteArray2d,
+    tex_coords: Rectangle<u32>,
+    glyph: &OutlinedGlyph,
+    pad_glyphs: bool,
+) {
+    if pad_glyphs {
+        glyph.draw(|x, y, v| {
+            let v = (v * 255.0).round() as u8;
+            // `+ 1` accounts for top/left glyph padding
+            buffer[(
+                (y + tex_coords.min[1]) as usize + 1,
+                (x + tex_coords.min[0]) as usize + 1,
+            )] = v;
+        });
+    } else {
+        glyph.draw(|x, y, v| {
+            let v = (v * 255.0).round() as u8;
+            buffer[(
+                (y + tex_coords.min[1]) as usize,
+                (x + tex_coords.min[0]) as usize,
+            )] = v;
+        });
     }
 }
 
@@ -1103,6 +1217,7 @@ mod test {
             pad_glyphs: false,
             align_4x4: false,
             multithread: false,
+            cpu_cache: true,
         }
         .build();
 
@@ -1114,6 +1229,7 @@ mod test {
         assert_eq!(to_builder.pad_glyphs, false);
         assert_eq!(to_builder.align_4x4, false);
         assert_eq!(to_builder.multithread, false);
+        assert_eq!(to_builder.cpu_cache, true);
     }
 
     #[test]
