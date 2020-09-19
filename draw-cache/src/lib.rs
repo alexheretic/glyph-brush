@@ -50,7 +50,6 @@ use std::{
     error, fmt,
     hash::BuildHasherDefault,
     ops,
-    sync::Arc,
 };
 
 /// (Texture coordinates, pixel coordinates)
@@ -815,104 +814,10 @@ impl DrawCache {
 
             if queue_success {
                 #[cfg(not(target_arch = "wasm32"))]
-                {
-                    let glyph_count = draw_and_upload.len();
+                self.draw_and_upload_multithread(draw_and_upload, &mut uploader);
 
-                    if self.multithread && glyph_count > 1 {
-                        // multithread rasterization
-                        use crossbeam_channel::TryRecvError;
-                        use crossbeam_deque::Worker;
-                        use std::mem;
-
-                        let threads = rayon::current_num_threads().min(glyph_count);
-                        let rasterize_queue = Arc::new(crossbeam_deque::Injector::new());
-                        let (to_main, from_stealers) = crossbeam_channel::unbounded();
-                        let pad_glyphs = self.pad_glyphs;
-
-                        let mut worker_qs: Vec<_> =
-                            (0..threads).map(|_| Worker::new_fifo()).collect();
-                        let stealers: Arc<Vec<_>> =
-                            Arc::new(worker_qs.iter().map(|w| w.stealer()).collect());
-
-                        for el in draw_and_upload {
-                            rasterize_queue.push(el);
-                        }
-
-                        for _ in 0..threads.saturating_sub(1) {
-                            let rasterize_queue = Arc::clone(&rasterize_queue);
-                            let stealers = Arc::clone(&stealers);
-                            let to_main = to_main.clone();
-                            let local = worker_qs.pop().unwrap();
-
-                            rayon::spawn(move || loop {
-                                let task = local.pop().or_else(|| {
-                                    std::iter::repeat_with(|| {
-                                        rasterize_queue.steal_batch_and_pop(&local).or_else(|| {
-                                            stealers.iter().map(|s| s.steal()).collect()
-                                        })
-                                    })
-                                    .find(|s| !s.is_retry())
-                                    .and_then(|s| s.success())
-                                });
-
-                                match task {
-                                    Some((tex_coords, glyph)) => {
-                                        let pixels = draw_glyph(tex_coords, &glyph, pad_glyphs);
-                                        to_main.send((tex_coords, pixels)).unwrap();
-                                    }
-                                    None => break,
-                                }
-                            });
-                        }
-                        mem::drop(to_main);
-
-                        let local = worker_qs.pop().unwrap();
-                        let mut workers_finished = false;
-                        loop {
-                            let task = local.pop().or_else(|| {
-                                std::iter::repeat_with(|| {
-                                    rasterize_queue
-                                        .steal_batch_and_pop(&local)
-                                        .or_else(|| stealers.iter().map(|s| s.steal()).collect())
-                                })
-                                .find(|s| !s.is_retry())
-                                .and_then(|s| s.success())
-                            });
-
-                            match task {
-                                Some((tex_coords, glyph)) => {
-                                    let pixels = draw_glyph(tex_coords, &glyph, pad_glyphs);
-                                    uploader(tex_coords, pixels.as_slice());
-                                }
-                                None if workers_finished => break,
-                                None => {}
-                            }
-
-                            while !workers_finished {
-                                match from_stealers.try_recv() {
-                                    Ok((tex_coords, pixels)) => {
-                                        uploader(tex_coords, pixels.as_slice())
-                                    }
-                                    Err(TryRecvError::Disconnected) => workers_finished = true,
-                                    Err(TryRecvError::Empty) => break,
-                                }
-                            }
-                        }
-                    } else {
-                        // single thread rasterization
-                        for (tex_coords, outlined) in draw_and_upload {
-                            let pixels = draw_glyph(tex_coords, &outlined, self.pad_glyphs);
-                            uploader(tex_coords, pixels.as_slice());
-                        }
-                    }
-                }
                 #[cfg(target_arch = "wasm32")]
-                {
-                    for (tex_coords, outlined) in draw_and_upload {
-                        let pixels = draw_glyph(tex_coords, &outlined, self.pad_glyphs);
-                        uploader(tex_coords, pixels.as_slice());
-                    }
-                }
+                self.draw_and_upload(draw_and_upload, &mut uploader);
             }
         }
 
@@ -924,6 +829,118 @@ impl DrawCache {
             self.clear();
             self.cache_queued(fonts, uploader)
                 .map(|_| CachedBy::Reordering)
+        }
+    }
+
+    /// Draw using the current thread & the rayon thread pool in a work-stealing manner.
+    /// Uploads are called by the current thread only.
+    ///
+    /// Note: This fn uses non-wasm multithreading dependencies.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn draw_and_upload_multithread<U>(
+        &self,
+        draw_and_upload: Vec<(Rectangle<u32>, OutlinedGlyph)>,
+        uploader: &mut U,
+    ) where
+        U: FnMut(Rectangle<u32>, &[u8]),
+    {
+        use std::sync::Arc;
+
+        let glyph_count = draw_and_upload.len();
+
+        if self.multithread && glyph_count > 1 {
+            // multithread rasterization
+            use crossbeam_channel::TryRecvError;
+            use crossbeam_deque::Worker;
+            use std::mem;
+
+            let threads = rayon::current_num_threads().min(glyph_count);
+            let rasterize_queue = Arc::new(crossbeam_deque::Injector::new());
+            let (to_main, from_stealers) = crossbeam_channel::unbounded();
+            let pad_glyphs = self.pad_glyphs;
+
+            let mut worker_qs: Vec<_> = (0..threads).map(|_| Worker::new_fifo()).collect();
+            let stealers: Arc<Vec<_>> = Arc::new(worker_qs.iter().map(|w| w.stealer()).collect());
+
+            for el in draw_and_upload {
+                rasterize_queue.push(el);
+            }
+
+            for _ in 0..threads.saturating_sub(1) {
+                let rasterize_queue = Arc::clone(&rasterize_queue);
+                let stealers = Arc::clone(&stealers);
+                let to_main = to_main.clone();
+                let local = worker_qs.pop().unwrap();
+
+                rayon::spawn(move || loop {
+                    let task = local.pop().or_else(|| {
+                        std::iter::repeat_with(|| {
+                            rasterize_queue
+                                .steal_batch_and_pop(&local)
+                                .or_else(|| stealers.iter().map(|s| s.steal()).collect())
+                        })
+                        .find(|s| !s.is_retry())
+                        .and_then(|s| s.success())
+                    });
+
+                    match task {
+                        Some((tex_coords, glyph)) => {
+                            let pixels = draw_glyph(tex_coords, &glyph, pad_glyphs);
+                            to_main.send((tex_coords, pixels)).unwrap();
+                        }
+                        None => break,
+                    }
+                });
+            }
+            mem::drop(to_main);
+
+            let local = worker_qs.pop().unwrap();
+            let mut workers_finished = false;
+            loop {
+                let task = local.pop().or_else(|| {
+                    std::iter::repeat_with(|| {
+                        rasterize_queue
+                            .steal_batch_and_pop(&local)
+                            .or_else(|| stealers.iter().map(|s| s.steal()).collect())
+                    })
+                    .find(|s| !s.is_retry())
+                    .and_then(|s| s.success())
+                });
+
+                match task {
+                    Some((tex_coords, glyph)) => {
+                        let pixels = draw_glyph(tex_coords, &glyph, pad_glyphs);
+                        uploader(tex_coords, pixels.as_slice());
+                    }
+                    None if workers_finished => break,
+                    None => {}
+                }
+
+                while !workers_finished {
+                    match from_stealers.try_recv() {
+                        Ok((tex_coords, pixels)) => uploader(tex_coords, pixels.as_slice()),
+                        Err(TryRecvError::Disconnected) => workers_finished = true,
+                        Err(TryRecvError::Empty) => break,
+                    }
+                }
+            }
+        } else {
+            self.draw_and_upload(draw_and_upload, uploader);
+        }
+    }
+
+    /// Draw & upload seqentially.
+    #[inline]
+    fn draw_and_upload<U>(
+        &self,
+        draw_and_upload: Vec<(Rectangle<u32>, OutlinedGlyph)>,
+        uploader: &mut U,
+    ) where
+        U: FnMut(Rectangle<u32>, &[u8]),
+    {
+        for (tex_coords, outlined) in draw_and_upload {
+            let pixels = draw_glyph(tex_coords, &outlined, self.pad_glyphs);
+            uploader(tex_coords, pixels.as_slice());
         }
     }
 
