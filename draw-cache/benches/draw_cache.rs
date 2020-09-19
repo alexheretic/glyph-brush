@@ -3,12 +3,11 @@ use glyph_brush_draw_cache::*;
 use glyph_brush_layout::ab_glyph::*;
 use once_cell::sync::Lazy;
 
-/// Busy wait 2us
-fn mock_gpu_upload(_region: Rectangle<u32>, _bytes: &[u8]) {
+fn mock_gpu_upload_4us(_region: Rectangle<u32>, _bytes: &[u8]) {
     use std::time::{Duration, Instant};
 
     let now = Instant::now();
-    while now.elapsed() < Duration::from_micros(2) {}
+    while now.elapsed() < Duration::from_micros(4) {}
 }
 
 fn test_glyphs<F: Font>(font: F, string: &str) -> Vec<Glyph> {
@@ -87,8 +86,11 @@ const TEST_STR: &str = include_str!("lipsum.txt");
 // **************************************************************************
 
 /// Benchmark using a single font at "don't care" position tolerance
+///
+/// # Changes
+/// * v2: Add 4us gpu upload wait + pre-populate
 fn bench_high_position_tolerance(c: &mut Criterion) {
-    c.bench_function("high_position_tolerance", |b| {
+    c.bench_function("high_position_tolerance_v2", |b| {
         let font_id = 0;
         let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
         let mut cache = DrawCache::builder()
@@ -97,6 +99,16 @@ fn bench_high_position_tolerance(c: &mut Criterion) {
             .position_tolerance(1.0)
             .build();
 
+        {
+            // warm up / avoid benching population performance
+            for glyph in &glyphs {
+                cache.queue_glyph(font_id, glyph.clone());
+            }
+            cache
+                .cache_queued(&*FONTS, |_, _| {})
+                .expect("cache_queued initial");
+        }
+
         let space_id = &FONTS[font_id].glyph_id(' ');
 
         b.iter(|| {
@@ -105,7 +117,7 @@ fn bench_high_position_tolerance(c: &mut Criterion) {
             }
 
             cache
-                .cache_queued(&*FONTS, |_, _| {})
+                .cache_queued(&*FONTS, mock_gpu_upload_4us)
                 .expect("cache_queued");
 
             for (index, glyph) in glyphs.iter().enumerate().filter(|(_, g)| g.id != *space_id) {
@@ -123,12 +135,25 @@ fn bench_high_position_tolerance(c: &mut Criterion) {
 }
 
 /// Benchmark using a single ttf with default tolerances
+///
+/// # Changes
+/// * v2: Add 4us gpu upload wait + pre-populate
 fn bench_ttf_font(c: &mut Criterion) {
-    c.bench_function("single_ttf", |b| {
+    c.bench_function("single_ttf_v2", |b| {
         let font_id = 0;
         let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
         let mut cache = DrawCache::builder().dimensions(1024, 1024).build();
 
+        {
+            // warm up / avoid benching population performance
+            for glyph in &glyphs {
+                cache.queue_glyph(font_id, glyph.clone());
+            }
+            cache
+                .cache_queued(&*FONTS, |_, _| {})
+                .expect("cache_queued initial");
+        }
+
         let space_id = &FONTS[font_id].glyph_id(' ');
 
         b.iter(|| {
@@ -137,7 +162,7 @@ fn bench_ttf_font(c: &mut Criterion) {
             }
 
             cache
-                .cache_queued(&*FONTS, |_, _| {})
+                .cache_queued(&*FONTS, mock_gpu_upload_4us)
                 .expect("cache_queued");
 
             for (index, glyph) in glyphs.iter().enumerate().filter(|(_, g)| g.id != *space_id) {
@@ -155,11 +180,24 @@ fn bench_ttf_font(c: &mut Criterion) {
 }
 
 /// Benchmark using a single ttf with default tolerances
+///
+/// # Changes
+/// * v2: Add 4us gpu upload wait + pre-populate
 fn bench_otf_font(c: &mut Criterion) {
-    c.bench_function("single_otf", |b| {
+    c.bench_function("single_otf_v2", |b| {
         let font_id = 2;
         let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
         let mut cache = DrawCache::builder().dimensions(1024, 1024).build();
+
+        {
+            // warm up / avoid benching population performance
+            for glyph in &glyphs {
+                cache.queue_glyph(font_id, glyph.clone());
+            }
+            cache
+                .cache_queued(&*FONTS, |_, _| {})
+                .expect("cache_queued initial");
+        }
 
         let space_id = &FONTS[font_id].glyph_id(' ');
 
@@ -169,7 +207,7 @@ fn bench_otf_font(c: &mut Criterion) {
             }
 
             cache
-                .cache_queued(&*FONTS, |_, _| {})
+                .cache_queued(&*FONTS, mock_gpu_upload_4us)
                 .expect("cache_queued");
 
             for (index, glyph) in glyphs.iter().enumerate().filter(|(_, g)| g.id != *space_id) {
@@ -187,8 +225,11 @@ fn bench_otf_font(c: &mut Criterion) {
 }
 
 /// Benchmark using multiple fonts with default tolerances
+///
+/// # Changes
+/// * v2: Add 4us gpu upload wait + pre-populate
 fn bench_multi_font(c: &mut Criterion) {
-    c.bench_function("multi_font", |b| {
+    c.bench_function("multi_font_v2", |b| {
         // Use a smaller amount of the test string, to offset the extra font-glyph
         // bench load
         let up_to_index = TEST_STR
@@ -205,6 +246,18 @@ fn bench_multi_font(c: &mut Criterion) {
             .collect();
         let mut cache = DrawCache::builder().dimensions(1024, 1024).build();
 
+        {
+            // warm up / avoid benching population performance
+            for &(font_id, ref glyphs) in &font_glyphs {
+                for glyph in glyphs {
+                    cache.queue_glyph(font_id, glyph.clone());
+                }
+            }
+            cache
+                .cache_queued(&*FONTS, |_, _| {})
+                .expect("cache_queued");
+        }
+
         b.iter(|| {
             for &(font_id, ref glyphs) in &font_glyphs {
                 for glyph in glyphs {
@@ -213,7 +266,7 @@ fn bench_multi_font(c: &mut Criterion) {
             }
 
             cache
-                .cache_queued(&*FONTS, |_, _| {})
+                .cache_queued(&*FONTS, mock_gpu_upload_4us)
                 .expect("cache_queued");
 
             for &(font_id, ref glyphs) in &font_glyphs {
@@ -237,8 +290,11 @@ fn bench_multi_font(c: &mut Criterion) {
 
 /// Benchmark using multiple fonts with default tolerances, clears the
 /// cache each run to test the population "first run" performance
+///
+/// # Changes
+/// * v2: Add 4us gpu upload wait
 fn bench_multi_font_population(c: &mut Criterion) {
-    c.bench_function("multi_font_population", |b| {
+    c.bench_function("multi_font_population_v2", |b| {
         // Use a much smaller amount of the test string, to offset the extra font-glyph
         // bench load & much slower performance of fresh population each run
         let up_to_index = TEST_STR.char_indices().nth(70).unwrap().0;
@@ -259,7 +315,7 @@ fn bench_multi_font_population(c: &mut Criterion) {
             }
 
             cache
-                .cache_queued(&*FONTS, |_, _| {})
+                .cache_queued(&*FONTS, mock_gpu_upload_4us)
                 .expect("cache_queued");
 
             for &(font_id, ref glyphs) in &font_glyphs {
@@ -282,6 +338,9 @@ fn bench_multi_font_population(c: &mut Criterion) {
 
 /// Benchmark using multiple fonts and a different text group of glyphs
 /// each run
+///
+/// # Changes
+/// * v2: Add 4us gpu upload wait + pre-populate
 fn bench_moving_text(c: &mut Criterion) {
     let chars: Vec<_> = TEST_STR.chars().collect();
     let subsection_len = chars.len() / FONTS.len();
@@ -315,7 +374,20 @@ fn bench_moving_text(c: &mut Criterion) {
         .position_tolerance(0.1)
         .build();
 
-    c.bench_function("moving_text", |b| {
+    {
+        // warm up / avoid benching population performance
+        let glyphs = test_variants.next().unwrap();
+        for &(font_id, ref glyphs) in glyphs {
+            for glyph in glyphs {
+                cache.queue_glyph(font_id, glyph.clone());
+            }
+        }
+        cache
+            .cache_queued(&*FONTS, |_, _| {})
+            .expect("cache_queued");
+    }
+
+    c.bench_function("moving_text_v2", |b| {
         b.iter(|| {
             // switch text variant each run to force cache to deal with moving text
             // requirements
@@ -327,7 +399,7 @@ fn bench_moving_text(c: &mut Criterion) {
             }
 
             cache
-                .cache_queued(&*FONTS, |_, _| {})
+                .cache_queued(&*FONTS, mock_gpu_upload_4us)
                 .expect("cache_queued");
 
             for &(font_id, ref glyphs) in glyphs {
@@ -355,6 +427,9 @@ fn bench_moving_text(c: &mut Criterion) {
 
 /// Cache isn't large enough for a queue so a new cache is created to hold
 /// the queue.
+///
+/// # Changes
+/// * v2: 4us gpu upload wait
 fn bench_resizing(c: &mut Criterion) {
     let up_to_index = TEST_STR.char_indices().nth(120).unwrap().0;
     let string = &TEST_STR[..up_to_index];
@@ -365,7 +440,7 @@ fn bench_resizing(c: &mut Criterion) {
         .map(|(id, font)| (id, test_glyphs(font, string)))
         .collect();
 
-    c.bench_function("resizing", |b| {
+    c.bench_function("resizing_v2", |b| {
         b.iter(|| {
             let mut cache = DrawCache::builder().dimensions(256, 256).build();
 
@@ -376,13 +451,13 @@ fn bench_resizing(c: &mut Criterion) {
             }
 
             cache
-                .cache_queued(&*FONTS, mock_gpu_upload)
+                .cache_queued(&*FONTS, mock_gpu_upload_4us)
                 .expect_err("shouldn't fit");
 
             cache.to_builder().dimensions(512, 512).rebuild(&mut cache);
 
             cache
-                .cache_queued(&*FONTS, mock_gpu_upload)
+                .cache_queued(&*FONTS, mock_gpu_upload_4us)
                 .expect("should fit now");
 
             for &(font_id, ref glyphs) in &font_glyphs {
@@ -406,6 +481,9 @@ fn bench_resizing(c: &mut Criterion) {
 /// Benchmark using multiple fonts and a different text group of glyphs
 /// each run. The cache is only large enough to fit each run if it is
 /// cleared and re-built.
+///
+/// # Changes
+/// * v2: 4us gpu upload wait
 fn bench_moving_text_thrashing(c: &mut Criterion) {
     let chars: Vec<_> = TEST_STR.chars().collect();
     let subsection_len = 60;
@@ -440,7 +518,7 @@ fn bench_moving_text_thrashing(c: &mut Criterion) {
         .position_tolerance(0.1)
         .build();
 
-    c.bench_function("moving_text_thrashing", |b| {
+    c.bench_function("moving_text_thrashing_v2", |b| {
         b.iter(|| {
             // switch text variant each run to force cache to deal with moving text
             // requirements
@@ -452,7 +530,7 @@ fn bench_moving_text_thrashing(c: &mut Criterion) {
                 }
 
                 cache
-                    .cache_queued(&*FONTS, mock_gpu_upload)
+                    .cache_queued(&*FONTS, mock_gpu_upload_4us)
                     .expect("cache_queued");
 
                 for &(font_id, ref glyphs) in glyphs {
