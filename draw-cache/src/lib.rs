@@ -812,12 +812,42 @@ impl DrawCache {
                     .insert(glyph_info, (row_top, row.glyphs.len() as u32 - 1));
             }
 
+            // draw & upload
             if queue_success {
-                #[cfg(not(target_arch = "wasm32"))]
-                self.draw_and_upload_multithread(draw_and_upload, &mut uploader);
+                if from_empty && draw_and_upload.len() > 1 {
+                    // if previously empty draw into memory and perform a single upload
+                    let max_v = draw_and_upload
+                        .iter()
+                        .map(|rect| rect.0.max[1])
+                        .max()
+                        .unwrap();
+                    let mut texture_up = vec![0; (self.width * max_v) as _];
 
-                #[cfg(target_arch = "wasm32")]
-                self.draw_and_upload(draw_and_upload, &mut uploader);
+                    self.draw_and_upload(draw_and_upload, &mut |rect, data| {
+                        let min_h = rect.min[0] as usize;
+                        let min_v = rect.min[1];
+                        let glyph_w = rect.width() as usize;
+
+                        for v in min_v..rect.max[1] {
+                            let tex_left = min_h + (self.width * v) as usize;
+                            let data_left = glyph_w * (v - min_v) as usize;
+                            texture_up.splice(
+                                tex_left..tex_left + glyph_w,
+                                data[data_left..data_left + glyph_w].iter().copied(),
+                            );
+                        }
+                    });
+
+                    uploader(
+                        Rectangle {
+                            min: [0, 0],
+                            max: [self.width, max_v],
+                        },
+                        &texture_up,
+                    );
+                } else {
+                    self.draw_and_upload(draw_and_upload, &mut uploader);
+                }
             }
         }
 
@@ -837,7 +867,7 @@ impl DrawCache {
     ///
     /// Note: This fn uses non-wasm multithreading dependencies.
     #[cfg(not(target_arch = "wasm32"))]
-    fn draw_and_upload_multithread<U>(
+    fn draw_and_upload<U>(
         &self,
         draw_and_upload: Vec<(Rectangle<u32>, OutlinedGlyph)>,
         uploader: &mut U,
@@ -925,13 +955,25 @@ impl DrawCache {
                 }
             }
         } else {
-            self.draw_and_upload(draw_and_upload, uploader);
+            self.draw_and_upload_1_thread(draw_and_upload, uploader);
         }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    #[inline]
+    fn draw_and_upload<U>(
+        &self,
+        draw_and_upload: Vec<(Rectangle<u32>, OutlinedGlyph)>,
+        uploader: &mut U,
+    ) where
+        U: FnMut(Rectangle<u32>, &[u8]),
+    {
+        self.draw_and_upload_1_thread(draw_and_upload, uploader)
     }
 
     /// Draw & upload seqentially.
     #[inline]
-    fn draw_and_upload<U>(
+    fn draw_and_upload_1_thread<U>(
         &self,
         draw_and_upload: Vec<(Rectangle<u32>, OutlinedGlyph)>,
         uploader: &mut U,
