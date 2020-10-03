@@ -1,4 +1,4 @@
-# Unreleased
+# 0.1.2
 * Optimise empty cache `cache_queued` calls by bundling texture data into a single upload.
 
 # 0.1.1
