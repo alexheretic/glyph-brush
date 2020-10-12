@@ -15,8 +15,8 @@ linked-hash-map = "0.5"
 rustc-hash = "1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-crossbeam-deque = "0.7"
-crossbeam-channel = "0.4.2"
+crossbeam-deque = "0.8"
+crossbeam-channel = "0.5"
 rayon = "1.3"
 
 [dev-dependencies]

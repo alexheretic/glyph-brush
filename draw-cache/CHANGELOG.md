@@ -1,3 +1,6 @@
+# Unreleased
+* Update _crossbeam-deque_ to 0.8, _crossbeam-channel_ to 0.5.
+
 # 0.1.2
 * Optimise empty cache `cache_queued` calls by bundling texture data into a single upload.
 
