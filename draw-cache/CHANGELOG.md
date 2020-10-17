@@ -1,4 +1,4 @@
-# Unreleased
+# 0.1.3
 * Update _crossbeam-deque_ to 0.8, _crossbeam-channel_ to 0.5.
 
 # 0.1.2
