@@ -1,5 +1,8 @@
+# Unreleased
+* Update _approx_ to `0.4`.
+
 # 0.2
-* Rework crate switching from rusttype to ab_glyph.
+* Rework crate switching from _rusttype_ to _ab_glyph_.
   - Layout returns `SectionGlyph`s which contain `section_index` & string `byte_index`.
   - Drop support for `Color` which didn't affect layout & can now be associated to sections without built-in support.
   - Glyph bounding boxes are no longer used at all during layout. This means invisible glyphs, like `' '`, are now generally included.
@@ -9,16 +12,16 @@
 * Fix possible floating point errors when using section bounds that exactly bound the section.
 
 # 0.1.8
-* Update rusttype -> `0.8`. _Compatible with rusttype `0.6.5` & `0.7.9`._
+* Update _rusttype_ to `0.8`. _Compatible with rusttype `0.6.5` & `0.7.9`._
 
 # 0.1.7
-* Update xi-unicode -> `0.2`.
+* Update _xi-unicode_ to `0.2`.
 
 # 0.1.6
 * Fix missing line breaks for multi-byte breaking chars like Chinese characters.
 
 # 0.1.5
-* Add `GlyphPositioner::recalculate_glyphs` with a default unoptimised implementation. Custom layouts won't be broken by this change, but _will_ need to implement the new function to provide optimised behaviour.
+* Add `GlyphPositioner::recalculate_glyphs` with a default unoptimised implementation. Custom layouts won't be broken by this change, but will need to implement the new function to provide optimised behaviour.
 * Optimise built-in layout's recalculate_glyphs for screen position changes with `GlyphChange::Geometry`.
 * Optimise built-in layout's recalculate_glyphs for single color changes with `GlyphChange::Color`.
 * Optimise built-in layout's recalculate_glyphs for alpha changes with `GlyphChange::Alpha`.
