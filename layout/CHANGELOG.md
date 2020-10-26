@@ -1,5 +1,6 @@
 # Unreleased
 * Update _approx_ to `0.4`.
+* Update _xi-unicode_ to `0.3`.
 
 # 0.2
 * Rework crate switching from _rusttype_ to _ab_glyph_.

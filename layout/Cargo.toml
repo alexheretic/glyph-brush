@@ -11,7 +11,7 @@ readme="README.md"
 
 [dependencies]
 ab_glyph = "0.2.1"
-xi-unicode = "0.2"
+xi-unicode = "0.3"
 approx = "0.4"
 
 [dev-dependencies]

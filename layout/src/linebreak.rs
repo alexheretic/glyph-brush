@@ -113,22 +113,6 @@ impl LineBreaker for BuiltInLineBreaker {
 /// of eol characters being "true" eol line breakers.
 pub(crate) trait EolLineBreak<B: LineBreaker> {
     fn eol_line_break(&self, line_breaker: &B) -> Option<LineBreak>;
-
-    #[inline]
-    fn is_eol_hard_break(&self, line_breaker: &B) -> bool {
-        if let Some(LineBreak::Hard(..)) = self.eol_line_break(line_breaker) {
-            return true;
-        }
-        false
-    }
-
-    #[inline]
-    fn is_eol_soft_break(&self, line_breaker: &B) -> bool {
-        if let Some(LineBreak::Soft(..)) = self.eol_line_break(line_breaker) {
-            return true;
-        }
-        false
-    }
 }
 
 impl<B: LineBreaker> EolLineBreak<B> for char {
