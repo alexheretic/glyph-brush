@@ -277,7 +277,7 @@ impl<F: Font, X: Clone + Hash, H: BuildHasher> GlyphCruncher<F, X>
                         max: point(max_x, max_y),
                     }
                 })
-                .or_else(|| Some(lbound))
+                .or(Some(lbound))
             })
             .map(|mut b| {
                 // cap the glyph bounds to the layout specified max bounds

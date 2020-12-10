@@ -134,7 +134,7 @@ where
                         max: point(max_x, max_y),
                     }
                 })
-                .or_else(|| Some(bounds))
+                .or(Some(bounds))
             })
             .map(|mut b| {
                 // cap the glyph bounds to the layout specified max bounds
