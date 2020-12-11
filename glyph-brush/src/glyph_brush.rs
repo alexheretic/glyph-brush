@@ -731,7 +731,6 @@ impl<V, X> Glyphed<V, X> {
 #[cfg(test)]
 mod hash_diff_test {
     use super::*;
-    use matches::assert_matches;
 
     fn section() -> Section<'static> {
         Section {
@@ -777,7 +776,7 @@ mod hash_diff_test {
 
         match diff {
             Some(GlyphChange::Geometry(geo)) => assert_eq!(geo, hash_deets.geometry),
-            _ => assert_matches!(diff, Some(GlyphChange::Geometry(..))),
+            _ => assert!(matches!(diff, Some(GlyphChange::Geometry(..)))),
         }
     }
 
@@ -795,7 +794,7 @@ mod hash_diff_test {
             &section.layout,
         ));
 
-        assert_matches!(diff, None);
+        assert!(matches!(diff, None));
     }
 
     #[test]
@@ -812,7 +811,7 @@ mod hash_diff_test {
             &section.layout,
         ));
 
-        assert_matches!(diff, Some(GlyphChange::Unknown));
+        assert!(matches!(diff, Some(GlyphChange::Unknown)));
     }
 }
 

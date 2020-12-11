@@ -24,7 +24,6 @@ gl = "0.14"
 glutin = "0.26"
 spin_sleep = "1"
 approx = "0.4"
-matches = "0.1"
 criterion = "0.3"
 
 [[bench]]
