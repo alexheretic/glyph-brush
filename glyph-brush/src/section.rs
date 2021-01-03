@@ -85,7 +85,7 @@ impl<'a, X> Section<'a, X> {
     }
 
     #[inline]
-    pub fn with_text<'b, X2>(self, text: Vec<Text<'b, X2>>) -> Section<'b, X2> {
+    pub fn with_text<X2>(self, text: Vec<Text<'_, X2>>) -> Section<'_, X2> {
         Section {
             text,
             screen_position: self.screen_position,

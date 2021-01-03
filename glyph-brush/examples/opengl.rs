@@ -69,7 +69,7 @@ fn main() -> Res<()> {
     gl::load_with(|symbol| window_ctx.get_proc_address(symbol) as _);
 
     let max_image_dimension = {
-        let mut value = 0 as gl::types::GLint;
+        let mut value = 0;
         unsafe { gl::GetIntegerv(gl::MAX_TEXTURE_SIZE, &mut value) };
         value as u32
     };
