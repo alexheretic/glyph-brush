@@ -21,5 +21,5 @@ env_logger = { version = "0.8", default-features = false }
 approx = "0.4"
 glutin = "0.26"
 old_school_gfx_glutin_ext = "0.26"
-cgmath = "0.17"
+cgmath = "0.18"
 spin_sleep = "1"
