@@ -1,3 +1,6 @@
+# Unreleased
+* Add `GlyphBrushBuilder::multithread` to allow setting the (default on) draw-cache multithreading.
+
 # 0.7.1
 * Update _ordered-float_ to `2`.
 
