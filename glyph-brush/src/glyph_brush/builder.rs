@@ -136,6 +136,14 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
         self
     }
 
+    /// When multiple CPU cores are available spread draw-cache work across all cores.
+    ///
+    /// Defaults to `true`.
+    pub fn multithread(mut self, multithread: bool) -> Self {
+        self.draw_cache_builder = self.draw_cache_builder.multithread(multithread);
+        self
+    }
+
     /// Align glyphs in texture cache to 4x4 texel boundaries.
     ///
     /// If your backend requires texture updates to be aligned to 4x4 texel
