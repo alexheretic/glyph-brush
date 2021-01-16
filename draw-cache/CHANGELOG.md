@@ -1,3 +1,8 @@
+# Unreleased
+* Optimise frequent lower workload efficiency by only using multithreading code paths when a
+  significant speedup can be expected.
+* Remove concurrent outlining as it didn't provide enough of a speedup after more thorough analysis.
+
 # 0.1.3
 * Update _crossbeam-deque_ to 0.8, _crossbeam-channel_ to 0.5.
 
