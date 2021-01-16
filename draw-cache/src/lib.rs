@@ -868,7 +868,9 @@ impl DrawCache {
                 .get(0)
                 .map(|(r, _)| r.height() as usize)
                 .unwrap_or(0);
-            glyph_count * tallest_h * tallest_h
+            glyph_count
+                .saturating_mul(tallest_h)
+                .saturating_mul(tallest_h)
         };
 
         if self.multithread && glyph_count > 1 && work_magnitude >= WORK_MAGNITUDE_FOR_MT {
