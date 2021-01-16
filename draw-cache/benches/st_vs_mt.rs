@@ -100,6 +100,15 @@ fn do_population_bench(
     })
 }
 
+/// Run single threaded:
+/// * Leave code unmodified
+/// * `cargo bench --bench st_vs_mt -- --save-baseline st`
+///
+/// Run multithreaded:
+/// * Modify to `.multithread(true)`
+/// * `cargo bench --bench st_vs_mt -- --save-baseline mt`
+///
+/// Compare with `critcmp mt st --target-dir draw-cache/target/`
 fn bench_population_st_vs_mt(c: &mut Criterion) {
     for char_len in &[1500, 300, 50, 16] {
         for scale in &[150.0, 75.0, 30.0, 12.0] {
@@ -109,8 +118,7 @@ fn bench_population_st_vs_mt(c: &mut Criterion) {
                     b,
                     DrawCache::builder()
                         .dimensions(4096, 4096)
-                        // use `true` and save as `mt` baseline
-                        .multithread(false),
+                        .multithread(false), // use `true` and save as `mt` baseline
                     unicode_chars(*char_len),
                     *scale,
                 );

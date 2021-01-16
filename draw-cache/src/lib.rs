@@ -861,15 +861,17 @@ impl DrawCache {
 
         // Magnituge of work where we think it's worth using multithreaded-drawing.
         // Calculated from benchmarks comparing with single-threaded performance.
-        const WORK_MAGNITUDE_FOR_MT: usize = 8742;
+        const WORK_MAGNITUDE_FOR_MT: usize = 271002;
         // The first (tallest) glyph height is used to calculate work magnitude.
-        let work_magnitude = glyph_count
-            * draw_and_upload
+        let work_magnitude = {
+            let tallest_h = draw_and_upload
                 .get(0)
                 .map(|(r, _)| r.height() as usize)
                 .unwrap_or(0);
+            glyph_count * tallest_h * tallest_h
+        };
 
-        if self.multithread && work_magnitude >= WORK_MAGNITUDE_FOR_MT {
+        if self.multithread && glyph_count > 1 && work_magnitude >= WORK_MAGNITUDE_FOR_MT {
             // multithread rasterization
             use crossbeam_channel::TryRecvError;
             use crossbeam_deque::Worker;
