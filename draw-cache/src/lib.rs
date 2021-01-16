@@ -42,8 +42,6 @@ pub use geometry::Rectangle;
 
 use ::ab_glyph::*;
 use linked_hash_map::LinkedHashMap;
-#[cfg(not(target_arch = "wasm32"))]
-use rayon::prelude::*;
 use rustc_hash::{FxHashMap, FxHasher};
 use std::{
     collections::{HashMap, HashSet},
@@ -637,23 +635,6 @@ impl DrawCache {
             }
 
             // outline
-            #[cfg(not(target_arch = "wasm32"))]
-            let mut uncached_outlined: Vec<_> = if self.multithread && uncached_glyphs.len() > 1 {
-                uncached_glyphs
-                    .into_par_iter()
-                    .filter_map(|(info, glyph)| {
-                        Some((info, fonts[info.font_id].outline_glyph(glyph.clone())?))
-                    })
-                    .collect()
-            } else {
-                uncached_glyphs
-                    .into_iter()
-                    .filter_map(|(info, glyph)| {
-                        Some((info, fonts[info.font_id].outline_glyph(glyph.clone())?))
-                    })
-                    .collect()
-            };
-            #[cfg(target_arch = "wasm32")]
             let mut uncached_outlined: Vec<_> = uncached_glyphs
                 .into_iter()
                 .filter_map(|(info, glyph)| {
@@ -878,7 +859,17 @@ impl DrawCache {
 
         let glyph_count = draw_and_upload.len();
 
-        if self.multithread && glyph_count > 1 {
+        // Magnituge of work where we think it's worth using multithreaded-drawing.
+        // Calculated from benchmarks comparing with single-threaded performance.
+        const WORK_MAGNITUDE_FOR_MT: usize = 8742;
+        // The first (tallest) glyph height is used to calculate work magnitude.
+        let work_magnitude = glyph_count
+            * draw_and_upload
+                .get(0)
+                .map(|(r, _)| r.height() as usize)
+                .unwrap_or(0);
+
+        if self.multithread && work_magnitude >= WORK_MAGNITUDE_FOR_MT {
             // multithread rasterization
             use crossbeam_channel::TryRecvError;
             use crossbeam_deque::Worker;

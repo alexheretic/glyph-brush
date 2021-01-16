@@ -28,3 +28,7 @@ once_cell = "1.3"
 [[bench]]
 name = "draw_cache"
 harness = false
+
+[[bench]]
+name = "st_vs_mt"
+harness = false
