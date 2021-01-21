@@ -1,4 +1,4 @@
-# Unreleased
+# 0.7.2
 * Add `GlyphBrushBuilder::multithread` to allow setting the (default on) draw-cache multithreading.
 
 # 0.7.1
