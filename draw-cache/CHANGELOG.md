@@ -1,4 +1,4 @@
-# Unreleased
+# 0.1.4
 * Optimise frequent lower workload efficiency by only using multithreading code paths when a
   significant speedup can be expected.
 * Remove concurrent outlining as it didn't provide enough of a speedup after more thorough analysis.
