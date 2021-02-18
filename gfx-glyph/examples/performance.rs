@@ -85,14 +85,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                     input:
                         KeyboardInput {
                             state: ElementState::Pressed,
-                            virtual_keycode: Some(keypress),
+                            virtual_keycode: Some(VirtualKeyCode::Back),
                             ..
                         },
                     ..
                 } => {
-                    if let VirtualKeyCode::Back = keypress {
-                        text.pop();
-                    }
+                    text.pop();
                 }
                 WindowEvent::ReceivedCharacter(c) => {
                     if c != '\u{7f}' && c != '\u{8}' {
