@@ -18,22 +18,28 @@ type SectionHash = u64;
 /// Object allowing glyph drawing, containing cache state. Manages glyph positioning cacheing,
 /// glyph draw caching & efficient GPU texture cache updating.
 ///
-/// Build using a [`GlyphBrushBuilder`](struct.GlyphBrushBuilder.html).
+/// Build using a [`GlyphBrushBuilder`].
 ///
-/// Also see [`GlyphCruncher`](trait.GlyphCruncher.html) trait which providers extra functionality,
-/// such as [`glyph_bounds`](trait.GlyphCruncher.html#method.glyph_bounds).
+/// Also see [`GlyphCruncher`] trait which providers extra functionality,
+/// such as [`GlyphCruncher::glyph_bounds`].
+///
+/// # Generic types
+/// * **`V`** A single glyph's vertex data type that matches, or is inferred by, the `to_vertex`
+///   function given to the [`GlyphBrush::process_queued`] call.
+/// * **`X`** Extra non-layout data for use in vertex generation. _Default [`Extra`]_.
+/// * **`F`** _ab-glyph_ font type. Generally inferred by builder usage. _Default [`FontArc`]_.
+/// * **`H`** Section hasher used for cache matching. See [`GlyphBrushBuilder::section_hasher`].
+///   _Default [`DefaultSectionHasher`]_.
 ///
 /// # Caching behaviour
-///
-/// Calls to [`GlyphBrush::queue`](#method.queue),
-/// [`GlyphBrush::glyph_bounds`](#method.glyph_bounds), [`GlyphBrush::glyphs`](#method.glyphs)
+/// Calls to [`GlyphBrush::queue`], [`GlyphBrush::glyph_bounds`], [`GlyphBrush::glyphs`]
 /// calculate the positioned glyphs for a section.
 /// This is cached so future calls to any of the methods for the same section are much
-/// cheaper. In the case of [`GlyphBrush::queue`](#method.queue) the calculations will also be
+/// cheaper. In the case of [`GlyphBrush::queue`] the calculations will also be
 /// used for actual drawing.
 ///
 /// The cache for a section will be **cleared** after a
-/// [`GlyphBrush::process_queued`](#method.process_queued) call when that section has not been used
+/// [`GlyphBrush::process_queued`] call when that section has not been used
 /// since the previous call.
 ///
 /// # Texture caching behaviour
@@ -42,9 +48,7 @@ type SectionHash = u64;
 /// This is required for high quality text as a glyph's positioning is always exactly aligned
 /// to it's draw positioning.
 ///
-/// This behaviour can be adjusted with
-/// [`GlyphBrushBuilder::draw_cache_position_tolerance`]
-/// (struct.GlyphBrushBuilder.html#method.draw_cache_position_tolerance).
+/// This behaviour can be adjusted with [`GlyphBrushBuilder::draw_cache_position_tolerance`].
 pub struct GlyphBrush<V, X = Extra, F = FontArc, H = DefaultSectionHasher> {
     fonts: Vec<F>,
     texture_cache: DrawCache,
