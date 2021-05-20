@@ -222,8 +222,8 @@ where
     /// times.
     pub fn queue_pre_positioned(&mut self, glyphs: Vec<SectionGlyph>, extra: Vec<X>, bounds: Rect) {
         self.pre_positioned.push(Glyphed::new(GlyphedSection {
-            glyphs,
             bounds,
+            glyphs,
             extra,
         }));
     }

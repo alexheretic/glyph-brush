@@ -122,10 +122,10 @@ where
 
                 glyph.position = point(caret, 0.0);
                 glyphs.push(SectionGlyph {
-                    glyph,
-                    font_id,
                     section_index,
                     byte_index,
+                    glyph,
+                    font_id,
                 });
                 caret += advance_width;
 
