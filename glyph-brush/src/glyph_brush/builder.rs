@@ -210,7 +210,18 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
         }
     }
 
-    /// Builds a `GlyphBrush` using the input gfx factory
+    /// Builds a `GlyphBrush`.
+    ///
+    /// If type inference fails try declaring the types `V` & `X`.
+    /// See [`GlyphBrush` generic types](struct.GlyphBrush.html#generic-types).
+    /// ```
+    /// # use glyph_brush::{ab_glyph::*, GlyphBrushBuilder};
+    /// # let some_font = FontArc::try_from_slice(include_bytes!("../../../fonts/DejaVuSans.ttf")).unwrap();
+    /// # type SomeOtherBuildHasher = glyph_brush::DefaultSectionHasher;
+    /// # type Vertex = ();
+    /// let glyph_brush = GlyphBrushBuilder::using_font(some_font)
+    ///     .build::<Vertex, glyph_brush::Extra>();
+    /// ```
     pub fn build<V, X>(self) -> GlyphBrush<V, X, F, H> {
         GlyphBrush {
             fonts: self.font_data,
