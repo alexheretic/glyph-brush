@@ -27,8 +27,9 @@ type SectionHash = u64;
 /// * **`V`** A single glyph's vertex data type that matches, or is inferred by, the `to_vertex`
 ///   function given to the [`GlyphBrush::process_queued`] call.
 /// * **`X`** Extra non-layout data for use in vertex generation. _Default [`Extra`]_.
-/// * **`F`** _ab-glyph_ font type. _Default [`FontArc`]_.
-/// * **`H`** Section hasher used for cache matching. _Default [`DefaultSectionHasher`]_.
+/// * **`F`** _ab-glyph_ font type. Generally inferred by builder usage. _Default [`FontArc`]_.
+/// * **`H`** Section hasher used for cache matching. See [`GlyphBrushBuilder::section_hasher`].
+///   _Default [`DefaultSectionHasher`]_.
 ///
 /// # Caching behaviour
 /// Calls to [`GlyphBrush::queue`], [`GlyphBrush::glyph_bounds`], [`GlyphBrush::glyphs`]

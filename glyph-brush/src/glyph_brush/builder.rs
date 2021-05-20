@@ -3,10 +3,9 @@ use glyph_brush_draw_cache::*;
 use glyph_brush_layout::ab_glyph::*;
 use std::hash::BuildHasher;
 
-/// Builder for a [`GlyphBrush`](struct.GlyphBrush.html).
+/// Builder for a [`GlyphBrush`].
 ///
 /// # Example
-///
 /// ```
 /// use glyph_brush::{ab_glyph::FontArc, GlyphBrush, GlyphBrushBuilder};
 /// # type Vertex = ();
@@ -183,7 +182,7 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
         self
     }
 
-    /// Sets the section hasher. `GlyphBrush` cannot handle absolute section hash collisions
+    /// Sets the section hasher. [`GlyphBrush`] cannot handle absolute section hash collisions
     /// so use a good hash algorithm.
     ///
     /// This hasher is used to distinguish sections, rather than for hashmap internal use.
@@ -210,7 +209,7 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
         }
     }
 
-    /// Builds a `GlyphBrush`.
+    /// Builds a [`GlyphBrush`].
     ///
     /// If type inference fails try declaring the types `V` & `X`.
     /// See [`GlyphBrush` generic types](struct.GlyphBrush.html#generic-types).
@@ -246,7 +245,7 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
         }
     }
 
-    /// Rebuilds an existing `GlyphBrush` with this builder's properties. This will clear all
+    /// Rebuilds an existing [`GlyphBrush`] with this builder's properties. This will clear all
     /// caches and queues.
     ///
     /// # Example
