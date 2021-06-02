@@ -1,3 +1,6 @@
+# Unreleased
+* Update _approx_ to `0.5`.
+
 # 0.2.1
 * Update _approx_ to `0.4`.
 * Update _xi-unicode_ to `0.3`.

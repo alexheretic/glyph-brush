@@ -18,7 +18,7 @@ log = "0.4"
 
 [dev-dependencies]
 env_logger = { version = "0.8", default-features = false }
-approx = "0.4"
+approx = "0.5"
 glutin = "0.26"
 old_school_gfx_glutin_ext = "0.26"
 cgmath = "0.18"
