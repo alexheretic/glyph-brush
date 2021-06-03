@@ -1,4 +1,4 @@
-# Unreleased
+# 0.2.2
 * Update _approx_ to `0.5`.
 
 # 0.2.1
