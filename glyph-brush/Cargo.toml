@@ -13,7 +13,7 @@ readme="README.md"
 glyph_brush_layout = { version = "0.2", path = "../layout" }
 glyph_brush_draw_cache = { version = "0.1.1", path = "../draw-cache" }
 log = "0.4.4"
-ordered-float = "2"
+ordered-float = "2.5.1"
 rustc-hash = "1"
 twox-hash = "1"
 
