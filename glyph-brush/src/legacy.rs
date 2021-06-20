@@ -32,6 +32,7 @@ impl Default for SectionText<'static> {
 }
 
 impl<'a> SectionText<'a> {
+    #[allow(clippy::wrong_self_convention)] // won't fix for backward compatibility
     #[inline]
     pub fn to_text(&self, z: f32) -> crate::Text<'a> {
         crate::Text::new(self.text)

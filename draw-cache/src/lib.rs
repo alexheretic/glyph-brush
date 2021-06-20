@@ -1173,9 +1173,9 @@ mod test {
         assert_eq!(to_builder.dimensions, (32, 64));
         assert_relative_eq!(to_builder.scale_tolerance, 0.2);
         assert_relative_eq!(to_builder.position_tolerance, 0.3);
-        assert_eq!(to_builder.pad_glyphs, false);
-        assert_eq!(to_builder.align_4x4, false);
-        assert_eq!(to_builder.multithread, false);
+        assert!(!to_builder.pad_glyphs);
+        assert!(!to_builder.align_4x4);
+        assert!(!to_builder.multithread);
     }
 
     #[test]
@@ -1208,9 +1208,9 @@ mod test {
         assert_eq!(cache.height, 128);
         assert_relative_eq!(cache.scale_tolerance, 0.05);
         assert_relative_eq!(cache.position_tolerance, 0.15);
-        assert_eq!(cache.pad_glyphs, true);
-        assert_eq!(cache.align_4x4, false);
-        assert_eq!(cache.multithread, false);
+        assert!(cache.pad_glyphs);
+        assert!(!cache.align_4x4);
+        assert!(!cache.multithread);
 
         assert!(
             cache.all_glyphs.is_empty(),
