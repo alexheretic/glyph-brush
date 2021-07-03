@@ -97,7 +97,14 @@ where
         let mut progressed = false;
 
         while let Some(word) = self.words.peek() {
-            let word_right = caret.x + word.layout_width_no_trail;
+            // Drop trailing spaces when bounds-wrapping.
+            // However, if the word ends in a hard-break "Foo  \n" keep the trailing space width.
+            let word_wrap_width = match word.hard_break {
+                false => word.layout_width_no_trail,
+                true => word.layout_width,
+            };
+
+            let word_right = caret.x + word_wrap_width;
             // Reduce float errors by using relative "<= width bound" check
             let word_in_bounds =
                 word_right < self.width_bound || approx::relative_eq!(word_right, self.width_bound);

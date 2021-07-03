@@ -963,4 +963,62 @@ mod layout_test {
 
         assert_eq!(y_positions.len(), 7, "{:?}", y_positions);
     }
+
+    /// #130 - Respect trailing whitespace in words if directly preceeding a hard break.
+    /// So wrapped on 2 lines `Foo bar` will look different to `Foo \nbar`.
+    #[test]
+    fn include_spaces_in_layout_width_preceeded_hard_break() {
+        // should wrap due to width bound
+        let glyphs_no_newline = Layout::default()
+            .h_align(HorizontalAlign::Right)
+            .calculate_glyphs(
+                &*FONT_MAP,
+                &SectionGeometry {
+                    bounds: (50.0, f32::INFINITY),
+                    ..<_>::default()
+                },
+                &[SectionText {
+                    text: "Foo bar",
+                    ..<_>::default()
+                }],
+            );
+
+        let y_positions: HashSet<_> = glyphs_no_newline
+            .iter()
+            .map(|g| OrderedFloat(g.glyph.position.y))
+            .collect();
+        assert_eq!(y_positions.len(), 2, "{:?}", y_positions);
+
+        // explicit wrap
+        let glyphs_newline = Layout::default()
+            .h_align(HorizontalAlign::Right)
+            .calculate_glyphs(
+                &*FONT_MAP,
+                &SectionGeometry {
+                    bounds: (50.0, f32::INFINITY),
+                    ..<_>::default()
+                },
+                &[SectionText {
+                    text: "Foo \nbar",
+                    ..<_>::default()
+                }],
+            );
+
+        let y_positions: HashSet<_> = glyphs_newline
+            .iter()
+            .map(|g| OrderedFloat(g.glyph.position.y))
+            .collect();
+        assert_eq!(y_positions.len(), 2, "{:?}", y_positions);
+
+        // explict wrap should include the space in the layout width,
+        // so the explicit newline `F` should be to the left of the no_newline `F`.
+        let newline_f = &glyphs_newline[0];
+        let no_newline_f = &glyphs_no_newline[0];
+        assert!(
+            newline_f.glyph.position.x < no_newline_f.glyph.position.x,
+            "explicit newline `F` ({}) should be 1 space to the left of no-newline `F` ({})",
+            newline_f.glyph.position.x,
+            no_newline_f.glyph.position.x,
+        );
+    }
 }
