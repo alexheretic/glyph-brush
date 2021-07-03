@@ -1,3 +1,6 @@
+# Unreleased
+* Default layouts: Keep word trailing space width if ending in a hard break _e.g. `"Foo  \n"`_.
+
 # 0.2.2
 * Update _approx_ to `0.5`.
 
