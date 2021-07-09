@@ -965,7 +965,7 @@ mod layout_test {
     }
 
     /// #130 - Respect trailing whitespace in words if directly preceeding a hard break.
-    /// So wrapped on 2 lines `Foo bar` will look different to `Foo \nbar`.
+    /// So right-aligned wrapped on 2 lines `Foo bar` will look different to `Foo \nbar`.
     #[test]
     fn include_spaces_in_layout_width_preceeded_hard_break() {
         // should wrap due to width bound
@@ -1019,6 +1019,42 @@ mod layout_test {
             "explicit newline `F` ({}) should be 1 space to the left of no-newline `F` ({})",
             newline_f.glyph.position.x,
             no_newline_f.glyph.position.x,
+        );
+    }
+
+    /// #130 - Respect trailing whitespace in words if directly preceeding end-of-glyphs.
+    /// So right-aligned `Foo ` will look different to `Foo`.
+    #[test]
+    fn include_spaces_in_layout_width_preceeded_end() {
+        let glyphs_no_newline = Layout::default()
+            .h_align(HorizontalAlign::Right)
+            .calculate_glyphs(
+                &*FONT_MAP,
+                &<_>::default(),
+                &[SectionText {
+                    text: "Foo",
+                    ..<_>::default()
+                }],
+            );
+
+        let glyphs_space = Layout::default()
+            .h_align(HorizontalAlign::Right)
+            .calculate_glyphs(
+                &*FONT_MAP,
+                &<_>::default(),
+                &[SectionText {
+                    text: "Foo   ",
+                    ..<_>::default()
+                }],
+            );
+
+        let space_f = &glyphs_space[0];
+        let no_space_f = &glyphs_no_newline[0];
+        assert!(
+            space_f.glyph.position.x < no_space_f.glyph.position.x,
+            "with-space `F` ({}) should be 3 spaces to the left of no-space `F` ({})",
+            space_f.glyph.position.x,
+            no_space_f.glyph.position.x,
         );
     }
 }

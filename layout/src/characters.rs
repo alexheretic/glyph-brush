@@ -65,7 +65,9 @@ where
 
     /// Wraps into a `Words` iterator.
     pub(crate) fn words(self) -> Words<'a, 'b, L, F, S> {
-        Words { characters: self }
+        Words {
+            characters: self.peekable(),
+        }
     }
 }
 
