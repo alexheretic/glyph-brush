@@ -5,7 +5,7 @@ use crate::{
     SectionGlyph, SectionText,
 };
 use ab_glyph::*;
-use std::iter::{FusedIterator, Iterator};
+use std::iter::{FusedIterator, Iterator, Peekable};
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct VMetrics {
@@ -62,7 +62,7 @@ where
     F: Font,
     S: Iterator<Item = SectionText<'a>>,
 {
-    pub(crate) characters: Characters<'a, 'b, L, F, S>,
+    pub(crate) characters: Peekable<Characters<'a, 'b, L, F, S>>,
 }
 
 impl<'a, 'b, L, F, S> Words<'a, 'b, L, F, S>
@@ -137,7 +137,10 @@ where
 
             if line_break.is_some() {
                 if let Some(LineBreak::Hard(..)) = line_break {
-                    hard_break = true
+                    hard_break = true;
+                } else if self.characters.peek().is_none() {
+                    // simulate hard-break at end of all sections
+                    hard_break = true;
                 }
                 break;
             }
