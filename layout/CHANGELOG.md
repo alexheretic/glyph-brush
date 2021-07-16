@@ -1,5 +1,5 @@
-# Unreleased
-* Default layouts: Keep word trailing space width if ending in a hard break or end of all glyphs _e.g. `"Foo  \n"`_.
+# 0.2.3
+* Default layouts: Keep word trailing space width if ending in a hard break or end of all glyphs _e.g. `"Foo  \n"`_ _(This particularly changes the layout of right & centre aligned text ending in spaces)_. 
 
 # 0.2.2
 * Update _approx_ to `0.5`.
