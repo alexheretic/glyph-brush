@@ -6,6 +6,15 @@
 //! * Scroll to size text.
 //! * Type to modify text.
 //! * Resize window.
+//!
+//! The main operating structure is as follows:
+//! * Load a font
+//! * Initialize the brush
+//! * Set up the glyph cache texture
+//! Per frame:
+//! * Queue up Sections of text, containing per-glyph colors and layout information
+//! * Process the text into vertices, increasing glyph cache size if necessary
+//! * Upload the vertices to the GPU if they've changed, and draw to the screen
 
 use gl::types::*;
 use glutin::{
@@ -151,6 +160,7 @@ fn main() -> Res<()> {
                 let scale = (font_size * window_ctx.window().scale_factor() as f32).round();
                 let base_text = Text::new(&text).with_scale(scale);
 
+                // Queue up all sections of text to be drawn
                 glyph_brush.queue(
                     Section::default()
                         .add_text(base_text.with_color([0.9, 0.3, 0.3, 1.0]))
@@ -181,6 +191,7 @@ fn main() -> Res<()> {
                         ),
                 );
 
+                // Tell glyph_brush to process the queued text
                 let mut brush_action;
                 loop {
                     brush_action = glyph_brush.process_queued(
@@ -203,6 +214,7 @@ fn main() -> Res<()> {
                         to_vertex,
                     );
 
+                    // If the cache texture is too small to fit all the glyphs, resize and try again
                     match brush_action {
                         Ok(_) => break,
                         Err(BrushError::TextureTooSmall { suggested, .. }) => {
@@ -225,11 +237,13 @@ fn main() -> Res<()> {
                         }
                     }
                 }
+                // If the text has changed from what was last drawn, upload the new vertices to GPU
                 match brush_action.unwrap() {
                     BrushAction::Draw(vertices) => text_pipe.upload_vertices(&vertices),
                     BrushAction::ReDraw => {}
                 }
 
+                // Draw the text to the screen
                 unsafe {
                     gl::Clear(gl::COLOR_BUFFER_BIT);
                 }
@@ -390,6 +404,7 @@ pub fn ortho(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32) 
     ]
 }
 
+/// The texture used to cache drawn glyphs
 pub struct GlGlyphTexture {
     pub name: GLuint,
 }
@@ -510,7 +525,7 @@ impl GlTextPipe {
                     offset as _,
                 );
                 gl::EnableVertexAttribArray(attr as _);
-                gl::VertexAttribDivisor(attr as _, 1);
+                gl::VertexAttribDivisor(attr as _, 1); // Important for use with DrawArraysInstanced
 
                 offset += float_count * 4;
             }
@@ -579,6 +594,7 @@ impl GlTextPipe {
         unsafe {
             gl::UseProgram(self.program);
             gl::BindVertexArray(self.vao);
+            // If implementing this yourself, make sure to set VertexAttribDivisor as well
             gl::DrawArraysInstanced(gl::TRIANGLE_STRIP, 0, 4, self.vertex_count as _);
             gl_assert_ok!();
         }
