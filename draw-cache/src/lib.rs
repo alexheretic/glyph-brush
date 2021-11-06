@@ -1004,7 +1004,7 @@ impl DrawCache {
             tex_coords: mut tex_rect,
             bounds_minus_position_over_scale,
             ..
-        } = self.rows[&row].glyphs[*index as usize];
+        } = self.rows[row].glyphs[*index as usize];
         if self.pad_glyphs {
             tex_rect = tex_rect.unpadded();
         }
@@ -1039,14 +1039,12 @@ fn draw_glyph(tex_coords: Rectangle<u32>, glyph: &OutlinedGlyph, pad_glyphs: boo
     let mut pixels = ByteArray2d::zeros(tex_coords.height() as usize, tex_coords.width() as usize);
     if pad_glyphs {
         glyph.draw(|x, y, v| {
-            let v = (v * 255.0).round() as u8;
             // `+ 1` accounts for top/left glyph padding
-            pixels[(y as usize + 1, x as usize + 1)] = v;
+            pixels[(y as usize + 1, x as usize + 1)] = (v * 255.0) as u8;
         });
     } else {
         glyph.draw(|x, y, v| {
-            let v = (v * 255.0).round() as u8;
-            pixels[(y as usize, x as usize)] = v;
+            pixels[(y as usize, x as usize)] = (v * 255.0) as u8;
         });
     }
     pixels

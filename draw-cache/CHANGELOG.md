@@ -1,3 +1,6 @@
+# Unreleased
+* Micro-optimise avoid `.round()` during glyph drawing when converting pixel coverage to `u8`.
+
 # 0.1.4
 * Optimise frequent lower workload efficiency by only using multithreading code paths when a
   significant speedup can be expected.
