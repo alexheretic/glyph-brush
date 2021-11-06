@@ -292,7 +292,7 @@ impl<F: Font, X: Clone + Hash, H: BuildHasher> GlyphCruncher<F, X>
 
     #[inline]
     fn fonts(&self) -> &[F] {
-        &self.fonts
+        self.fonts
     }
 }
 

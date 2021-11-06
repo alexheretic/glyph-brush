@@ -7,7 +7,7 @@ description = "Fast cached text render library using ab_glyph"
 repository = "https://github.com/alexheretic/glyph-brush"
 keywords = ["font", "ttf", "truetype", "text"]
 license = "Apache-2.0"
-readme="README.md"
+readme = "README.md"
 
 [dependencies]
 glyph_brush_layout = { version = "0.2", path = "../layout" }
@@ -15,7 +15,12 @@ glyph_brush_draw_cache = { version = "0.1.1", path = "../draw-cache" }
 log = "0.4.4"
 ordered-float = "2.5.1"
 rustc-hash = "1"
-twox-hash = "1"
+twox-hash = { version = "1.6.1", default-features = false }
+
+# enable twox-hash rand/std everywhere except wasm
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.twox-hash]
+version = "1.6.1"
+features = ["std"]
 
 [dev-dependencies]
 env_logger = { version = "0.9", default-features = false }

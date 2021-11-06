@@ -7,7 +7,7 @@ description = "Fast GPU cached text rendering using gfx-rs & ab_glyph"
 repository = "https://github.com/alexheretic/glyph-brush"
 keywords = ["font", "ttf", "truetype", "gfx", "text"]
 license = "Apache-2.0"
-readme="README.md"
+readme = "README.md"
 
 [dependencies]
 backtrace = "0.3"

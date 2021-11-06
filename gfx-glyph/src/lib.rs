@@ -564,7 +564,7 @@ fn new_vertex_buffer<R: gfx::Resources, F: gfx::Factory<R>, C: gfx::CommandBuffe
             gfx::memory::Bind::empty(),
         )
         .unwrap();
-    encoder.update_buffer(&buf, &verts, 0).unwrap();
+    encoder.update_buffer(&buf, verts, 0).unwrap();
     buf
 }
 

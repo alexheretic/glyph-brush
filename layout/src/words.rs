@@ -135,12 +135,10 @@ where
                 }
             }
 
-            if line_break.is_some() {
-                if let Some(LineBreak::Hard(..)) = line_break {
-                    hard_break = true;
-                } else if self.characters.peek().is_none() {
-                    // simulate hard-break at end of all sections
-                    hard_break = true;
+            if let Some(lbreak) = line_break {
+                // simulate hard-break at end of all sections
+                if matches!(lbreak, LineBreak::Hard(_)) || self.characters.peek().is_none() {
+                    hard_break = true
                 }
                 break;
             }

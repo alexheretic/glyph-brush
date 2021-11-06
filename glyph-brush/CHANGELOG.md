@@ -1,5 +1,6 @@
 # Unreleased
 * Add documentation of `GlyphBrush` generic types & workarounds when `.build()` type inference fails.
+* wasm: Fix _twox-hash_ compilation.
 
 # 0.7.2
 * Add `GlyphBrushBuilder::multithread` to allow setting the (default on) draw-cache multithreading.
