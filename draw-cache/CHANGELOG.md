@@ -1,4 +1,4 @@
-# Unreleased
+# 0.1.5
 * Micro-optimise avoid `.round()` during glyph drawing when converting pixel coverage to `u8`.
 
 # 0.1.4
