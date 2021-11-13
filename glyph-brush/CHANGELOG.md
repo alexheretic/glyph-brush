@@ -1,4 +1,4 @@
-# Unreleased
+# 0.7.3
 * Add documentation of `GlyphBrush` generic types & workarounds when `.build()` type inference fails.
 * wasm: Fix _twox-hash_ compilation.
 
