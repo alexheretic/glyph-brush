@@ -360,7 +360,7 @@ where
     pub(crate) fn draw<C, CV, DV>(
         &mut self,
         transform: [[f32; 4]; 4],
-        mut encoder: &mut gfx::Encoder<R, C>,
+        encoder: &mut gfx::Encoder<R, C>,
         target: &CV,
         depth_target: Option<&DV>,
     ) -> Result<(), String>
@@ -378,7 +378,7 @@ where
                 |rect, tex_data| {
                     let offset = [rect.min[0] as u16, rect.min[1] as u16];
                     let size = [rect.width() as u16, rect.height() as u16];
-                    update_texture(&mut encoder, &tex, offset, size, tex_data);
+                    update_texture(encoder, &tex, offset, size, tex_data);
                 },
                 to_vertex,
             );
