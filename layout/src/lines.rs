@@ -20,7 +20,7 @@ impl Line {
     /// Returns line glyphs positioned on the screen and aligned.
     pub fn aligned_on_screen(
         mut self,
-        screen_position: (f32, f32),
+        (screen_x, screen_y): (f32, f32),
         h_align: HorizontalAlign,
         v_align: VerticalAlign,
     ) -> Vec<SectionGlyph> {
@@ -30,7 +30,7 @@ impl Line {
 
         // implement v-aligns when they're are supported
         let screen_left = match h_align {
-            HorizontalAlign::Left => point(screen_position.0, screen_position.1),
+            HorizontalAlign::Left => point(screen_x, screen_y),
             // - Right alignment attained from left by shifting the line
             //   leftwards by the rightmost x distance from render position
             // - Central alignment is attained from left by shifting the line
@@ -40,7 +40,7 @@ impl Line {
                 if h_align == HorizontalAlign::Center {
                     shift_left /= 2.0;
                 }
-                point(screen_position.0 - shift_left, screen_position.1)
+                point(screen_x - shift_left, screen_y)
             }
         };
 

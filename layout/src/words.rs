@@ -17,7 +17,7 @@ pub(crate) struct VMetrics {
 impl VMetrics {
     #[inline]
     pub fn height(&self) -> f32 {
-        self.ascent - self.descent
+        self.ascent - self.descent + self.line_gap
     }
 
     #[inline]
