@@ -723,11 +723,12 @@ mod layout_test {
             ],
         );
 
+        let sfont = A_FONT.as_scaled(40.0);
         for g in glyphs {
             println!("{:?}", (g.glyph.scale, g.glyph.position));
             // all glyphs should have the same ascent drawing position
             let y_pos = g.glyph.position.y;
-            assert_relative_eq!(y_pos, A_FONT.as_scaled(40.0).ascent());
+            assert_relative_eq!(y_pos, sfont.ascent() + sfont.line_gap());
         }
     }
 

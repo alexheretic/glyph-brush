@@ -28,6 +28,10 @@ impl Line {
             return Vec::new();
         }
 
+        // use line_gap as top-padding for all lines
+        // fixes issues with glyphs taller than the ascent
+        let screen_y = screen_y + self.max_v_metrics.line_gap;
+
         // implement v-aligns when they're are supported
         let screen_left = match h_align {
             HorizontalAlign::Left => point(screen_x, screen_y),
