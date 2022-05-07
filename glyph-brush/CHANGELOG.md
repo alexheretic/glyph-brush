@@ -1,4 +1,4 @@
-# Unreleased (0.7.4)
+# 0.7.4
 * Update _ordered-float_ to `3`.
 
 # 0.7.3
