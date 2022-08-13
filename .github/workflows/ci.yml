@@ -15,14 +15,15 @@ jobs:
     - run: cargo test
     - run: cargo test --benches
 
-  test_32bit:
-    runs-on: ubuntu-latest
-    steps:
-    - run: rustup update stable
-    - run: sudo apt update && sudo apt install -yq gcc-multilib musl-tools
-    - run: rustup target add i686-unknown-linux-musl
-    - uses: actions/checkout@v2
-    - run: cargo test --target i686-unknown-linux-musl
+  ## TODO fix?
+  # test_32bit:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - run: rustup update stable
+  #   - run: sudo apt update && sudo apt install -yq gcc-multilib musl-tools
+  #   - run: rustup target add i686-unknown-linux-musl
+  #   - uses: actions/checkout@v2
+  #   - run: cargo test --target i686-unknown-linux-musl
 
   check_wasm:
     runs-on: ubuntu-latest

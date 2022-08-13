@@ -592,7 +592,7 @@ pub enum BrushAction<V> {
     ReDraw,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BrushError {
     /// Texture is too small to cache queued glyphs
     ///

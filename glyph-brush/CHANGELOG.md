@@ -1,3 +1,6 @@
+# Unreleased (0.7.5)
+* Implement `Eq` for `BrushError`.
+
 # 0.7.4
 * Update _ordered-float_ to `3`.
 

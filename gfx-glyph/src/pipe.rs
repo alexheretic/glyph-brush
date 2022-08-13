@@ -70,6 +70,7 @@ gfx_pipeline_base!( glyph_pipe {
     out: RawRenderTarget,
     out_depth: RawDepthTarget,
 });
+impl Eq for glyph_pipe::Meta {}
 
 impl glyph_pipe::Init<'_> {
     pub fn new(
