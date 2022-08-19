@@ -1,4 +1,4 @@
-# Unreleased (0.7.5)
+# 0.7.5
 * Implement `Eq` for `BrushError`.
 
 # 0.7.4

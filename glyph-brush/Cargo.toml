@@ -1,6 +1,6 @@
 [package]
 name = "glyph_brush"
-version = "0.7.4"
+version = "0.7.5"
 authors = ["Alex Butler <alexheretic@gmail.com>"]
 edition = "2018"
 description = "Fast cached text render library using ab_glyph"
