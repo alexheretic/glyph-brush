@@ -29,7 +29,7 @@ gl = "0.14"
 glutin = "0.29"
 spin_sleep = "1"
 approx = "0.5"
-criterion = "0.3"
+criterion = "0.4"
 
 [[bench]]
 name = "glyph_brush"
