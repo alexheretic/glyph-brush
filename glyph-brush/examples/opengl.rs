@@ -251,6 +251,8 @@ fn main() -> Res<()> {
 
                 window_ctx.swap_buffers().unwrap();
 
+                glyph_brush.cleanup_frame();
+
                 if let Some(rate) = loop_helper.report_rate() {
                     window_ctx
                         .window()

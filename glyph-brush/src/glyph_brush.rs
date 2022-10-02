@@ -39,7 +39,7 @@ type SectionHash = u64;
 /// used for actual drawing.
 ///
 /// The cache for a section will be **cleared** after a
-/// [`GlyphBrush::process_queued`] call when that section has not been used
+/// [`GlyphBrush::cleanup_frame()`] call when that section has not been used
 /// since the previous call.
 ///
 /// # Texture caching behaviour
@@ -339,7 +339,8 @@ where
         self.texture_cache.dimensions()
     }
 
-    fn cleanup_frame(&mut self) {
+    /// Trims the cache. Should be called once per frame.
+    pub fn cleanup_frame(&mut self) {
         if self.cache_glyph_positioning {
             // clear section_buffer & trim calculate_glyph_cache to active sections
             let active = mem::take(&mut self.keep_in_cache);
@@ -421,8 +422,6 @@ where
     /// * `to_vertex` maps a single glyph's `GlyphVertex` data into a generic vertex type. The
     ///   mapped vertices are returned in an `Ok(BrushAction::Draw(vertices))` result.
     ///   It's recommended to use a single vertex per glyph quad for best performance.
-    ///
-    /// Trims the cache, see [caching behaviour](#caching-behaviour).
     ///
     /// ```no_run
     /// # use glyph_brush::{ab_glyph::*, *};
@@ -527,8 +526,6 @@ where
         } else {
             BrushAction::ReDraw
         };
-
-        self.cleanup_frame();
         Ok(result)
     }
 

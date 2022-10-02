@@ -160,7 +160,7 @@ pub fn default_transform<D: IntoDimensions>(d: D) -> [[f32; 4]; 4] {
 /// used for actual drawing.
 ///
 /// The cache for a section will be **cleared** after a
-/// [`.use_queue().draw(..)`](struct.DrawBuilder.html#method.draw) call when that section has not been used since
+/// [`.cleanup_frame()`](struct.DrawBuilder.html#method.draw) call when that section has not been used since
 /// the previous draw call.
 pub struct GlyphBrush<R: gfx::Resources, GF: gfx::Factory<R>, F = FontArc, H = DefaultSectionHasher>
 {
@@ -262,8 +262,6 @@ where
 
     /// Returns a [`DrawBuilder`](struct.DrawBuilder.html) allowing the queued glyphs to be drawn.
     ///
-    /// Drawing will trim the cache, see [caching behaviour](#caching-behaviour).
-    ///
     /// # Example
     ///
     /// ```no_run
@@ -346,6 +344,12 @@ where
         S: Into<Cow<'a, Section<'a>>>,
     {
         self.glyph_brush.keep_cached(section)
+    }
+
+    /// Trims the cache. Should be called once per frame.
+    #[inline]
+    pub fn cleanup_frame<S>(&mut self) {
+        self.glyph_brush.cleanup_frame();
     }
 
     /// Returns the available fonts.
