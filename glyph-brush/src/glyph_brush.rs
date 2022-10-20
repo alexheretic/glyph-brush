@@ -586,7 +586,7 @@ pub struct GlyphVertex<'x, X = Extra> {
 /// Actions that should be taken after processing queue data
 #[derive(Debug)]
 pub enum BrushAction<V> {
-    /// Draw new/changed vertix data.
+    /// Draw new/changed vertex data.
     Draw(Vec<V>),
     /// Re-draw last frame's vertices unmodified.
     ReDraw,
