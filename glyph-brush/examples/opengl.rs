@@ -18,16 +18,23 @@
 
 use gl::types::*;
 use glutin::{
-    event::{ElementState, Event, KeyboardInput, MouseScrollDelta, VirtualKeyCode, WindowEvent},
-    event_loop::ControlFlow,
-    Api, GlProfile, GlRequest,
+    display::GetGlDisplay,
+    prelude::{GlConfig, GlDisplay, NotCurrentGlContextSurfaceAccessor},
+    surface::{GlSurface, SurfaceAttributesBuilder},
 };
 use glyph_brush::{ab_glyph::*, *};
+use raw_window_handle::HasRawWindowHandle;
 use std::{
     env,
     ffi::CString,
     io::{self, Write},
-    mem, ptr, str,
+    mem,
+    num::NonZeroU32,
+    ptr, str,
+};
+use winit::{
+    event::{ElementState, Event, KeyboardInput, MouseScrollDelta, VirtualKeyCode, WindowEvent},
+    event_loop::ControlFlow,
 };
 
 pub type Res<T> = Result<T, Box<dyn std::error::Error>>;
@@ -56,26 +63,51 @@ fn main() -> Res<()> {
         }
     }
 
-    let events = glutin::event_loop::EventLoop::new();
+    let events = winit::event_loop::EventLoop::new();
     let title = "glyph_brush opengl example - scroll to size, type to modify";
 
-    let window_ctx = glutin::ContextBuilder::new()
-        .with_gl_profile(GlProfile::Core)
-        .with_gl(GlRequest::Specific(Api::OpenGl, (3, 2)))
-        .with_srgb(true)
-        .build_windowed(
-            glutin::window::WindowBuilder::new()
-                .with_inner_size(glutin::dpi::PhysicalSize::new(1024, 576))
-                .with_title(title),
-            &events,
-        )?;
-    let window_ctx = unsafe { window_ctx.make_current().unwrap() };
+    let window_builder = winit::window::WindowBuilder::new()
+        .with_transparent(true)
+        .with_inner_size(winit::dpi::PhysicalSize::new(1024, 576))
+        .with_title(title);
 
-    let dejavu = FontRef::try_from_slice(include_bytes!("../../fonts/OpenSans-Light.ttf"))?;
-    let mut glyph_brush = GlyphBrushBuilder::using_font(dejavu).build();
+    let (window, gl_config) = glutin_winit::DisplayBuilder::new()
+        .with_window_builder(Some(window_builder))
+        .build(&events, <_>::default(), |configs| {
+            configs
+                .filter(|c| c.srgb_capable())
+                .max_by_key(|c| c.num_samples())
+                .unwrap()
+        })?;
+
+    let window = window.unwrap(); // set in display builder
+    let raw_window_handle = window.raw_window_handle();
+    let gl_display = gl_config.display();
+
+    let context_attributes = glutin::context::ContextAttributesBuilder::new()
+        .with_profile(glutin::context::GlProfile::Core)
+        .with_context_api(glutin::context::ContextApi::OpenGl(Some(
+            glutin::context::Version::new(3, 2),
+        )))
+        .build(Some(raw_window_handle));
+
+    let mut dimensions = window.inner_size();
+
+    let (gl_surface, gl_ctx) = {
+        let attrs = SurfaceAttributesBuilder::<glutin::surface::WindowSurface>::new().build(
+            raw_window_handle,
+            NonZeroU32::new(dimensions.width).unwrap(),
+            NonZeroU32::new(dimensions.height).unwrap(),
+        );
+
+        let surface = unsafe { gl_display.create_window_surface(&gl_config, &attrs)? };
+        let context = unsafe { gl_display.create_context(&gl_config, &context_attributes)? }
+            .make_current(&surface)?;
+        (surface, context)
+    };
 
     // Load the OpenGL function pointers
-    gl::load_with(|symbol| window_ctx.get_proc_address(symbol) as _);
+    gl::load_with(|symbol| gl_display.get_proc_address(&CString::new(symbol).unwrap()) as _);
 
     let max_image_dimension = {
         let mut value = 0;
@@ -83,9 +115,10 @@ fn main() -> Res<()> {
         value as u32
     };
 
-    let mut texture = GlGlyphTexture::new(glyph_brush.texture_dimensions());
+    let dejavu = FontRef::try_from_slice(include_bytes!("../../fonts/OpenSans-Light.ttf"))?;
+    let mut glyph_brush = GlyphBrushBuilder::using_font(dejavu).build();
 
-    let mut dimensions = window_ctx.window().inner_size();
+    let mut texture = GlGlyphTexture::new(glyph_brush.texture_dimensions());
 
     let mut text_pipe = GlTextPipe::new(dimensions)?;
 
@@ -145,10 +178,14 @@ fn main() -> Res<()> {
             },
             Event::MainEventsCleared => {
                 // handle window size changes
-                let window_size = window_ctx.window().inner_size();
+                let window_size = window.inner_size();
                 if dimensions != window_size {
                     dimensions = window_size;
-                    window_ctx.resize(window_size); // update context with new size
+                    gl_surface.resize(
+                        &gl_ctx,
+                        NonZeroU32::new(window_size.width).unwrap(),
+                        NonZeroU32::new(window_size.height).unwrap(),
+                    );
                     unsafe {
                         gl::Viewport(0, 0, dimensions.width as _, dimensions.height as _);
                     }
@@ -157,7 +194,7 @@ fn main() -> Res<()> {
 
                 let width = dimensions.width as f32;
                 let height = dimensions.height as _;
-                let scale = (font_size * window_ctx.window().scale_factor() as f32).round();
+                let scale = (font_size * window.scale_factor() as f32).round();
                 let base_text = Text::new(&text).with_scale(scale);
 
                 // Queue up all sections of text to be drawn
@@ -249,12 +286,10 @@ fn main() -> Res<()> {
                 }
                 text_pipe.draw();
 
-                window_ctx.swap_buffers().unwrap();
+                gl_surface.swap_buffers(&gl_ctx).unwrap();
 
                 if let Some(rate) = loop_helper.report_rate() {
-                    window_ctx
-                        .window()
-                        .set_title(&format!("{} {:.0} FPS", title, rate));
+                    window.set_title(&format!("{} {:.0} FPS", title, rate));
                 }
                 loop_helper.loop_sleep();
                 loop_helper.loop_start();
@@ -471,7 +506,7 @@ pub struct GlTextPipe {
 }
 
 impl GlTextPipe {
-    pub fn new(window_size: glutin::dpi::PhysicalSize<u32>) -> Res<Self> {
+    pub fn new(window_size: winit::dpi::PhysicalSize<u32>) -> Res<Self> {
         let (w, h) = (window_size.width as f32, window_size.height as f32);
 
         let vs = compile_shader(include_str!("shader/text.vs"), gl::VERTEX_SHADER)?;
@@ -577,7 +612,7 @@ impl GlTextPipe {
         }
     }
 
-    pub fn update_geometry(&self, window_size: glutin::dpi::PhysicalSize<u32>) {
+    pub fn update_geometry(&self, window_size: winit::dpi::PhysicalSize<u32>) {
         let (w, h) = (window_size.width as f32, window_size.height as f32);
         let transform = ortho(0.0, w, 0.0, h, 1.0, -1.0);
 
