@@ -34,8 +34,7 @@
 //! let mut glyph_brush = GlyphBrushBuilder::using_font(dejavu).build(gfx_factory.clone());
 //!
 //! # let some_other_section = Section::default();
-//! let section = Section::default()
-//!     .add_text(Text::new("Hello gfx_glyph"));
+//! let section = Section::default().add_text(Text::new("Hello gfx_glyph"));
 //!
 //! glyph_brush.queue(section);
 //! glyph_brush.queue(some_other_section);

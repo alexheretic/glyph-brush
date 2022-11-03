@@ -84,9 +84,8 @@ where
     /// ```no_run
     /// # use gfx_glyph::GlyphBrushBuilder;
     /// # let some_font: gfx_glyph::ab_glyph::FontArc = unimplemented!();
-    /// GlyphBrushBuilder::using_font(some_font)
-    ///     .depth_test(gfx::preset::depth::PASS_WRITE)
-    ///     // ...
+    /// GlyphBrushBuilder::using_font(some_font).depth_test(gfx::preset::depth::PASS_WRITE)
+    /// // ...
     /// # ;
     /// ```
     pub fn depth_test(mut self, depth_test: gfx::state::Depth) -> Self {
@@ -104,7 +103,7 @@ where
     /// # let some_font: gfx_glyph::ab_glyph::FontArc = unimplemented!();
     /// GlyphBrushBuilder::using_font(some_font)
     ///     .texture_filter_method(gfx::texture::FilterMethod::Scale)
-    ///     // ...
+    /// // ...
     /// # ;
     /// ```
     pub fn texture_filter_method(mut self, filter_method: texture::FilterMethod) -> Self {
@@ -124,9 +123,8 @@ where
     /// # use gfx_glyph::GlyphBrushBuilder;
     /// # let some_font: gfx_glyph::ab_glyph::FontArc = unimplemented!();
     /// # type SomeOtherBuildHasher = std::collections::hash_map::RandomState;
-    /// GlyphBrushBuilder::using_font(some_font)
-    ///     .section_hasher(SomeOtherBuildHasher::default())
-    ///     // ...
+    /// GlyphBrushBuilder::using_font(some_font).section_hasher(SomeOtherBuildHasher::default())
+    /// // ...
     /// # ;
     /// ```
     pub fn section_hasher<T: BuildHasher>(self, section_hasher: T) -> GlyphBrushBuilder<F, T> {

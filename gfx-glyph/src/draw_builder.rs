@@ -164,9 +164,7 @@ where
     /// # let font: gfx_glyph::ab_glyph::FontArc = unimplemented!();
     /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(font)
     /// #     .build(gfx_factory.clone());
-    /// glyph_brush
-    ///     .use_queue()
-    ///     .draw(&mut gfx_encoder, &gfx_color)?;
+    /// glyph_brush.use_queue().draw(&mut gfx_encoder, &gfx_color)?;
     /// # Ok(())
     /// # }
     /// ```
@@ -191,9 +189,10 @@ where
     /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(font)
     /// #     .build(gfx_factory.clone());
     /// # let raw_render_view = gfx_color.raw();
-    /// glyph_brush
-    ///     .use_queue()
-    ///     .draw(&mut gfx_encoder, &(raw_render_view, format::Srgba8::get_format()))?;
+    /// glyph_brush.use_queue().draw(
+    ///     &mut gfx_encoder,
+    ///     &(raw_render_view, format::Srgba8::get_format()),
+    /// )?;
     /// # Ok(())
     /// # }
     /// ```

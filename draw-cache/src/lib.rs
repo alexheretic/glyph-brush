@@ -26,7 +26,7 @@
 //! # let glyph: ab_glyph::Glyph = unimplemented!();
 //! match draw_cache.rect_for(font_id, &glyph) {
 //!     Some((tex_coords, px_coords)) => {}
-//!     None => {/* The glyph has no outline, or wasn't queued up to be cached */}
+//!     None => { /* The glyph has no outline, or wasn't queued up to be cached */ }
 //! }
 //! # Ok(()) }
 //! ```

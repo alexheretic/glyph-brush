@@ -9,7 +9,7 @@ pub type Color = [f32; 4];
 ///
 /// # Example
 /// ```
-/// use glyph_brush::{HorizontalAlign, Layout, Text, Section};
+/// use glyph_brush::{HorizontalAlign, Layout, Section, Text};
 ///
 /// let section = Section::default()
 ///     .add_text(Text::new("The last word was ").with_color([0.0, 0.0, 0.0, 1.0]))

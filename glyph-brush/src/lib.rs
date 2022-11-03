@@ -1,5 +1,7 @@
 //! ```
-//! use glyph_brush::{ab_glyph::FontArc, BrushAction, BrushError, GlyphBrushBuilder, Section, Text};
+//! use glyph_brush::{
+//!     ab_glyph::FontArc, BrushAction, BrushError, GlyphBrushBuilder, Section, Text,
+//! };
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let dejavu = FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf"))?;

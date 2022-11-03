@@ -11,8 +11,7 @@ use std::hash::BuildHasher;
 /// # type Vertex = ();
 ///
 /// let dejavu = FontArc::try_from_slice(include_bytes!("../../../fonts/DejaVuSans.ttf")).unwrap();
-/// let mut glyph_brush: GlyphBrush<Vertex> =
-///     GlyphBrushBuilder::using_font(dejavu).build();
+/// let mut glyph_brush: GlyphBrush<Vertex> = GlyphBrushBuilder::using_font(dejavu).build();
 /// ```
 #[non_exhaustive]
 pub struct GlyphBrushBuilder<F = FontArc, H = DefaultSectionHasher> {
