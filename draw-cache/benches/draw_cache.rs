@@ -105,7 +105,7 @@ fn bench_high_position_tolerance(c: &mut Criterion) {
                 cache.queue_glyph(font_id, glyph.clone());
             }
             cache
-                .cache_queued(&*FONTS, |_, _| {})
+                .cache_queued(&FONTS, |_, _| {})
                 .expect("cache_queued initial");
         }
 
@@ -117,7 +117,7 @@ fn bench_high_position_tolerance(c: &mut Criterion) {
             }
 
             cache
-                .cache_queued(&*FONTS, mock_gpu_upload_4us)
+                .cache_queued(&FONTS, mock_gpu_upload_4us)
                 .expect("cache_queued");
 
             for (index, glyph) in glyphs.iter().enumerate().filter(|(_, g)| g.id != *space_id) {
@@ -150,7 +150,7 @@ fn bench_ttf_font(c: &mut Criterion) {
                 cache.queue_glyph(font_id, glyph.clone());
             }
             cache
-                .cache_queued(&*FONTS, |_, _| {})
+                .cache_queued(&FONTS, |_, _| {})
                 .expect("cache_queued initial");
         }
 
@@ -162,7 +162,7 @@ fn bench_ttf_font(c: &mut Criterion) {
             }
 
             cache
-                .cache_queued(&*FONTS, mock_gpu_upload_4us)
+                .cache_queued(&FONTS, mock_gpu_upload_4us)
                 .expect("cache_queued");
 
             for (index, glyph) in glyphs.iter().enumerate().filter(|(_, g)| g.id != *space_id) {
@@ -195,7 +195,7 @@ fn bench_otf_font(c: &mut Criterion) {
                 cache.queue_glyph(font_id, glyph.clone());
             }
             cache
-                .cache_queued(&*FONTS, |_, _| {})
+                .cache_queued(&FONTS, |_, _| {})
                 .expect("cache_queued initial");
         }
 
@@ -207,7 +207,7 @@ fn bench_otf_font(c: &mut Criterion) {
             }
 
             cache
-                .cache_queued(&*FONTS, mock_gpu_upload_4us)
+                .cache_queued(&FONTS, mock_gpu_upload_4us)
                 .expect("cache_queued");
 
             for (index, glyph) in glyphs.iter().enumerate().filter(|(_, g)| g.id != *space_id) {
@@ -253,9 +253,7 @@ fn bench_multi_font(c: &mut Criterion) {
                     cache.queue_glyph(font_id, glyph.clone());
                 }
             }
-            cache
-                .cache_queued(&*FONTS, |_, _| {})
-                .expect("cache_queued");
+            cache.cache_queued(&FONTS, |_, _| {}).expect("cache_queued");
         }
 
         b.iter(|| {
@@ -266,7 +264,7 @@ fn bench_multi_font(c: &mut Criterion) {
             }
 
             cache
-                .cache_queued(&*FONTS, mock_gpu_upload_4us)
+                .cache_queued(&FONTS, mock_gpu_upload_4us)
                 .expect("cache_queued");
 
             for &(font_id, ref glyphs) in &font_glyphs {
@@ -315,7 +313,7 @@ fn bench_multi_font_population(c: &mut Criterion) {
             }
 
             cache
-                .cache_queued(&*FONTS, mock_gpu_upload_4us)
+                .cache_queued(&FONTS, mock_gpu_upload_4us)
                 .expect("cache_queued");
 
             for &(font_id, ref glyphs) in &font_glyphs {
@@ -382,9 +380,7 @@ fn bench_moving_text(c: &mut Criterion) {
                 cache.queue_glyph(font_id, glyph.clone());
             }
         }
-        cache
-            .cache_queued(&*FONTS, |_, _| {})
-            .expect("cache_queued");
+        cache.cache_queued(&FONTS, |_, _| {}).expect("cache_queued");
     }
 
     c.bench_function("moving_text_v2", |b| {
@@ -399,7 +395,7 @@ fn bench_moving_text(c: &mut Criterion) {
             }
 
             cache
-                .cache_queued(&*FONTS, mock_gpu_upload_4us)
+                .cache_queued(&FONTS, mock_gpu_upload_4us)
                 .expect("cache_queued");
 
             for &(font_id, ref glyphs) in glyphs {
@@ -451,13 +447,13 @@ fn bench_resizing(c: &mut Criterion) {
             }
 
             cache
-                .cache_queued(&*FONTS, mock_gpu_upload_4us)
+                .cache_queued(&FONTS, mock_gpu_upload_4us)
                 .expect_err("shouldn't fit");
 
             cache.to_builder().dimensions(512, 512).rebuild(&mut cache);
 
             cache
-                .cache_queued(&*FONTS, mock_gpu_upload_4us)
+                .cache_queued(&FONTS, mock_gpu_upload_4us)
                 .expect("should fit now");
 
             for &(font_id, ref glyphs) in &font_glyphs {
@@ -530,7 +526,7 @@ fn bench_moving_text_thrashing(c: &mut Criterion) {
                 }
 
                 cache
-                    .cache_queued(&*FONTS, mock_gpu_upload_4us)
+                    .cache_queued(&FONTS, mock_gpu_upload_4us)
                     .expect("cache_queued");
 
                 for &(font_id, ref glyphs) in glyphs {
