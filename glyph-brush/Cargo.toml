@@ -27,9 +27,8 @@ env_logger = { version = "0.10", default-features = false }
 once_cell = "1.3"
 gl = "0.14"
 winit = "0.27"
-# TODO use release when available
-glutin = { git = "https://github.com/kchibisov/glutin", branch = "glutin-winit-layer" }
-glutin-winit = { git = "https://github.com/kchibisov/glutin", branch = "glutin-winit-layer" }
+glutin = "0.30.1"
+glutin-winit = "0.2.1"
 spin_sleep = "1"
 approx = "0.5"
 criterion = "0.4"
