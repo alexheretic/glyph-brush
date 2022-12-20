@@ -435,14 +435,14 @@ mod test {
         let bounds_rect = Layout::default().bounds_rect(&SectionGeometry::from(&section));
 
         assert!(
-            bounds_rect.min.y <= g_bounds.min.y as f32,
+            bounds_rect.min.y <= g_bounds.min.y,
             "expected {} <= {}",
             bounds_rect.min.y,
             g_bounds.min.y
         );
 
         assert!(
-            bounds_rect.max.y >= g_bounds.max.y as f32,
+            bounds_rect.max.y >= g_bounds.max.y,
             "expected {} >= {}",
             bounds_rect.max.y,
             g_bounds.max.y

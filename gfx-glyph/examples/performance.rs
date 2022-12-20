@@ -107,7 +107,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     } else {
                         font_size *= 4.0 / 5.0
                     };
-                    font_size = font_size.max(1.0).min(MAX_FONT_SIZE);
+                    font_size = font_size.clamp(1.0, MAX_FONT_SIZE);
                 }
                 _ => (),
             },

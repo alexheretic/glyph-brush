@@ -711,10 +711,10 @@ impl<V, X> Glyphed<V, X> {
             match texture_cache.rect_for(sg.font_id.0, &sg.glyph) {
                 None => None,
                 Some((tex_coords, pixel_coords)) => {
-                    if pixel_coords.min.x as f32 > bounds.max.x
-                        || pixel_coords.min.y as f32 > bounds.max.y
-                        || bounds.min.x > pixel_coords.max.x as f32
-                        || bounds.min.y > pixel_coords.max.y as f32
+                    if pixel_coords.min.x > bounds.max.x
+                        || pixel_coords.min.y > bounds.max.y
+                        || bounds.min.x > pixel_coords.max.x
+                        || bounds.min.y > pixel_coords.max.y
                     {
                         // glyph is totally outside the bounds
                         None

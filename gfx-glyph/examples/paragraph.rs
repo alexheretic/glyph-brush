@@ -145,7 +145,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         } else {
                             zoom -= 0.1;
                         }
-                        zoom = zoom.min(1.0).max(0.1);
+                        zoom = zoom.clamp(0.1, 1.0);
                         if (zoom - old_zoom).abs() > 1e-2 {
                             print!("\r                            \r");
                             print!("transform-zoom -> {:.1}", zoom);
@@ -160,7 +160,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         } else {
                             size *= 4.0 / 5.0
                         };
-                        font_size = size.max(1.0).min(MAX_FONT_SIZE);
+                        font_size = size.clamp(1.0, MAX_FONT_SIZE);
                         if (font_size - old_size).abs() > 1e-2 {
                             print!("\r                            \r");
                             print!("font-size -> {:.1}", font_size);

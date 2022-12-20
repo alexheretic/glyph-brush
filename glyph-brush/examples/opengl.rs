@@ -167,7 +167,7 @@ fn main() -> Res<()> {
                     } else {
                         size *= 4.0 / 5.0
                     };
-                    font_size = size.max(1.0).min(2000.0);
+                    font_size = size.clamp(1.0, 2000.0);
                     if (font_size - old_size).abs() > 1e-2 {
                         eprint!("\r                            \r");
                         eprint!("font-size -> {:.1}", font_size);
@@ -381,8 +381,8 @@ pub fn to_vertex(
     let gl_bounds = bounds;
 
     let mut gl_rect = Rect {
-        min: point(pixel_coords.min.x as f32, pixel_coords.min.y as f32),
-        max: point(pixel_coords.max.x as f32, pixel_coords.max.y as f32),
+        min: point(pixel_coords.min.x, pixel_coords.min.y),
+        max: point(pixel_coords.max.x, pixel_coords.max.y),
     };
 
     // handle overlapping bounds, modify uv_rect to preserve texture aspect
