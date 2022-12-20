@@ -15,14 +15,14 @@ linked-hash-map = "0.5.4"
 rustc-hash = "1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-crossbeam-deque = "0.8"
 crossbeam-channel = "0.5"
+crossbeam-deque = "0.8"
 rayon = "1.3"
 
 [dev-dependencies]
 approx = "0.5"
-glyph_brush_layout = { version = "0.2", path = "../layout" }
 criterion = "0.4"
+glyph_brush_layout = { version = "0.2", path = "../layout" }
 once_cell = "1.3"
 
 [[bench]]
