@@ -6,12 +6,12 @@ use gl::types::*;
 use glutin::{
     display::GetGlDisplay,
     prelude::{GlConfig, GlDisplay, NotCurrentGlContextSurfaceAccessor},
-    surface::{GlSurface, SurfaceAttributesBuilder},
+    surface::GlSurface,
 };
 use glyph_brush::{ab_glyph::*, *};
-use opengl::{GlGlyphTexture, GlTextPipe, Res, Vertex};
+use opengl::{glutin_winit2::GlWindow, GlGlyphTexture, GlTextPipe, Res, Vertex};
 use raw_window_handle::HasRawWindowHandle;
-use std::{env, ffi::CString, mem, num::NonZeroU32};
+use std::{env, ffi::CString, mem};
 use winit::{
     event::{ElementState, Event, KeyboardInput, MouseScrollDelta, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
@@ -71,12 +71,7 @@ fn main() -> Res<()> {
     let mut dimensions = window.inner_size();
 
     let (gl_surface, gl_ctx) = {
-        let attrs = SurfaceAttributesBuilder::<glutin::surface::WindowSurface>::new().build(
-            raw_window_handle,
-            NonZeroU32::new(dimensions.width).unwrap(),
-            NonZeroU32::new(dimensions.height).unwrap(),
-        );
-
+        let attrs = window.build_surface_attributes(<_>::default());
         let surface = unsafe { gl_display.create_window_surface(&gl_config, &attrs)? };
         let context = unsafe { gl_display.create_context(&gl_config, &context_attributes)? }
             .make_current(&surface)?;
@@ -219,11 +214,7 @@ fn main() -> Res<()> {
                 let window_size = window.inner_size();
                 if dimensions != window_size {
                     dimensions = window_size;
-                    gl_surface.resize(
-                        &gl_ctx,
-                        NonZeroU32::new(window_size.width).unwrap(),
-                        NonZeroU32::new(window_size.height).unwrap(),
-                    );
+                    window.resize_surface(&gl_surface, &gl_ctx);
                     unsafe {
                         gl::Viewport(0, 0, dimensions.width as _, dimensions.height as _);
                     }
