@@ -37,6 +37,8 @@ use winit::{
     event_loop::ControlFlow,
 };
 
+const TITLE: &str = "glyph_brush opengl example - scroll to size, type to modify";
+
 pub type Res<T> = Result<T, Box<dyn std::error::Error>>;
 /// `[left_top * 3, right_bottom * 2, tex_left_top * 2, tex_right_bottom * 2, color * 4]`
 pub type Vertex = [GLfloat; 13];
@@ -64,15 +66,14 @@ fn main() -> Res<()> {
     }
 
     let events = winit::event_loop::EventLoop::new();
-    let title = "glyph_brush opengl example - scroll to size, type to modify";
-
-    let window_builder = winit::window::WindowBuilder::new()
-        .with_transparent(true)
-        .with_inner_size(winit::dpi::PhysicalSize::new(1024, 576))
-        .with_title(title);
 
     let (window, gl_config) = glutin_winit::DisplayBuilder::new()
-        .with_window_builder(Some(window_builder))
+        .with_window_builder(Some(
+            winit::window::WindowBuilder::new()
+                .with_transparent(true)
+                .with_inner_size(winit::dpi::PhysicalSize::new(1024, 576))
+                .with_title(TITLE),
+        ))
         .build(&events, <_>::default(), |configs| {
             configs
                 .filter(|c| c.srgb_capable())
@@ -115,8 +116,8 @@ fn main() -> Res<()> {
         value as u32
     };
 
-    let dejavu = FontRef::try_from_slice(include_bytes!("../../fonts/OpenSans-Light.ttf"))?;
-    let mut glyph_brush = GlyphBrushBuilder::using_font(dejavu).build();
+    let sans = FontRef::try_from_slice(include_bytes!("../../fonts/OpenSans-Light.ttf"))?;
+    let mut glyph_brush = GlyphBrushBuilder::using_font(sans).build();
 
     let mut texture = GlGlyphTexture::new(glyph_brush.texture_dimensions());
 
@@ -289,7 +290,7 @@ fn main() -> Res<()> {
                 gl_surface.swap_buffers(&gl_ctx).unwrap();
 
                 if let Some(rate) = loop_helper.report_rate() {
-                    window.set_title(&format!("{} {:.0} FPS", title, rate));
+                    window.set_title(&format!("{TITLE} {rate:.0} FPS"));
                 }
                 loop_helper.loop_sleep();
                 loop_helper.loop_start();
