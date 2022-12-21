@@ -10,24 +10,17 @@ use std::{hash::BuildHasher, marker::PhantomData};
 ///
 /// ```no_run
 /// # fn main() -> Result<(), String> {
-/// # use old_school_gfx_glutin_ext::*;
-/// # let event_loop = glutin::event_loop::EventLoop::new();
-/// # let window_builder = glutin::window::WindowBuilder::new();
-/// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
-/// #     glutin::ContextBuilder::new()
-/// #         .build_windowed(window_builder, &event_loop)
-/// #         .unwrap()
-/// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
-/// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
-/// # let font: gfx_glyph::ab_glyph::FontArc = unimplemented!();
-/// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(font)
-/// #     .build(gfx_factory.clone());
+/// # let glyph_brush: gfx_glyph::GlyphBrush<gfx_device_gl::Resources, gfx_device_gl::Factory> = unimplemented!();
+/// # let gfx_color: gfx_core::handle::RenderTargetView<gfx_device_gl::Resources, gfx::format::Srgba8> = unimplemented!();
+/// # let gfx_depth: gfx_core::handle::DepthStencilView<gfx_device_gl::Resources, gfx::format::Depth> = unimplemented!();
+/// # let factory: gfx_device_gl::Factory = unimplemented!();
+/// # let gfx_encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
+///
 /// glyph_brush
 ///     .use_queue()
 ///     .depth_target(&gfx_depth)
 ///     .draw(&mut gfx_encoder, &gfx_color)?;
-/// # Ok(())
-/// # }
+/// # Ok(()) }
 /// ```
 #[must_use]
 pub struct DrawBuilder<'a, F, R: gfx::Resources, GF: gfx::Factory<R>, H, DV> {
@@ -46,26 +39,15 @@ where
     /// Use a custom position transform (e.g. a projection) replacing the [`default_transform`](fn.default_transform.html).
     ///
     /// # Example
-    ///
     /// ```no_run
     /// # fn main() -> Result<(), String> {
-    /// # use old_school_gfx_glutin_ext::*;
-    /// # let event_loop = glutin::event_loop::EventLoop::new();
-    /// # let window_builder = glutin::window::WindowBuilder::new();
-    /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
-    /// #     glutin::ContextBuilder::new()
-    /// #         .build_windowed(window_builder, &event_loop)
-    /// #         .unwrap()
-    /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
-    /// # let font: gfx_glyph::ab_glyph::FontArc = unimplemented!();
-    /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(font)
-    /// #     .build(gfx_factory.clone());
+    /// # let glyph_brush: gfx_glyph::GlyphBrush<gfx_device_gl::Resources, gfx_device_gl::Factory> = unimplemented!();
+    /// # let gfx_color: gfx_core::handle::RenderTargetView<gfx_device_gl::Resources, gfx::format::Srgba8> = unimplemented!();
     /// let projection = gfx_glyph::default_transform(&gfx_color);
     ///
     /// glyph_brush.use_queue().transform(projection)
     /// # ;
-    /// # Ok(())
-    /// # }
+    /// # Ok(()) }
     /// ```
     #[inline]
     pub fn transform<M: Into<[[f32; 4]; 4]>>(mut self, transform: M) -> Self {
@@ -76,51 +58,29 @@ where
     /// Set a depth buffer target to perform depth testing against.
     ///
     /// # Example
-    ///
     /// ```no_run
     /// # fn main() -> Result<(), String> {
-    /// # use old_school_gfx_glutin_ext::*;
-    /// # let event_loop = glutin::event_loop::EventLoop::new();
-    /// # let window_builder = glutin::window::WindowBuilder::new();
-    /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
-    /// #     glutin::ContextBuilder::new()
-    /// #         .build_windowed(window_builder, &event_loop)
-    /// #         .unwrap()
-    /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
-    /// # let font: gfx_glyph::ab_glyph::FontArc = unimplemented!();
-    /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(font)
-    /// #     .build(gfx_factory.clone());
+    /// # let glyph_brush: gfx_glyph::GlyphBrush<gfx_device_gl::Resources, gfx_device_gl::Factory> = unimplemented!();
+    /// # let gfx_depth: gfx_core::handle::DepthStencilView<gfx_device_gl::Resources, gfx::format::Depth> = unimplemented!();
     /// glyph_brush.use_queue().depth_target(&gfx_depth)
     /// # ;
-    /// # Ok(())
-    /// # }
+    /// # Ok(()) }
     /// ```
     ///
     /// # Raw usage
     /// Can also be used with gfx raw depth views if necessary. The `Format` must also be provided.
-    ///
     /// ```no_run
     /// # use gfx::format::{self, Formatted};
     /// # use gfx::memory::Typed;
     /// # fn main() -> Result<(), String> {
-    /// # use old_school_gfx_glutin_ext::*;
-    /// # let event_loop = glutin::event_loop::EventLoop::new();
-    /// # let window_builder = glutin::window::WindowBuilder::new();
-    /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
-    /// #     glutin::ContextBuilder::new()
-    /// #         .build_windowed(window_builder, &event_loop)
-    /// #         .unwrap()
-    /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
-    /// # let font: gfx_glyph::ab_glyph::FontArc = unimplemented!();
-    /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(font)
-    /// #     .build(gfx_factory.clone());
+    /// # let glyph_brush: gfx_glyph::GlyphBrush<gfx_device_gl::Resources, gfx_device_gl::Factory> = unimplemented!();
+    /// # let gfx_depth: gfx_core::handle::DepthStencilView<gfx_device_gl::Resources, gfx::format::Depth> = unimplemented!();
     /// # let raw_depth_view = gfx_depth.raw();
     /// glyph_brush
     ///     .use_queue()
     ///     .depth_target(&(raw_depth_view, format::Depth::get_format()))
     /// # ;
-    /// # Ok(())
-    /// # }
+    /// # Ok(()) }
     /// ```
     #[inline]
     pub fn depth_target<D>(self, depth: &'a D) -> DrawBuilder<'a, F, R, GF, H, D> {
@@ -149,52 +109,32 @@ where
     /// Trims the cache, see [caching behaviour](#caching-behaviour).
     ///
     /// # Example
-    ///
     /// ```no_run
     /// # fn main() -> Result<(), String> {
-    /// # use old_school_gfx_glutin_ext::*;
-    /// # let event_loop = glutin::event_loop::EventLoop::new();
-    /// # let window_builder = glutin::window::WindowBuilder::new();
-    /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
-    /// #     glutin::ContextBuilder::new()
-    /// #         .build_windowed(window_builder, &event_loop)
-    /// #         .unwrap()
-    /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
-    /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
-    /// # let font: gfx_glyph::ab_glyph::FontArc = unimplemented!();
-    /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(font)
-    /// #     .build(gfx_factory.clone());
+    /// # let glyph_brush: gfx_glyph::GlyphBrush<gfx_device_gl::Resources, gfx_device_gl::Factory> = unimplemented!();
+    /// # let gfx_color: gfx_core::handle::RenderTargetView<gfx_device_gl::Resources, gfx::format::Srgba8> = unimplemented!();
+    /// # let factory: gfx_device_gl::Factory = unimplemented!();
+    /// # let gfx_encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
     /// glyph_brush.use_queue().draw(&mut gfx_encoder, &gfx_color)?;
-    /// # Ok(())
-    /// # }
+    /// # Ok(()) }
     /// ```
     ///
     /// # Raw usage
     /// Can also be used with gfx raw render views if necessary. The `Format` must also be provided.
-    ///
     /// ```no_run
     /// # use gfx::format::{self, Formatted};
     /// # use gfx::memory::Typed;
     /// # fn main() -> Result<(), String> {
-    /// # use old_school_gfx_glutin_ext::*;
-    /// # let event_loop = glutin::event_loop::EventLoop::new();
-    /// # let window_builder = glutin::window::WindowBuilder::new();
-    /// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
-    /// #     glutin::ContextBuilder::new()
-    /// #         .build_windowed(window_builder, &event_loop)
-    /// #         .unwrap()
-    /// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
-    /// # let mut gfx_encoder: gfx::Encoder<_, _> = gfx_factory.create_command_buffer().into();
-    /// # let font: gfx_glyph::ab_glyph::FontArc = unimplemented!();
-    /// # let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(font)
-    /// #     .build(gfx_factory.clone());
+    /// # let glyph_brush: gfx_glyph::GlyphBrush<gfx_device_gl::Resources, gfx_device_gl::Factory> = unimplemented!();
+    /// # let gfx_color: gfx_core::handle::RenderTargetView<gfx_device_gl::Resources, gfx::format::Srgba8> = unimplemented!();;
+    /// # let factory: gfx_device_gl::Factory = unimplemented!();
+    /// # let gfx_encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
     /// # let raw_render_view = gfx_color.raw();
     /// glyph_brush.use_queue().draw(
     ///     &mut gfx_encoder,
     ///     &(raw_render_view, format::Srgba8::get_format()),
     /// )?;
-    /// # Ok(())
-    /// # }
+    /// # Ok(()) }
     /// ```
     #[inline]
     pub fn draw<C, CV>(self, encoder: &mut gfx::Encoder<R, C>, target: &CV) -> Result<(), String>
