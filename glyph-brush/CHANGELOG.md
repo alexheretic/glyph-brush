@@ -1,3 +1,6 @@
+# Unreleased (v0.7.6)
+* Removed _log_ dependency.
+
 # 0.7.5
 * Implement `Eq` for `BrushError`.
 

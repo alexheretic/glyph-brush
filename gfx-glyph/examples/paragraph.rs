@@ -6,66 +6,52 @@
 //! * Type to add/remove text
 //! * Ctrl-Scroll to zoom in/out using a transform, this is cheap but notice how ab_glyph can't
 //!   render at full quality without the correct pixel information.
+mod init;
+
 use cgmath::{Matrix4, Rad, Transform, Vector3};
 use gfx::{
     format::{Depth, Srgba8},
     Device,
 };
 use gfx_glyph::ab_glyph;
-use glutin::{
+use glutin::surface::GlSurface;
+use init::{init_example, WindowExt};
+use std::{
+    error::Error,
+    f32::consts::PI as PI32,
+    io::{self, Write},
+};
+use winit::{
     event::{
         ElementState, Event, KeyboardInput, ModifiersState, MouseScrollDelta, VirtualKeyCode,
         WindowEvent,
     },
     event_loop::ControlFlow,
 };
-use old_school_gfx_glutin_ext::*;
-use std::{
-    env,
-    error::Error,
-    f32::consts::PI as PI32,
-    io::{self, Write},
-};
 
 const MAX_FONT_SIZE: f32 = 2000.0;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    if env::var("RUST_LOG").is_err() {
-        env::set_var("RUST_LOG", "gfx_glyph=warn");
-    }
+    init_example("paragraph");
 
-    env_logger::init();
-
-    if cfg!(target_os = "linux") {
-        // winit wayland is currently still wip
-        if env::var("WINIT_UNIX_BACKEND").is_err() {
-            env::set_var("WINIT_UNIX_BACKEND", "x11");
-        }
-        // disables vsync sometimes on x11
-        if env::var("vblank_mode").is_err() {
-            env::set_var("vblank_mode", "0");
-        }
-    }
-
-    if cfg!(debug_assertions) && env::var("yes_i_really_want_debug_mode").is_err() {
-        eprintln!(
-            "Note: Release mode will improve performance greatly.\n    \
-             e.g. use `cargo run --example paragraph --release`"
-        );
-    }
-
-    let event_loop = glutin::event_loop::EventLoop::new();
+    let event_loop = winit::event_loop::EventLoop::new();
     let title = "gfx_glyph example - scroll to size, type to modify, ctrl-scroll \
                  to gpu zoom, ctrl-shift-scroll to gpu rotate";
-    let window_builder = glutin::window::WindowBuilder::new()
+    let window_builder = winit::window::WindowBuilder::new()
         .with_title(title)
-        .with_inner_size(glutin::dpi::PhysicalSize::new(1024, 576));
+        .with_inner_size(winit::dpi::PhysicalSize::new(1024, 576));
 
-    let (window_ctx, mut device, mut factory, mut main_color, mut main_depth) =
-        glutin::ContextBuilder::new()
-            .with_gfx_color_depth::<Srgba8, Depth>()
-            .build_windowed(window_builder, &event_loop)?
-            .init_gfx::<Srgba8, Depth>();
+    let old_school_gfx_glutin_ext::Init {
+        window,
+        gl_surface,
+        gl_context,
+        mut device,
+        mut factory,
+        mut color_view,
+        mut depth_view,
+        ..
+    } = old_school_gfx_glutin_ext::window_builder(&event_loop, window_builder)
+        .build::<Srgba8, Depth>()?;
 
     let font = ab_glyph::FontArc::try_from_slice(include_bytes!("../../fonts/OpenSans-Light.ttf"))?;
     let mut glyph_brush = gfx_glyph::GlyphBrushBuilder::using_font(font)
@@ -81,6 +67,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut zoom: f32 = 1.0;
     let mut angle = 0.0;
     let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(250.0);
+    let mut view_size = window.inner_size();
 
     let mut modifiers = ModifiersState::default();
 
@@ -99,10 +86,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                     ..
                 }
                 | WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                WindowEvent::Resized(size) => {
-                    window_ctx.resize(size);
-                    window_ctx.update_gfx(&mut main_color, &mut main_depth);
-                }
                 WindowEvent::KeyboardInput {
                     input:
                         KeyboardInput {
@@ -145,7 +128,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         } else {
                             zoom -= 0.1;
                         }
-                        zoom = zoom.min(1.0).max(0.1);
+                        zoom = zoom.clamp(0.1, 1.0);
                         if (zoom - old_zoom).abs() > 1e-2 {
                             print!("\r                            \r");
                             print!("transform-zoom -> {:.1}", zoom);
@@ -160,7 +143,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         } else {
                             size *= 4.0 / 5.0
                         };
-                        font_size = size.max(1.0).min(MAX_FONT_SIZE);
+                        font_size = size.clamp(1.0, MAX_FONT_SIZE);
                         if (font_size - old_size).abs() > 1e-2 {
                             print!("\r                            \r");
                             print!("font-size -> {:.1}", font_size);
@@ -171,11 +154,23 @@ fn main() -> Result<(), Box<dyn Error>> {
                 _ => (),
             },
             Event::MainEventsCleared => {
-                encoder.clear(&main_color, [0.02, 0.02, 0.02, 1.0]);
+                // handle resizes
+                let w_size = window.inner_size();
+                if view_size != w_size {
+                    window.resize_surface(&gl_surface, &gl_context);
+                    old_school_gfx_glutin_ext::resize_views(
+                        w_size,
+                        &mut color_view,
+                        &mut depth_view,
+                    );
+                    view_size = w_size;
+                }
 
-                let (width, height, ..) = main_color.get_dimensions();
+                encoder.clear(&color_view, [0.02, 0.02, 0.02, 1.0]);
+
+                let (width, height, ..) = color_view.get_dimensions();
                 let (width, height) = (f32::from(width), f32::from(height));
-                let scale = font_size * window_ctx.window().scale_factor() as f32;
+                let scale = font_size * window.scale_factor() as f32;
 
                 // The section is all the info needed for the glyph brush to render a 'section' of text.
                 let section = gfx_glyph::Section::default()
@@ -234,7 +229,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     * offset;
 
                 // Default projection
-                let projection: Matrix4<f32> = gfx_glyph::default_transform(&main_color).into();
+                let projection: Matrix4<f32> = gfx_glyph::default_transform(&color_view).into();
 
                 // Here an example transform is used as a cheap zoom out (controlled with ctrl-scroll)
                 let zoom = Matrix4::from_scale(zoom);
@@ -251,17 +246,15 @@ fn main() -> Result<(), Box<dyn Error>> {
                 glyph_brush
                     .use_queue()
                     .transform(transform)
-                    .draw(&mut encoder, &main_color)
+                    .draw(&mut encoder, &color_view)
                     .unwrap();
 
                 encoder.flush(&mut device);
-                window_ctx.swap_buffers().unwrap();
+                gl_surface.swap_buffers(&gl_context).unwrap();
                 device.cleanup();
 
                 if let Some(rate) = loop_helper.report_rate() {
-                    window_ctx
-                        .window()
-                        .set_title(&format!("{} - {:.0} FPS", title, rate));
+                    window.set_title(&format!("{title} - {rate:.0} FPS"));
                 }
 
                 loop_helper.loop_sleep();

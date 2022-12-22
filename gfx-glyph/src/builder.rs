@@ -7,14 +7,7 @@ use glyph_brush::delegate_glyph_brush_builder_fns;
 ///
 /// ```no_run
 /// use gfx_glyph::{ab_glyph::FontArc, GlyphBrushBuilder};
-/// # use old_school_gfx_glutin_ext::*;
-/// # let event_loop = glutin::event_loop::EventLoop::new();
-/// # let window_builder = glutin::window::WindowBuilder::new();
-/// # let (_window, _device, mut gfx_factory, gfx_color, gfx_depth) =
-/// #     glutin::ContextBuilder::new()
-/// #         .build_windowed(window_builder, &event_loop)
-/// #         .unwrap()
-/// #         .init_gfx::<gfx::format::Srgba8, gfx::format::Depth>();
+/// # let gfx_factory: gfx_device_gl::Factory = unimplemented!();
 ///
 /// let dejavu = FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf")).unwrap();
 /// let mut glyph_brush = GlyphBrushBuilder::using_font(dejavu).build(gfx_factory.clone());

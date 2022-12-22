@@ -2,53 +2,41 @@
 //! Controls
 //!
 //! * Resize window to adjust layout
+mod init;
+
 use gfx::{
     format::{Depth, Srgba8},
     Device,
 };
 use gfx_glyph::{ab_glyph::*, *};
-use glutin::{
+use glutin::surface::GlSurface;
+use init::{init_example, WindowExt};
+use std::error::Error;
+use winit::{
     event::{Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
 };
-use old_school_gfx_glutin_ext::*;
-use std::{env, error::Error};
 
 fn main() -> Result<(), Box<dyn Error>> {
-    if env::var("RUST_LOG").is_err() {
-        env::set_var("RUST_LOG", "gfx_glyph=warn");
-    }
+    init_example("varied");
 
-    env_logger::init();
-
-    if cfg!(target_os = "linux") {
-        // winit wayland is currently still wip
-        if env::var("WINIT_UNIX_BACKEND").is_err() {
-            env::set_var("WINIT_UNIX_BACKEND", "x11");
-        }
-        // disables vsync sometimes on x11
-        if env::var("vblank_mode").is_err() {
-            env::set_var("vblank_mode", "0");
-        }
-    }
-
-    if cfg!(debug_assertions) && env::var("yes_i_really_want_debug_mode").is_err() {
-        eprintln!(
-            "Note: Release mode will improve performance greatly.\n    \
-             e.g. use `cargo run --example varied --release`"
-        );
-    }
-    let event_loop = glutin::event_loop::EventLoop::new();
+    let event_loop = winit::event_loop::EventLoop::new();
     let title = "gfx_glyph example - resize to see multi-text layout";
-    let window_builder = glutin::window::WindowBuilder::new()
+    let window_builder = winit::window::WindowBuilder::new()
         .with_title(title)
-        .with_inner_size(glutin::dpi::PhysicalSize::new(1024, 576));
+        .with_inner_size(winit::dpi::PhysicalSize::new(1024, 576));
 
-    let (window_ctx, mut device, mut factory, mut main_color, mut main_depth) =
-        glutin::ContextBuilder::new()
-            .with_gfx_color_depth::<Srgba8, Depth>()
-            .build_windowed(window_builder, &event_loop)?
-            .init_gfx::<Srgba8, Depth>();
+    let old_school_gfx_glutin_ext::Init {
+        window,
+        gl_surface,
+        gl_context,
+        mut device,
+        mut factory,
+        mut color_view,
+        mut depth_view,
+        ..
+    } = old_school_gfx_glutin_ext::window_builder(&event_loop, window_builder)
+        .build::<Srgba8, Depth>()?;
 
     let font_0 = FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf"))?;
 
@@ -70,6 +58,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
 
     let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(250.0);
+    let mut view_size = window.inner_size();
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
@@ -85,16 +74,24 @@ fn main() -> Result<(), Box<dyn Error>> {
                     ..
                 }
                 | WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                WindowEvent::Resized(size) => {
-                    window_ctx.resize(size);
-                    window_ctx.update_gfx(&mut main_color, &mut main_depth);
-                }
                 _ => (),
             },
             Event::MainEventsCleared => {
-                encoder.clear(&main_color, [0.02, 0.02, 0.02, 1.0]);
+                // handle resizes
+                let w_size = window.inner_size();
+                if view_size != w_size {
+                    window.resize_surface(&gl_surface, &gl_context);
+                    old_school_gfx_glutin_ext::resize_views(
+                        w_size,
+                        &mut color_view,
+                        &mut depth_view,
+                    );
+                    view_size = w_size;
+                }
 
-                let (width, height, ..) = main_color.get_dimensions();
+                encoder.clear(&color_view, [0.02, 0.02, 0.02, 1.0]);
+
+                let (width, height, ..) = color_view.get_dimensions();
                 let (width, height) = (f32::from(width), f32::from(height));
 
                 glyph_brush.queue(Section {
@@ -185,14 +182,14 @@ fn main() -> Result<(), Box<dyn Error>> {
                     layout: Layout::default().h_align(HorizontalAlign::Right).v_align(VerticalAlign::Center),
                 });
 
-                glyph_brush.use_queue().draw(&mut encoder, &main_color).unwrap();
+                glyph_brush.use_queue().draw(&mut encoder, &color_view).unwrap();
 
                 encoder.flush(&mut device);
-                window_ctx.swap_buffers().unwrap();
+                gl_surface.swap_buffers(&gl_context).unwrap();
                 device.cleanup();
 
                 if let Some(rate) = loop_helper.report_rate() {
-                    window_ctx.window().set_title(&format!("{} - {:.0} FPS", title, rate));
+                    window.set_title(&format!("{title} - {rate:.0} FPS"));
                 }
                 loop_helper.loop_sleep();
                 loop_helper.loop_start();

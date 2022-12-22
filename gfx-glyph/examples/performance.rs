@@ -1,55 +1,48 @@
+mod init;
+
 use gfx::{
     format::{Depth, Srgba8},
     Device,
 };
 use gfx_glyph::{ab_glyph::*, *};
-use glutin::{
+use glutin::surface::GlSurface;
+use init::{init_example, WindowExt};
+use std::{env, error::Error};
+use winit::{
     event::{ElementState, Event, KeyboardInput, MouseScrollDelta, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
 };
-use old_school_gfx_glutin_ext::*;
-use std::{env, error::Error};
 
 const MAX_FONT_SIZE: f32 = 4000.0;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    if env::var("RUST_LOG").is_err() {
-        env::set_var("RUST_LOG", "gfx_glyph=warn");
-    }
-
-    env_logger::init();
-
-    if cfg!(target_os = "linux") {
-        // winit wayland is currently still wip
-        if env::var("WINIT_UNIX_BACKEND").is_err() {
-            env::set_var("WINIT_UNIX_BACKEND", "x11");
-        }
-        // disables vsync sometimes on x11
-        if env::var("vblank_mode").is_err() {
-            env::set_var("vblank_mode", "0");
-        }
-    }
+    init_example("performance");
     if cfg!(debug_assertions) && env::var("yes_i_really_want_debug_mode").is_err() {
         eprintln!(
             "You should probably run an example called 'performance' in release mode, \
             don't you think?\n    \
-            e.g. use `cargo run --example performance --release`\n\n\
             If you really want to see debug performance set env var `yes_i_really_want_debug_mode`"
         );
         return Ok(());
     }
 
-    let event_loop = glutin::event_loop::EventLoop::new();
+    let event_loop = winit::event_loop::EventLoop::new();
     let title = "gfx_glyph rendering 30,000 glyphs - scroll to size, type to modify";
-    let window_builder = glutin::window::WindowBuilder::new()
+    let window_builder = winit::window::WindowBuilder::new()
         .with_title(title)
-        .with_inner_size(glutin::dpi::PhysicalSize::new(1024, 576));
+        .with_inner_size(winit::dpi::PhysicalSize::new(1024, 576));
 
-    let (window_ctx, mut device, mut factory, mut main_color, mut main_depth) =
-        glutin::ContextBuilder::new()
-            .with_gfx_color_depth::<Srgba8, Depth>()
-            .build_windowed(window_builder, &event_loop)?
-            .init_gfx::<Srgba8, Depth>();
+    let old_school_gfx_glutin_ext::Init {
+        window,
+        gl_surface,
+        gl_context,
+        mut device,
+        mut factory,
+        mut color_view,
+        mut depth_view,
+        ..
+    } = old_school_gfx_glutin_ext::window_builder(&event_loop, window_builder)
+        .build::<Srgba8, Depth>()?;
 
     let dejavu = FontRef::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf"))?;
     let mut glyph_brush = GlyphBrushBuilder::using_font(dejavu)
@@ -62,6 +55,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut font_size: f32 = 25.0;
     let mut loop_helper = spin_sleep::LoopHelper::builder().build_without_target_rate();
+    let mut view_size = window.inner_size();
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
@@ -77,10 +71,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                     ..
                 }
                 | WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                WindowEvent::Resized(size) => {
-                    window_ctx.resize(size);
-                    window_ctx.update_gfx(&mut main_color, &mut main_depth);
-                }
                 WindowEvent::KeyboardInput {
                     input:
                         KeyboardInput {
@@ -107,16 +97,28 @@ fn main() -> Result<(), Box<dyn Error>> {
                     } else {
                         font_size *= 4.0 / 5.0
                     };
-                    font_size = font_size.max(1.0).min(MAX_FONT_SIZE);
+                    font_size = font_size.clamp(1.0, MAX_FONT_SIZE);
                 }
                 _ => (),
             },
             Event::MainEventsCleared => {
-                encoder.clear(&main_color, [0.02, 0.02, 0.02, 1.0]);
+                // handle resizes
+                let w_size = window.inner_size();
+                if view_size != w_size {
+                    window.resize_surface(&gl_surface, &gl_context);
+                    old_school_gfx_glutin_ext::resize_views(
+                        w_size,
+                        &mut color_view,
+                        &mut depth_view,
+                    );
+                    view_size = w_size;
+                }
 
-                let (width, height, ..) = main_color.get_dimensions();
+                encoder.clear(&color_view, [0.02, 0.02, 0.02, 1.0]);
+
+                let (width, height, ..) = color_view.get_dimensions();
                 let (width, height) = (f32::from(width), f32::from(height));
-                let scale = PxScale::from(font_size * window_ctx.window().scale_factor() as f32);
+                let scale = PxScale::from(font_size * window.scale_factor() as f32);
 
                 // The section is all the info needed for the glyph brush to render a 'section' of text.
                 let section = Section::default()
@@ -145,17 +147,15 @@ fn main() -> Result<(), Box<dyn Error>> {
                 // updating interaction can be skipped.
                 glyph_brush
                     .use_queue()
-                    .draw(&mut encoder, &main_color)
+                    .draw(&mut encoder, &color_view)
                     .unwrap();
 
                 encoder.flush(&mut device);
-                window_ctx.swap_buffers().unwrap();
+                gl_surface.swap_buffers(&gl_context).unwrap();
                 device.cleanup();
 
                 if let Some(rate) = loop_helper.report_rate() {
-                    window_ctx
-                        .window()
-                        .set_title(&format!("{} - {:.0} FPS", title, rate));
+                    window.set_title(&format!("{title} - {rate:.0} FPS"));
                 }
 
                 loop_helper.loop_start();
