@@ -19,8 +19,8 @@ log = "0.4"
 [dev-dependencies]
 cgmath = "0.18"
 env_logger = { version = "0.10", default-features = false }
-glutin = "0.30.3"
-winit = "0.27"
-old_school_gfx_glutin_ext = { git = "https://github.com/alexheretic/old-school-gfx-glutin-ext" }
 gfx_device_gl = "0.16"
+glutin = "0.30.3"
+old_school_gfx_glutin_ext = "0.30"
 spin_sleep = "1"
+winit = "0.27"
