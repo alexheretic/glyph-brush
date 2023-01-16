@@ -638,7 +638,22 @@ impl DrawCache {
             let mut uncached_outlined: Vec<_> = uncached_glyphs
                 .into_iter()
                 .filter_map(|(info, glyph)| {
-                    Some((info, fonts[info.font_id].outline_glyph(glyph.clone())?))
+                    if let Some(outlined) = fonts[info.font_id].outline_glyph(glyph.clone()) {
+                        return Some((info, GlyphKind::Outlined(outlined)));
+                    }
+
+                    let image = fonts[info.font_id]
+                        .glyph_raster_image(glyph.id, glyph.scale.x.max(glyph.scale.y) as _)?;
+                    let decoded_image = image::load_from_memory(image.data).ok()?;
+
+                    Some((
+                        info,
+                        GlyphKind::Image {
+                            glyph: glyph.clone(),
+                            image,
+                            decoded_image,
+                        },
+                    ))
                 })
                 .collect();
 
@@ -850,7 +865,7 @@ impl DrawCache {
     #[cfg(not(target_arch = "wasm32"))]
     fn draw_and_upload<U>(
         &self,
-        draw_and_upload: Vec<(Rectangle<u32>, OutlinedGlyph)>,
+        draw_and_upload: Vec<(Rectangle<u32>, GlyphKind)>,
         uploader: &mut U,
     ) where
         U: FnMut(Rectangle<u32>, &[u8]),
@@ -891,32 +906,36 @@ impl DrawCache {
                 rasterize_queue.push(el);
             }
 
-            for _ in 0..threads.saturating_sub(1) {
-                let rasterize_queue = Arc::clone(&rasterize_queue);
-                let stealers = Arc::clone(&stealers);
-                let to_main = to_main.clone();
-                let local = worker_qs.pop().unwrap();
+            rayon::scope(|s| {
+                let worker_qs = &mut worker_qs;
+                let rasterize_queue = &rasterize_queue;
+                let stealers = &stealers;
+                for _ in 0..threads.saturating_sub(1) {
+                    let to_main = to_main.clone();
+                    let local = worker_qs.pop().unwrap();
 
-                rayon::spawn(move || loop {
-                    let task = local.pop().or_else(|| {
-                        std::iter::repeat_with(|| {
-                            rasterize_queue
-                                .steal_batch_and_pop(&local)
-                                .or_else(|| stealers.iter().map(|s| s.steal()).collect())
-                        })
-                        .find(|s| !s.is_retry())
-                        .and_then(|s| s.success())
-                    });
+                    s.spawn(move |_| loop {
+                        let task = local.pop().or_else(|| {
+                            std::iter::repeat_with(|| {
+                                rasterize_queue
+                                    .steal_batch_and_pop(&local)
+                                    .or_else(|| stealers.iter().map(|s| s.steal()).collect())
+                            })
+                            .find(|s| !s.is_retry())
+                            .and_then(|s| s.success())
+                        });
 
-                    match task {
-                        Some((tex_coords, glyph)) => {
-                            let pixels = draw_glyph(tex_coords, &glyph, pad_glyphs);
-                            to_main.send((tex_coords, pixels)).unwrap();
+                        match task {
+                            Some((tex_coords, glyph)) => {
+                                let pixels = draw_glyph(tex_coords, &glyph, pad_glyphs);
+                                to_main.send((tex_coords, pixels)).unwrap();
+                            }
+                            None => break,
                         }
-                        None => break,
-                    }
-                });
-            }
+                    });
+                }
+            });
+
             mem::drop(to_main);
 
             let local = worker_qs.pop().unwrap();
@@ -970,7 +989,7 @@ impl DrawCache {
     #[inline]
     fn draw_and_upload_1_thread<U>(
         &self,
-        draw_and_upload: Vec<(Rectangle<u32>, OutlinedGlyph)>,
+        draw_and_upload: Vec<(Rectangle<u32>, GlyphKind)>,
         uploader: &mut U,
     ) where
         U: FnMut(Rectangle<u32>, &[u8]),
@@ -1035,19 +1054,66 @@ impl DrawCache {
 }
 
 #[inline]
-fn draw_glyph(tex_coords: Rectangle<u32>, glyph: &OutlinedGlyph, pad_glyphs: bool) -> ByteArray2d {
+fn draw_glyph(tex_coords: Rectangle<u32>, glyph: &GlyphKind, pad_glyphs: bool) -> ByteArray2d {
     let mut pixels = ByteArray2d::zeros(tex_coords.height() as usize, tex_coords.width() as usize);
-    if pad_glyphs {
-        glyph.draw(|x, y, v| {
-            // `+ 1` accounts for top/left glyph padding
-            pixels[(y as usize + 1, x as usize + 1)] = (v * 255.0) as u8;
-        });
-    } else {
-        glyph.draw(|x, y, v| {
-            pixels[(y as usize, x as usize)] = (v * 255.0) as u8;
-        });
+
+    match glyph {
+        GlyphKind::Outlined(glyph) => {
+            if pad_glyphs {
+                glyph.draw(|x, y, v| {
+                    // `+ 1` accounts for top/left glyph padding
+                    pixels[(y as usize + 1, x as usize + 1)] = (v * 255.0) as u8;
+                });
+            } else {
+                glyph.draw(|x, y, v| {
+                    pixels[(y as usize, x as usize)] = (v * 255.0) as u8;
+                });
+            }
+        }
+        GlyphKind::Image {
+            glyph,
+            image,
+            decoded_image,
+        } => {
+            todo!()
+        }
     }
+
     pixels
+}
+
+pub enum GlyphKind<'a> {
+    Outlined(OutlinedGlyph),
+    Image {
+        glyph: Glyph,
+        image: GlyphImage<'a>,
+        decoded_image: image::DynamicImage,
+    },
+}
+
+impl<'a> GlyphKind<'a> {
+    #[inline]
+    pub fn px_bounds(&self) -> Rect {
+        match self {
+            Self::Outlined(outlined) => outlined.px_bounds(),
+            Self::Image {
+                glyph: _,
+                image,
+                decoded_image,
+            } => Rect {
+                min: image.origin,
+                max: image.origin + point(decoded_image.width() as _, decoded_image.height() as _),
+            },
+        }
+    }
+
+    #[inline]
+    pub fn glyph(&self) -> &Glyph {
+        match self {
+            Self::Outlined(outlined) => outlined.glyph(),
+            Self::Image { glyph, .. } => glyph,
+        }
+    }
 }
 
 #[cfg(test)]
