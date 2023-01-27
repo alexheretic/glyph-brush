@@ -7,7 +7,8 @@ use gfx::{
 };
 use gfx_glyph::{ab_glyph::*, *};
 use glutin::surface::GlSurface;
-use init::{init_example, WindowExt};
+use glutin_winit::GlWindow;
+use init::init_example;
 use std::error::Error;
 use winit::{
     event::{Event, KeyboardInput, VirtualKeyCode, WindowEvent},

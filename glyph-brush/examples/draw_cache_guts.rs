@@ -8,8 +8,9 @@ use glutin::{
     prelude::{GlConfig, GlDisplay, NotCurrentGlContextSurfaceAccessor},
     surface::GlSurface,
 };
+use glutin_winit::GlWindow;
 use glyph_brush::{ab_glyph::*, *};
-use opengl::{glutin_winit2::GlWindow, GlGlyphTexture, GlTextPipe, Res, Vertex};
+use opengl::{GlGlyphTexture, GlTextPipe, Res, Vertex};
 use raw_window_handle::HasRawWindowHandle;
 use std::{env, ffi::CString, mem};
 use winit::{

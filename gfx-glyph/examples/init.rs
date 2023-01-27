@@ -27,35 +27,6 @@ pub fn init_example(example_name: &str) {
     }
 }
 
-/// [`Window`] extensions for working with [`glutin`] surfaces.
-pub trait WindowExt {
-    /// Resize the surface to the window inner size.
-    ///
-    /// No-op if either window size is zero.
-    fn resize_surface(&self, surface: &Surface<WindowSurface>, context: &PossiblyCurrentContext);
-}
-
-impl WindowExt for Window {
-    fn resize_surface(&self, surface: &Surface<WindowSurface>, context: &PossiblyCurrentContext) {
-        if let Some((w, h)) = self.inner_size().non_zero() {
-            surface.resize(context, w, h)
-        }
-    }
-}
-
-/// [`winit::dpi::PhysicalSize<u32>`] non-zero extensions.
-pub trait NonZeroU32PhysicalSize {
-    /// Converts to non-zero `(width, height)`.
-    fn non_zero(self) -> Option<(NonZeroU32, NonZeroU32)>;
-}
-impl NonZeroU32PhysicalSize for winit::dpi::PhysicalSize<u32> {
-    fn non_zero(self) -> Option<(NonZeroU32, NonZeroU32)> {
-        let w = NonZeroU32::new(self.width)?;
-        let h = NonZeroU32::new(self.height)?;
-        Some((w, h))
-    }
-}
-
 fn main() {
     eprintln!("\"init\" isn't an example. Try: cargo run --example paragraph");
 }

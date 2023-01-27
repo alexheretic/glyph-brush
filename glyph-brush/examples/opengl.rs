@@ -22,7 +22,7 @@ use glutin::{
     prelude::{GlConfig, GlDisplay, NotCurrentGlContextSurfaceAccessor},
     surface::GlSurface,
 };
-use glutin_winit2::GlWindow;
+use glutin_winit::GlWindow;
 use glyph_brush::{ab_glyph::*, *};
 use raw_window_handle::HasRawWindowHandle;
 use std::{
@@ -632,73 +632,6 @@ impl Drop for GlTextPipe {
             self.shaders.iter().for_each(|s| gl::DeleteShader(*s));
             gl::DeleteBuffers(1, &self.vbo);
             gl::DeleteVertexArrays(1, &self.vao);
-        }
-    }
-}
-
-// glutin-winit helpers
-pub mod glutin_winit2 {
-    use glutin::{
-        context::PossiblyCurrentContext,
-        surface::{GlSurface, Surface, SurfaceAttributes, SurfaceAttributesBuilder, WindowSurface},
-    };
-    use raw_window_handle::HasRawWindowHandle;
-    use std::num::NonZeroU32;
-    use winit::window::Window;
-
-    /// [`Window`] extensions for working with [`glutin`] surfaces.
-    pub trait GlWindow {
-        /// Build the surface attributes suitable to create a window surface.
-        ///
-        /// Panics if either window inner dimension is zero.
-        fn build_surface_attributes(
-            &self,
-            builder: SurfaceAttributesBuilder<WindowSurface>,
-        ) -> SurfaceAttributes<WindowSurface>;
-
-        /// Resize the surface to the window inner size.
-        ///
-        /// No-op if either window size is zero.
-        fn resize_surface(
-            &self,
-            surface: &Surface<WindowSurface>,
-            context: &PossiblyCurrentContext,
-        );
-    }
-
-    impl GlWindow for Window {
-        fn build_surface_attributes(
-            &self,
-            builder: SurfaceAttributesBuilder<WindowSurface>,
-        ) -> SurfaceAttributes<WindowSurface> {
-            let (w, h) = self
-                .inner_size()
-                .non_zero()
-                .expect("invalid zero inner size");
-            builder.build(self.raw_window_handle(), w, h)
-        }
-
-        fn resize_surface(
-            &self,
-            surface: &Surface<WindowSurface>,
-            context: &PossiblyCurrentContext,
-        ) {
-            if let Some((w, h)) = self.inner_size().non_zero() {
-                surface.resize(context, w, h)
-            }
-        }
-    }
-
-    /// [`winit::dpi::PhysicalSize<u32>`] non-zero extensions.
-    pub trait NonZeroU32PhysicalSize {
-        /// Converts to non-zero `(width, height)`.
-        fn non_zero(self) -> Option<(NonZeroU32, NonZeroU32)>;
-    }
-    impl NonZeroU32PhysicalSize for winit::dpi::PhysicalSize<u32> {
-        fn non_zero(self) -> Option<(NonZeroU32, NonZeroU32)> {
-            let w = NonZeroU32::new(self.width)?;
-            let h = NonZeroU32::new(self.height)?;
-            Some((w, h))
         }
     }
 }
