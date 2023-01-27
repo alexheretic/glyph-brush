@@ -269,7 +269,7 @@ fn main() -> Res<()> {
                             glyph_brush.resize_texture(new_width, new_height);
                             draw_cache_guts_pipe.update_geometry(dimensions, (new_width, new_height));
                             eprintln!(
-                                "Resizing texture -> {}x{} to fit glyphs", new_width, new_height);
+                                "Resizing texture -> {new_width}x{new_height} to fit glyphs");
                         }
                     }
                 }
@@ -341,7 +341,7 @@ impl GlDrawCacheGutsPipe {
             // Specify the layout of the vertex data
             let uniform = gl::GetUniformLocation(program, CString::new("transform")?.as_ptr());
             if uniform < 0 {
-                return Err(format!("GetUniformLocation(\"transform\") -> {}", uniform).into());
+                return Err(format!("GetUniformLocation(\"transform\") -> {uniform}").into());
             }
             let transform = opengl::ortho(0.0, w, 0.0, h, 1.0, -1.0);
             gl::UniformMatrix4fv(uniform, 1, 0, transform.as_ptr());
@@ -350,7 +350,7 @@ impl GlDrawCacheGutsPipe {
             for (v_field, float_count) in &[("left_top", 3), ("right_bottom", 2)] {
                 let attr = gl::GetAttribLocation(program, CString::new(*v_field)?.as_ptr());
                 if attr < 0 {
-                    return Err(format!("{} GetAttribLocation -> {}", v_field, attr).into());
+                    return Err(format!("{v_field} GetAttribLocation -> {attr}").into());
                 }
                 gl::VertexAttribPointer(
                     attr as _,

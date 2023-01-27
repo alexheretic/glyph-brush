@@ -761,7 +761,7 @@ mod layout_test {
             .map(|g| OrderedFloat(g.glyph.position.y))
             .collect();
 
-        println!("Y ords: {:?}", y_ords);
+        println!("Y ords: {y_ords:?}");
         assert_eq!(y_ords.len(), 3, "expected 3 distinct lines");
 
         assert_glyph_order!(
@@ -841,7 +841,7 @@ mod layout_test {
             .map(|g| OrderedFloat(g.glyph.position.y))
             .collect();
 
-        assert_eq!(y_ords.len(), 2, "Y ords: {:?}", y_ords);
+        assert_eq!(y_ords.len(), 2, "Y ords: {y_ords:?}");
 
         let first_line_y = y_ords.iter().min().unwrap();
         let second_line_y = y_ords.iter().max().unwrap();
@@ -961,7 +961,7 @@ mod layout_test {
             .map(|g| OrderedFloat(g.glyph.position.y))
             .collect();
 
-        assert_eq!(y_positions.len(), 7, "{:?}", y_positions);
+        assert_eq!(y_positions.len(), 7, "{y_positions:?}");
     }
 
     /// #130 - Respect trailing whitespace in words if directly preceeding a hard break.
@@ -987,7 +987,7 @@ mod layout_test {
             .iter()
             .map(|g| OrderedFloat(g.glyph.position.y))
             .collect();
-        assert_eq!(y_positions.len(), 2, "{:?}", y_positions);
+        assert_eq!(y_positions.len(), 2, "{y_positions:?}");
 
         // explicit wrap
         let glyphs_newline = Layout::default()
@@ -1008,7 +1008,7 @@ mod layout_test {
             .iter()
             .map(|g| OrderedFloat(g.glyph.position.y))
             .collect();
-        assert_eq!(y_positions.len(), 2, "{:?}", y_positions);
+        assert_eq!(y_positions.len(), 2, "{y_positions:?}");
 
         // explict wrap should include the space in the layout width,
         // so the explicit newline `F` should be to the left of the no_newline `F`.

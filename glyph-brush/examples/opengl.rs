@@ -165,7 +165,7 @@ fn main() -> Res<()> {
                     font_size = size.clamp(1.0, 2000.0);
                     if (font_size - old_size).abs() > 1e-2 {
                         eprint!("\r                            \r");
-                        eprint!("font-size -> {:.1}", font_size);
+                        eprint!("font-size -> {font_size:.1}");
                         let _ = io::stderr().flush();
                     }
                 }
@@ -256,7 +256,7 @@ fn main() -> Res<()> {
                                 suggested
                             };
                             eprint!("\r                            \r");
-                            eprintln!("Resizing glyph texture -> {}x{}", new_width, new_height);
+                            eprintln!("Resizing glyph texture -> {new_width}x{new_height}");
 
                             // Recreate texture as a larger size to fit more
                             texture = GlGlyphTexture::new((new_width, new_height));
@@ -523,7 +523,7 @@ impl GlTextPipe {
             // Specify the layout of the vertex data
             let uniform = gl::GetUniformLocation(program, CString::new("transform")?.as_ptr());
             if uniform < 0 {
-                return Err(format!("GetUniformLocation(\"transform\") -> {}", uniform).into());
+                return Err(format!("GetUniformLocation(\"transform\") -> {uniform}").into());
             }
             let transform = ortho(0.0, w, 0.0, h, 1.0, -1.0);
             gl::UniformMatrix4fv(uniform, 1, 0, transform.as_ptr());
@@ -538,7 +538,7 @@ impl GlTextPipe {
             ] {
                 let attr = gl::GetAttribLocation(program, CString::new(*v_field)?.as_ptr());
                 if attr < 0 {
-                    return Err(format!("{} GetAttribLocation -> {}", v_field, attr).into());
+                    return Err(format!("{v_field} GetAttribLocation -> {attr}").into());
                 }
                 gl::VertexAttribPointer(
                     attr as _,

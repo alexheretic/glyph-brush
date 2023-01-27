@@ -131,7 +131,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         zoom = zoom.clamp(0.1, 1.0);
                         if (zoom - old_zoom).abs() > 1e-2 {
                             print!("\r                            \r");
-                            print!("transform-zoom -> {:.1}", zoom);
+                            print!("transform-zoom -> {zoom:.1}");
                             let _ = io::stdout().flush();
                         }
                     } else {
@@ -146,7 +146,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         font_size = size.clamp(1.0, MAX_FONT_SIZE);
                         if (font_size - old_size).abs() > 1e-2 {
                             print!("\r                            \r");
-                            print!("font-size -> {:.1}", font_size);
+                            print!("font-size -> {font_size:.1}");
                             let _ = io::stdout().flush();
                         }
                     }

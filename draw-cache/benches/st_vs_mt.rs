@@ -112,7 +112,7 @@ fn do_population_bench(
 fn bench_population_st_vs_mt(c: &mut Criterion) {
     for char_len in &[1500, 300, 50, 16] {
         for scale in &[150.0, 75.0, 30.0, 12.0] {
-            let title = format!("bench_{}_chars_{}px", char_len, scale);
+            let title = format!("bench_{char_len}_chars_{scale}px");
             c.bench_function(&title, |b| {
                 do_population_bench(
                     b,

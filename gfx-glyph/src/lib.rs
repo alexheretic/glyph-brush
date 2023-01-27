@@ -388,8 +388,7 @@ where
                         }
                         Err(_) => {
                             return Err(format!(
-                                "Failed to create {}x{} glyph texture",
-                                new_width, new_height
+                                "Failed to create {new_width}x{new_height} glyph texture"
                             ));
                         }
                     }
