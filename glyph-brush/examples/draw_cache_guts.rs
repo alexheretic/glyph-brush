@@ -41,14 +41,12 @@ fn main() -> Res<()> {
     let (window, gl_config) = glutin_winit::DisplayBuilder::new()
         .with_window_builder(Some(
             winit::window::WindowBuilder::new()
-                .with_transparent(true)
                 .with_inner_size(winit::dpi::PhysicalSize::new(1024, 576))
                 .with_title("draw cache example"),
         ))
-        .build(&events, <_>::default(), |configs| {
+        .build(&events, <_>::default(), |mut configs| {
             configs
-                .filter(|c| c.srgb_capable())
-                .max_by_key(|c| c.num_samples())
+                .find(|c| c.srgb_capable() && c.num_samples() == 0)
                 .unwrap()
         })?;
 
