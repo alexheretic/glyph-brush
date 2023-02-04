@@ -31,15 +31,9 @@ macro_rules! gl_assert_ok {
 fn main() -> Res<()> {
     env_logger::init();
 
-    if cfg!(target_os = "linux") {
-        // winit wayland is currently still wip
-        if env::var("WINIT_UNIX_BACKEND").is_err() {
-            env::set_var("WINIT_UNIX_BACKEND", "x11");
-        }
-        // disables vsync sometimes on x11
-        if env::var("vblank_mode").is_err() {
-            env::set_var("vblank_mode", "0");
-        }
+    // disables vsync maybe
+    if env::var_os("vblank_mode").is_none() {
+        env::set_var("vblank_mode", "0");
     }
 
     let events = winit::event_loop::EventLoop::new();

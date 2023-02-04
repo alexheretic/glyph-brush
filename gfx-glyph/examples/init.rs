@@ -9,21 +9,21 @@ use winit::window::Window;
 
 /// Setup env vars, init logging & notify about --release performance.
 pub fn init_example(example_name: &str) {
-    if env::var("RUST_LOG").is_err() {
+    if env::var_os("RUST_LOG").is_none() {
         env::set_var("RUST_LOG", "gfx_glyph=warn");
     }
     env_logger::init();
 
-    // disables vsync sometimes
-    if cfg!(target_os = "linux") && env::var("vblank_mode").is_err() {
-        env::set_var("vblank_mode", "0");
-    }
-
-    if cfg!(debug_assertions) && env::var("yes_i_really_want_debug_mode").is_err() {
+    if cfg!(debug_assertions) && env::var_os("yes_i_really_want_debug_mode").is_none() {
         eprintln!(
             "Note: Release mode will improve performance greatly.\n    \
              e.g. use `cargo run --example {example_name} --release`"
         );
+    }
+
+    // disables vsync maybe
+    if env::var_os("vblank_mode").is_none() {
+        env::set_var("vblank_mode", "0");
     }
 }
 
