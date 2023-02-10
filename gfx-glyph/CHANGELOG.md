@@ -1,4 +1,4 @@
-# Unreleased (0.17.1)
+# 0.17.1
 * Specify `#[repr(C)]` for vertex structs.
 
 # 0.17
