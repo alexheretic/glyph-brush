@@ -11,19 +11,21 @@
 //! glyph_brush.queue(Section::default().add_text(Text::new("Hello glyph_brush")));
 //! glyph_brush.queue(some_other_section);
 //!
-//! # fn update_texture(_: glyph_brush::Rectangle<u32>, _: &[u8]) {}
+//! # fn update_texture(_: glyph_brush::Rectangle<u32>, _: &[K::Element]) {}
 //! # fn into_vertex(v: glyph_brush::GlyphVertex) { () }
 //! match glyph_brush.process_queued(
-//!     |rect, tex_data| update_texture(rect, tex_data),
+//!     &mut (),
+//!     |rect, outline_data, _| update_texture(rect, outline_data),
+//!     |rect, emoji_data, _| update_texture(rect, emoji_data),
 //!     |vertex_data| into_vertex(vertex_data),
 //! ) {
-//!     Ok(BrushAction::Draw(vertices)) => {
+//!     Ok(BrushAction::Draw(outline_vertices, emoji_vertices)) => {
 //!         // Draw new vertices.
 //!     }
 //!     Ok(BrushAction::ReDraw) => {
 //!         // Re-draw last frame's vertices unmodified.
 //!     }
-//!     Err(BrushError::TextureTooSmall { suggested }) => {
+//!     Err(BrushError::TextureTooSmall { types, suggested }) => {
 //!         // Enlarge texture + glyph_brush texture cache and retry.
 //!     }
 //! }

@@ -21,7 +21,7 @@ impl Default for SectionGeometry {
 }
 
 /// Text to layout together using a font & scale.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SectionText<'a> {
     /// Text to render
     pub text: &'a str,
@@ -31,7 +31,7 @@ pub struct SectionText<'a> {
     ///
     /// It must be a valid id in the `FontMap` used for layout calls.
     /// The default `FontId(0)` should always be valid.
-    pub font_id: FontId,
+    pub fonts_id: Vec<FontId>,
 }
 
 impl Default for SectionText<'static> {
@@ -40,7 +40,7 @@ impl Default for SectionText<'static> {
         Self {
             text: "",
             scale: PxScale::from(16.0),
-            font_id: FontId::default(),
+            fonts_id: Vec::default(),
         }
     }
 }
@@ -52,14 +52,14 @@ pub trait ToSectionText {
 impl ToSectionText for SectionText<'_> {
     #[inline]
     fn to_section_text(&self) -> SectionText<'_> {
-        *self
+        self.clone()
     }
 }
 
 impl ToSectionText for &SectionText<'_> {
     #[inline]
     fn to_section_text(&self) -> SectionText<'_> {
-        **self
+        (*self).clone()
     }
 }
 

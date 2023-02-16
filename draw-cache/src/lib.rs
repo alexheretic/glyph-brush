@@ -19,7 +19,7 @@
 //! }
 //!
 //! // process everything in the queue, rasterizing & uploading as necessary
-//! draw_cache.cache_queued(&fonts, |rect, tex_data| update_texture(rect, tex_data))?;
+//! draw_cache.cache_queued(&fonts, context, |rect, tex_data, context| update_texture(rect, tex_data))?;
 //!
 //! // access a given glyph's texture position & pixel position for the texture quad
 //! # let font_id = 0;
@@ -47,8 +47,10 @@ use std::{
     collections::{HashMap, HashSet},
     error, fmt,
     hash::BuildHasherDefault,
-    ops,
+    mem, ops, slice
 };
+use std::marker::PhantomData;
+use std::task::Context;
 
 /// (Texture coordinates, pixel coordinates)
 pub type TextureCoords = (Rect, Rect);
@@ -74,26 +76,37 @@ struct LossyGlyphInfo {
     offset_over_tolerance: (u16, u16),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct ByteArray2d {
-    inner_array: Vec<u8>,
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+struct ByteArray2d<T> {
+    inner_array: Vec<T>,
     row: usize,
     col: usize,
 }
 
-impl ByteArray2d {
-    #[inline]
-    pub fn zeros(row: usize, col: usize) -> Self {
-        ByteArray2d {
-            inner_array: vec![0; row * col],
-            row,
-            col,
-        }
-    }
-
+impl ByteArray2d<u8> {
     #[inline]
     fn as_slice(&self) -> &[u8] {
         self.inner_array.as_slice()
+    }
+}
+
+impl ByteArray2d<u32> {
+    #[inline]
+    fn as_slice(&self) -> &[u8] {
+        unsafe {
+            slice::from_raw_parts(self.inner_array.as_ptr() as _, self.inner_array.len() * 4)
+        }
+    }
+}
+
+impl<T: Default + Clone> ByteArray2d<T> {
+    #[inline]
+    pub fn zeros(row: usize, col: usize) -> Self {
+        ByteArray2d {
+            inner_array: vec![T::default(); row * col],
+            row,
+            col,
+        }
     }
 
     #[inline]
@@ -114,18 +127,18 @@ impl ByteArray2d {
     }
 }
 
-impl ops::Index<(usize, usize)> for ByteArray2d {
-    type Output = u8;
+impl<T: Default + Clone> ops::Index<(usize, usize)> for ByteArray2d<T> {
+    type Output = T;
 
     #[inline]
-    fn index(&self, (row, col): (usize, usize)) -> &u8 {
+    fn index(&self, (row, col): (usize, usize)) -> &T {
         &self.inner_array[self.get_vec_index(row, col)]
     }
 }
 
-impl ops::IndexMut<(usize, usize)> for ByteArray2d {
+impl<T: Default + Clone> ops::IndexMut<(usize, usize)> for ByteArray2d<T> {
     #[inline]
-    fn index_mut(&mut self, (row, col): (usize, usize)) -> &mut u8 {
+    fn index_mut(&mut self, (row, col): (usize, usize)) -> &mut T {
         let vec_index = self.get_vec_index(row, col);
         &mut self.inner_array[vec_index]
     }
@@ -186,16 +199,17 @@ impl PaddingAware for Rectangle<u32> {
 /// let bigger_cache = DrawCache::builder().dimensions(1024, 1024).build();
 /// ```
 #[derive(Debug, Clone)]
-pub struct DrawCacheBuilder {
+pub struct DrawCacheBuilder<K> {
     dimensions: (u32, u32),
     scale_tolerance: f32,
     position_tolerance: f32,
     pad_glyphs: bool,
     align_4x4: bool,
     multithread: bool,
+    _maker: PhantomData<K>,
 }
 
-impl Default for DrawCacheBuilder {
+impl<K: GlyphKind> Default for DrawCacheBuilder<K> {
     fn default() -> Self {
         Self {
             dimensions: (256, 256),
@@ -204,11 +218,12 @@ impl Default for DrawCacheBuilder {
             pad_glyphs: true,
             align_4x4: false,
             multithread: true,
+            _maker: PhantomData,
         }
     }
 }
 
-impl DrawCacheBuilder {
+impl<K: GlyphKind + Send> DrawCacheBuilder<K> {
     /// `width` & `height` dimensions of the 2D texture that will hold the
     /// cache contents on the GPU.
     ///
@@ -364,7 +379,7 @@ impl DrawCacheBuilder {
     /// # use glyph_brush_draw_cache::DrawCache;
     /// let cache = DrawCache::builder().build();
     /// ```
-    pub fn build(self) -> DrawCache {
+    pub fn build(self) -> DrawCache<K> {
         let DrawCacheBuilder {
             dimensions: (width, height),
             scale_tolerance,
@@ -372,11 +387,13 @@ impl DrawCacheBuilder {
             pad_glyphs,
             align_4x4,
             multithread,
+            ..
         } = self.validated();
 
         DrawCache {
             scale_tolerance,
             position_tolerance,
+            _maker: PhantomData,
             width,
             height,
             rows: LinkedHashMap::default(),
@@ -414,7 +431,7 @@ impl DrawCacheBuilder {
     /// // Rebuild the cache with different dimensions
     /// cache.to_builder().dimensions(768, 768).rebuild(&mut cache);
     /// ```
-    pub fn rebuild(self, cache: &mut DrawCache) {
+    pub fn rebuild(self, cache: &mut DrawCache<K>) {
         let DrawCacheBuilder {
             dimensions: (width, height),
             scale_tolerance,
@@ -422,6 +439,7 @@ impl DrawCacheBuilder {
             pad_glyphs,
             align_4x4,
             multithread,
+            ..
         } = self.validated();
 
         cache.width = width;
@@ -487,9 +505,10 @@ fn normalised_offset_from_position(position: Point) -> Point {
 }
 
 /// Dynamic rasterization draw cache.
-pub struct DrawCache {
+pub struct DrawCache<K: GlyphKind> {
     scale_tolerance: f32,
     position_tolerance: f32,
+    _maker: PhantomData<K>,
     width: u32,
     height: u32,
     rows: LinkedHashMap<u32, Row, FxBuildHasher>,
@@ -504,10 +523,10 @@ pub struct DrawCache {
     multithread: bool,
 }
 
-impl DrawCache {
+impl<K: GlyphKind + Send> DrawCache<K> {
     /// Returns a default `DrawCacheBuilder`.
     #[inline]
-    pub fn builder() -> DrawCacheBuilder {
+    pub fn builder() -> DrawCacheBuilder<K> {
         DrawCacheBuilder::default()
     }
 
@@ -550,7 +569,7 @@ impl DrawCache {
     }
 
     /// Returns a `DrawCacheBuilder` with this cache's attributes.
-    pub fn to_builder(&self) -> DrawCacheBuilder {
+    pub fn to_builder(&self) -> DrawCacheBuilder<K> {
         DrawCacheBuilder {
             dimensions: (self.width, self.height),
             position_tolerance: self.position_tolerance,
@@ -558,6 +577,7 @@ impl DrawCache {
             pad_glyphs: self.pad_glyphs,
             align_4x4: self.align_4x4,
             multithread: self.multithread,
+            _maker: PhantomData,
         }
     }
 
@@ -595,14 +615,15 @@ impl DrawCache {
     ///
     /// If successful returns a `CachedBy` that can indicate the validity of
     /// previously cached glyph textures.
-    pub fn cache_queued<F, U>(
+    pub fn cache_queued<F, U, C>(
         &mut self,
         fonts: &[F],
+        context: &mut C,
         mut uploader: U,
     ) -> Result<CachedBy, CacheWriteErr>
     where
         F: Font + Sync,
-        U: FnMut(Rectangle<u32>, &[u8]),
+        U: FnMut(Rectangle<u32>, &[K::Element], &mut C),
     {
         let mut queue_success = true;
         let from_empty = self.all_glyphs.is_empty();
@@ -635,42 +656,28 @@ impl DrawCache {
             }
 
             // outline
-            let mut uncached_outlined: Vec<_> = uncached_glyphs
+            let mut uncached_content: Vec<_> = uncached_glyphs
                 .into_iter()
                 .filter_map(|(info, glyph)| {
-                    if let Some(outlined) = fonts[info.font_id].outline_glyph(glyph.clone()) {
-                        return Some((info, GlyphKind::Outlined(outlined)));
-                    }
-
-                    let image = fonts[info.font_id]
-                        .glyph_raster_image(glyph.id, glyph.scale.x.max(glyph.scale.y) as _)?;
-                    let decoded_image = image::load_from_memory(image.data).ok()?;
-
-                    Some((
-                        info,
-                        GlyphKind::Image {
-                            glyph: glyph.clone(),
-                            image,
-                            decoded_image,
-                        },
-                    ))
+                    let glyph = K::find(&fonts[info.font_id], glyph)?;
+                    Some((info, glyph))
                 })
                 .collect();
 
             // tallest first gives better packing
             // can use 'sort_unstable' as order of equal elements is unimportant
-            uncached_outlined.sort_unstable_by(|(_, ga), (_, gb)| {
-                gb.px_bounds()
+            uncached_content.sort_unstable_by(|(_, ga), (_, gb)| {
+                gb.texture_bounds()
                     .height()
-                    .partial_cmp(&ga.px_bounds().height())
+                    .partial_cmp(&ga.texture_bounds().height())
                     .unwrap_or(core::cmp::Ordering::Equal)
             });
 
-            self.all_glyphs.reserve(uncached_outlined.len());
-            let mut draw_and_upload = Vec::with_capacity(uncached_outlined.len());
+            self.all_glyphs.reserve(uncached_content.len());
+            let mut draw_and_upload = Vec::with_capacity(uncached_content.len());
 
-            'per_glyph: for (glyph_info, outlined) in uncached_outlined {
-                let bounds = outlined.px_bounds();
+            'per_glyph: for (glyph_info, outlined) in uncached_content {
+                let bounds = outlined.texture_bounds();
 
                 let (unaligned_width, unaligned_height) = {
                     if self.pad_glyphs {
@@ -790,12 +797,12 @@ impl DrawCache {
                     tex_coords: unaligned_tex_coords,
                     bounds_minus_position_over_scale: Rect {
                         min: point(
-                            (bounds.min.x - g.position.x) / g.scale.x,
-                            (bounds.min.y - g.position.y) / g.scale.y,
+                            (outlined.px_bounds().min.x - g.position.x) / g.scale.x,
+                            (outlined.px_bounds().min.y - g.position.y) / g.scale.y,
                         ),
                         max: point(
-                            (bounds.max.x - g.position.x) / g.scale.x,
-                            (bounds.max.y - g.position.y) / g.scale.y,
+                            (outlined.px_bounds().max.x - g.position.x) / g.scale.x,
+                            (outlined.px_bounds().max.y - g.position.y) / g.scale.y,
                         ),
                     },
                 });
@@ -817,9 +824,9 @@ impl DrawCache {
                         .map(|rect| rect.0.max[1])
                         .max()
                         .unwrap();
-                    let mut texture_up = vec![0; (self.width * max_v) as _];
+                    let mut texture_up = vec![K::Element::default(); (self.width * max_v) as _];
 
-                    self.draw_and_upload(draw_and_upload, &mut |rect, data| {
+                    self.draw_and_upload(draw_and_upload, context, &mut |rect, data, _| {
                         let min_h = rect.min[0] as usize;
                         let min_v = rect.min[1];
                         let glyph_w = rect.width() as usize;
@@ -840,9 +847,10 @@ impl DrawCache {
                             max: [self.width, max_v],
                         },
                         &texture_up,
+                        context,
                     );
                 } else {
-                    self.draw_and_upload(draw_and_upload, &mut uploader);
+                    self.draw_and_upload(draw_and_upload, context, &mut uploader);
                 }
             }
         }
@@ -853,7 +861,7 @@ impl DrawCache {
         } else {
             // clear the cache then try again with optimal packing
             self.clear();
-            self.cache_queued(fonts, uploader)
+            self.cache_queued(fonts, context, uploader)
                 .map(|_| CachedBy::Reordering)
         }
     }
@@ -863,12 +871,13 @@ impl DrawCache {
     ///
     /// Note: This fn uses non-wasm multithreading dependencies.
     #[cfg(not(target_arch = "wasm32"))]
-    fn draw_and_upload<U>(
+    fn draw_and_upload<U, C>(
         &self,
-        draw_and_upload: Vec<(Rectangle<u32>, GlyphKind)>,
+        draw_and_upload: Vec<(Rectangle<u32>, K)>,
+        context: &mut C,
         uploader: &mut U,
     ) where
-        U: FnMut(Rectangle<u32>, &[u8]),
+        U: FnMut(Rectangle<u32>, &[K::Element], &mut C),
     {
         use std::sync::Arc;
 
@@ -927,7 +936,7 @@ impl DrawCache {
 
                         match task {
                             Some((tex_coords, glyph)) => {
-                                let pixels = draw_glyph(tex_coords, &glyph, pad_glyphs);
+                                let pixels = K::draw(&glyph, tex_coords, pad_glyphs);
                                 to_main.send((tex_coords, pixels)).unwrap();
                             }
                             None => break,
@@ -953,8 +962,8 @@ impl DrawCache {
 
                 match task {
                     Some((tex_coords, glyph)) => {
-                        let pixels = draw_glyph(tex_coords, &glyph, pad_glyphs);
-                        uploader(tex_coords, pixels.as_slice());
+                        let pixels = K::draw(&glyph, tex_coords, pad_glyphs);
+                        uploader(tex_coords, pixels.as_slice(), context);
                     }
                     None if workers_finished => break,
                     None => {}
@@ -962,41 +971,43 @@ impl DrawCache {
 
                 while !workers_finished {
                     match from_stealers.try_recv() {
-                        Ok((tex_coords, pixels)) => uploader(tex_coords, pixels.as_slice()),
+                        Ok((tex_coords, pixels)) => uploader(tex_coords, &pixels, context),
                         Err(TryRecvError::Disconnected) => workers_finished = true,
                         Err(TryRecvError::Empty) => break,
                     }
                 }
             }
         } else {
-            self.draw_and_upload_1_thread(draw_and_upload, uploader);
+            self.draw_and_upload_1_thread(draw_and_upload, context, uploader);
         }
     }
 
     #[cfg(target_arch = "wasm32")]
     #[inline]
-    fn draw_and_upload<U>(
+    fn draw_and_upload<U, C>(
         &self,
-        draw_and_upload: Vec<(Rectangle<u32>, OutlinedGlyph)>,
+        draw_and_upload: Vec<(Rectangle<u32>, K)>,
+        context: &mut C,
         uploader: &mut U,
     ) where
-        U: FnMut(Rectangle<u32>, &[u8]),
+        U: FnMut(Rectangle<u32>, &[K::Element], &mut C),
     {
-        self.draw_and_upload_1_thread(draw_and_upload, uploader)
+        self.draw_and_upload_1_thread(draw_and_upload, context, uploader)
     }
 
     /// Draw & upload seqentially.
     #[inline]
-    fn draw_and_upload_1_thread<U>(
+    fn draw_and_upload_1_thread<U, C>(
         &self,
-        draw_and_upload: Vec<(Rectangle<u32>, GlyphKind)>,
+        draw_and_upload: Vec<(Rectangle<u32>, K)>,
+        context: &mut C,
         uploader: &mut U,
     ) where
-        U: FnMut(Rectangle<u32>, &[u8]),
+        U: FnMut(Rectangle<u32>, &[K::Element], &mut C),
     {
         for (tex_coords, outlined) in draw_and_upload {
-            let pixels = draw_glyph(tex_coords, &outlined, self.pad_glyphs);
-            uploader(tex_coords, pixels.as_slice());
+            let pixels = K::draw(&outlined, tex_coords, self.pad_glyphs);
+            uploader(tex_coords, &pixels, context);
         }
     }
 
@@ -1054,65 +1065,167 @@ impl DrawCache {
 }
 
 #[inline]
-fn draw_glyph(tex_coords: Rectangle<u32>, glyph: &GlyphKind, pad_glyphs: bool) -> ByteArray2d {
+fn draw_glyph(tex_coords: Rectangle<u32>, glyph: &OutlinedGlyph, pad_glyphs: bool) -> ByteArray2d<u8> {
     let mut pixels = ByteArray2d::zeros(tex_coords.height() as usize, tex_coords.width() as usize);
 
-    match glyph {
-        GlyphKind::Outlined(glyph) => {
-            if pad_glyphs {
-                glyph.draw(|x, y, v| {
-                    // `+ 1` accounts for top/left glyph padding
-                    pixels[(y as usize + 1, x as usize + 1)] = (v * 255.0) as u8;
-                });
-            } else {
-                glyph.draw(|x, y, v| {
-                    pixels[(y as usize, x as usize)] = (v * 255.0) as u8;
-                });
-            }
-        }
-        GlyphKind::Image {
-            glyph,
-            image,
-            decoded_image,
-        } => {
-            todo!()
-        }
+    if pad_glyphs {
+        glyph.draw(|x, y, v| {
+            // `+ 1` accounts for top/left glyph padding
+            pixels[(y as usize + 1, x as usize + 1)] = (v * 255.0) as u8;
+        });
+    } else {
+        glyph.draw(|x, y, v| {
+            pixels[(y as usize, x as usize)] = (v * 255.0) as u8;
+        });
     }
 
     pixels
 }
 
-pub enum GlyphKind<'a> {
-    Outlined(OutlinedGlyph),
-    Image {
-        glyph: Glyph,
-        image: GlyphImage<'a>,
-        decoded_image: image::DynamicImage,
-    },
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DrawFormat {
+    R8,
+    Rgba8,
 }
 
-impl<'a> GlyphKind<'a> {
+pub trait GlyphKind {
+    const DRAW_FORMAT: DrawFormat;
+    type Element: Default + Send + Clone + Copy;
+
     #[inline]
-    pub fn px_bounds(&self) -> Rect {
-        match self {
-            Self::Outlined(outlined) => outlined.px_bounds(),
-            Self::Image {
-                glyph: _,
-                image,
-                decoded_image,
-            } => Rect {
-                min: image.origin,
-                max: image.origin + point(decoded_image.width() as _, decoded_image.height() as _),
+    fn px_bounds(&self) -> Rect;
+
+    #[inline]
+    fn texture_bounds(&self) -> Rect;
+
+    #[inline]
+    fn find<'b, F: Font>(font: &'b F, glyph: &Glyph) -> Option<Self> where Self: Sized;
+
+    #[inline]
+    fn draw(&self, tex_coords: Rectangle<u32>, pad_glyphs: bool) -> Vec<Self::Element>;
+
+    #[inline]
+    fn glyph(&self) -> &Glyph;
+}
+
+pub struct ImageGlyph {
+    glyph: Glyph,
+    decoded_image: image::DynamicImage,
+    px_bounds: Rect,
+}
+
+impl GlyphKind for ImageGlyph {
+    const DRAW_FORMAT: DrawFormat = DrawFormat::Rgba8;
+    type Element = u32;
+
+    fn px_bounds(&self) -> Rect {
+        self.px_bounds
+    }
+
+    fn texture_bounds(&self) -> Rect {
+        Rect {
+            min: self.px_bounds.min,
+            max: Point {
+                x: self.px_bounds.min.x + self.decoded_image.width() as f32,
+                y: self.px_bounds.min.y + self.decoded_image.height() as f32,
             },
         }
     }
 
-    #[inline]
-    pub fn glyph(&self) -> &Glyph {
-        match self {
-            Self::Outlined(outlined) => outlined.glyph(),
-            Self::Image { glyph, .. } => glyph,
+    fn find<F: Font>(font: &F, glyph: &Glyph) -> Option<Self> {
+        let image = font.glyph_raster_image(glyph.id, glyph.scale.x.max(glyph.scale.y) as _)?;
+        let decoded_image = image::load_from_memory(image.data).ok()?;
+
+        let mut px_bounds = ImageGlyph::cal_img_px_bounds(
+            PxScaleFactor {
+                horizontal: h_advance / image.scale,
+                vertical: v_advance / image.scale,
+            },
+            glyph.position,
+            &image,
+        );
+
+        Some(Self {
+            glyph: glyph.clone(),
+            decoded_image,
+            px_bounds,
+        })
+    }
+
+    fn draw(&self, tex_coords: Rectangle<u32>, pad_glyphs: bool) -> Vec<u32> {
+        let raw_image = self.decoded_image.clone().into_rgba8().into_vec();
+        let image_u32 = unsafe { Vec::from_raw_parts(raw_image.as_ptr() as _, raw_image.len() / 4, raw_image.len() / 4) };
+        mem::forget(raw_image);
+
+        if pad_glyphs {
+            let padded_width = tex_coords.width();
+            let padded_height = tex_coords.height();
+            let width = self.decoded_image.width();
+
+            let mut padded_image = vec![0; (padded_width * padded_height) as usize];
+            // `+ 1` accounts for glyph padding
+            for row in 0..self.decoded_image.height() {
+                padded_image[((row + 1) * padded_width + 1) as usize..((row + 1) * padded_width + width + 1) as usize]
+                    .copy_from_slice(&image_u32[(row * width) as usize..((row + 1) * width) as usize])
+            }
+
+            return padded_image;
         }
+
+        image_u32
+    }
+
+    fn glyph(&self) -> &Glyph {
+        &self.glyph
+    }
+}
+
+impl ImageGlyph {
+    pub fn cal_img_px_bounds(scale_factor: PxScaleFactor, position: Point, glyph_image: &GlyphImage) -> Rect {
+        // let Rect {min, max} = glyph_bounds;
+
+        let min = point(0., glyph_image.scale) + glyph_image.origin;
+        let max = point(glyph_image.scale, 0.) + glyph_image.origin;
+
+        let (x_trunc, x_fract) = (position.x.trunc(), position.x.fract());
+        let (y_trunc, y_fract) = (position.y.trunc(), position.y.fract());
+
+        Rect {
+            min: point(
+                (min.x * scale_factor.horizontal + x_fract).floor() + x_trunc,
+                (min.y * -scale_factor.vertical + y_fract).floor() + y_trunc,
+            ),
+            max: point(
+                (max.x * scale_factor.horizontal + x_fract).ceil() + x_trunc,
+                (max.y * -scale_factor.vertical + y_fract).ceil() + y_trunc,
+            ),
+        }
+    }
+}
+
+impl GlyphKind for OutlinedGlyph {
+    const DRAW_FORMAT: DrawFormat = DrawFormat::R8;
+    type Element = u8;
+
+    fn px_bounds(&self) -> Rect {
+        self.px_bounds()
+    }
+
+    fn texture_bounds(&self) -> Rect {
+        self.px_bounds()
+    }
+
+    fn find<F: Font>(font: &F, glyph: &Glyph) -> Option<Self> {
+        font.outline_glyph(glyph.clone())
+
+    }
+
+    fn draw(&self,tex_coords: Rectangle<u32>, pad_glyphs: bool) -> Vec<u8> {
+        draw_glyph(tex_coords, &self, pad_glyphs).inner_array
+    }
+
+    fn glyph(&self) -> &Glyph {
+        self.glyph()
     }
 }
 
@@ -1158,7 +1271,7 @@ mod test {
             for SectionGlyph { glyph, .. } in glyphs {
                 cache.queue_glyph(0, glyph);
             }
-            cache.cache_queued(&[&font], |_, _| {}).unwrap();
+            cache.cache_queued(&[&font], &mut (), |_, _, _| {}).unwrap();
         }
     }
 
@@ -1183,7 +1296,7 @@ mod test {
         cache.queue_glyph(0, large_left.clone());
         cache.queue_glyph(0, large_right.clone());
 
-        cache.cache_queued(&[&font], |_, _| {}).unwrap();
+        cache.cache_queued(&[&font], &mut (), |_, _, _| {}).unwrap();
 
         cache.rect_for(0, &small_left).unwrap();
         cache.rect_for(0, &large_left).unwrap();
@@ -1229,10 +1342,11 @@ mod test {
             pad_glyphs: false,
             align_4x4: false,
             multithread: false,
+            _maker: Default::default()
         }
-        .build();
+            .build();
 
-        let to_builder: DrawCacheBuilder = cache.to_builder();
+        let to_builder: DrawCacheBuilder<OutlinedGlyph> = cache.to_builder();
 
         assert_eq!(to_builder.dimensions, (32, 64));
         assert_relative_eq!(to_builder.scale_tolerance, 0.2);
@@ -1255,7 +1369,7 @@ mod test {
 
         let font = FontRef::try_from_slice(FONT).unwrap();
         cache.queue_glyph(0, font.glyph_id('l').with_scale(25.0));
-        cache.cache_queued(&[&font], |_, _| {}).unwrap();
+        cache.cache_queued(&[&font], &mut (), |_, _, _| {}).unwrap();
 
         cache.queue_glyph(0, font.glyph_id('a').with_scale(25.0));
 
@@ -1308,7 +1422,7 @@ mod test {
         for sg in glyphs {
             cache.queue_glyph(0, sg.glyph);
         }
-        assert_eq!(cache.cache_queued(fontmap, |_, _| {}), Ok(CachedBy::Adding));
+        assert_eq!(cache.cache_queued(fontmap, &mut (), |_, _, _| {}), Ok(CachedBy::Adding));
 
         let glyphs = glyph_brush_layout::Layout::default_single_line().calculate_glyphs(
             fontmap,
@@ -1323,7 +1437,7 @@ mod test {
             cache.queue_glyph(0, sg.glyph);
         }
         assert_eq!(
-            cache.cache_queued(fontmap, |_, _| {}),
+            cache.cache_queued(fontmap, &mut (), |_, _, _| {}),
             Ok(CachedBy::Reordering)
         );
     }
@@ -1345,7 +1459,7 @@ mod test {
         let glyph = font.glyph_id('l').with_scale(25.0);
         cache.queue_glyph(0, glyph.clone());
         cache
-            .cache_queued(&[&font], |rect, _| {
+            .cache_queued(&[&font], &mut (), |rect, _, _| {
                 assert_eq!(rect.width(), expected_width);
                 assert_eq!(rect.height(), expected_height);
             })

@@ -89,7 +89,7 @@ where
                     break;
                 }
             }
-            let (section_index, section) = index_and_section;
+            let (section_index, section) = index_and_section.clone();
             let line_breaks = self.line_breaker.line_breaks(section.text);
             self.part_info = Some(PartInfo {
                 section_index,
@@ -106,13 +106,19 @@ where
                 section:
                     SectionText {
                         scale,
-                        font_id,
+                        fonts_id,
                         text,
                     },
                 info_chars,
                 line_breaks,
                 next_break,
             } = self.part_info.as_mut().unwrap();
+
+            if fonts_id.is_empty() {
+                for id in 0..self.fonts.len() {
+                    fonts_id.push(FontId(id));
+                }
+            }
 
             if let Some((byte_index, c)) = info_chars.next() {
                 if next_break.is_none() || next_break.unwrap().offset() <= byte_index {
@@ -125,8 +131,15 @@ where
                     }
                 }
 
-                let scale_font: PxScaleFont<&'b F> = self.fonts[*font_id].as_scaled(*scale);
+                let mut font_id = FontId(0);
+                for font in fonts_id {
+                    if self.fonts[*font].glyph_id(c) != GlyphId(0) {
+                        font_id = font.clone();
+                        break;
+                    }
+                }
 
+                let scale_font: PxScaleFont<&'b F> = self.fonts[font_id].as_scaled(*scale);
                 let glyph = scale_font.scaled_glyph(c);
 
                 let c_len = c.len_utf8();
@@ -139,7 +152,7 @@ where
                 return Some(Character {
                     glyph,
                     scale_font,
-                    font_id: *font_id,
+                    font_id,
                     line_break,
                     control: c.is_control(),
                     whitespace: c.is_whitespace(),

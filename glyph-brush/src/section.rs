@@ -135,7 +135,7 @@ impl<X: Hash> Hash for Section<'_, X> {
 }
 
 /// `SectionText` + extra.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Text<'a, X = Extra> {
     /// Text to render.
     pub text: &'a str,
@@ -145,7 +145,7 @@ pub struct Text<'a, X = Extra> {
     ///
     /// It must be a valid id in the `FontMap` used for layout calls.
     /// The default `FontId(0)` should always be valid.
-    pub font_id: FontId,
+    pub fonts_id: Vec<FontId>,
     /// Extra stuff for vertex generation.
     pub extra: X,
 }
@@ -156,7 +156,7 @@ impl<X: Default> Default for Text<'static, X> {
         Self {
             text: "",
             scale: PxScale::from(16.0),
-            font_id: <_>::default(),
+            fonts_id: Vec::default(),
             extra: <_>::default(),
         }
     }
@@ -168,7 +168,7 @@ impl<'a, X> Text<'a, X> {
         Text {
             text,
             scale: self.scale,
-            font_id: self.font_id,
+            fonts_id: self.fonts_id,
             extra: self.extra,
         }
     }
@@ -180,8 +180,12 @@ impl<'a, X> Text<'a, X> {
     }
 
     #[inline]
-    pub fn with_font_id<F: Into<FontId>>(mut self, font_id: F) -> Self {
-        self.font_id = font_id.into();
+    pub fn with_fonts_id<F: Into<FontId>>(mut self, fonts_id: Vec<F>) -> Self {
+        let mut fonts = vec![];
+        for id in fonts_id {
+            fonts.push(id.into());
+        }
+        self.fonts_id = fonts;
         self
     }
 
@@ -190,7 +194,7 @@ impl<'a, X> Text<'a, X> {
         Text {
             text: self.text,
             scale: self.scale,
-            font_id: self.font_id,
+            fonts_id: self.fonts_id,
             extra,
         }
     }
@@ -221,7 +225,7 @@ impl<X> ToSectionText for Text<'_, X> {
         SectionText {
             text: self.text,
             scale: self.scale,
-            font_id: self.font_id,
+            fonts_id: self.fonts_id.clone(),
         }
     }
 }
@@ -232,13 +236,13 @@ fn hash_section_text<X: Hash, H: Hasher>(state: &mut H, text: &[Text<'_, X>]) {
         let Text {
             text,
             scale,
-            font_id,
+            ref fonts_id,
             ref extra,
         } = *t;
 
         let ord_floats: [OrderedFloat<_>; 2] = [scale.x.into(), scale.y.into()];
 
-        (text, font_id, extra, ord_floats).hash(state);
+        (text, fonts_id, extra, ord_floats).hash(state);
     }
 }
 
@@ -299,13 +303,13 @@ impl<X: Hash> HashableSectionParts<'_, X> {
             let Text {
                 text,
                 scale,
-                font_id,
+                ref fonts_id,
                 ..
             } = *t;
 
             let ord_floats: &[OrderedFloat<_>] = &[scale.x.into(), scale.y.into()];
 
-            (text, font_id, ord_floats).hash(state);
+            (text, fonts_id, ord_floats).hash(state);
         }
     }
 
