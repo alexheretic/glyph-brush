@@ -1136,6 +1136,9 @@ impl GlyphKind for ImageGlyph {
         let image = font.glyph_raster_image(glyph.id, glyph.scale.x.max(glyph.scale.y) as _)?;
         let decoded_image = image::load_from_memory(image.data).ok()?;
 
+        let h_advance = font.as_scaled(glyph.scale).h_advance(glyph.id);
+        let v_advance = font.as_scaled(glyph.scale).v_advance(glyph.id);
+
         let mut px_bounds = ImageGlyph::cal_img_px_bounds(
             PxScaleFactor {
                 horizontal: h_advance / image.scale,
