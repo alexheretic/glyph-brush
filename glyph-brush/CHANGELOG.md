@@ -1,3 +1,6 @@
+# Unreleased (v0.7.7)
+* Update `GlyphCruncher::glyphs`, `GlyphCruncher::glyph_bounds` docs.
+
 # v0.7.6
 * Removed _log_ dependency.
 

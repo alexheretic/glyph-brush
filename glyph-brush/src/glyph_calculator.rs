@@ -25,9 +25,6 @@ pub type SectionGlyphIter<'a> = slice::Iter<'a, SectionGlyph>;
 pub trait GlyphCruncher<F: Font = FontArc, X: Clone = Extra> {
     /// Returns an iterator over the `PositionedGlyph`s of the given section with a custom layout.
     ///
-    /// Generally only drawable glyphs will be returned as invisible glyphs, like spaces,
-    /// are discarded during layout.
-    ///
     /// Benefits from caching, see [caching behaviour](#caching-behaviour).
     fn glyphs_custom_layout<'a, 'b, S, L>(
         &'b mut self,
@@ -40,9 +37,6 @@ pub trait GlyphCruncher<F: Font = FontArc, X: Clone = Extra> {
         S: Into<Cow<'a, Section<'a, X>>>;
 
     /// Returns an iterator over the `PositionedGlyph`s of the given section.
-    ///
-    /// Generally only drawable glyphs will be returned as invisible glyphs, like spaces,
-    /// are discarded during layout.
     ///
     /// Benefits from caching, see [caching behaviour](#caching-behaviour).
     #[inline]
@@ -64,10 +58,7 @@ pub trait GlyphCruncher<F: Font = FontArc, X: Clone = Extra> {
     /// Returns a bounding box for the section glyphs calculated using each glyph's
     /// vertical & horizontal metrics.
     ///
-    /// If the section is empty or would result in no drawn glyphs will return `None`.
-    ///
-    /// Invisible glyphs, like spaces, are discarded during layout so trailing ones will
-    /// not affect the bounds.
+    /// If the section is empty the call will return `None`.
     ///
     /// The bounds will always lay within the specified layout bounds, ie that returned
     /// by the layout's `bounds_rect` function.
@@ -86,10 +77,7 @@ pub trait GlyphCruncher<F: Font = FontArc, X: Clone = Extra> {
     /// Returns a bounding box for the section glyphs calculated using each glyph's
     /// vertical & horizontal metrics.
     ///
-    /// If the section is empty or would result in no drawn glyphs will return `None`.
-    ///
-    /// Invisible glyphs, like spaces, are discarded during layout so trailing ones will
-    /// not affect the bounds.
+    /// If the section is empty the call will return `None`.
     ///
     /// The bounds will always lay within the specified layout bounds, ie that returned
     /// by the layout's `bounds_rect` function.
