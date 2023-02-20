@@ -96,7 +96,7 @@ pub struct OwnedText<X = Extra> {
     /// It must be known to the `GlyphBrush` it is being used with,
     /// either `FontId::default()` or the return of
     /// [`add_font`](struct.GlyphBrushBuilder.html#method.add_font).
-    pub font_id: FontId,
+    pub fonts_id: Vec<FontId>,
     // Extra stuff for vertex generation.
     pub extra: X,
 }
@@ -115,8 +115,12 @@ impl<X> OwnedText<X> {
     }
 
     #[inline]
-    pub fn with_font_id<F: Into<FontId>>(mut self, font_id: F) -> Self {
-        self.font_id = font_id.into();
+    pub fn with_fonts_id<F: Into<FontId>>(mut self, fonts_id: Vec<F>) -> Self {
+        let mut fonts = vec![];
+        for id in fonts_id {
+            fonts.push(id.into());
+        }
+        self.fonts_id = fonts;
         self
     }
 
@@ -125,7 +129,7 @@ impl<X> OwnedText<X> {
         OwnedText {
             text: self.text,
             scale: self.scale,
-            font_id: self.font_id,
+            fonts_id: self.fonts_id,
             extra,
         }
     }
@@ -156,7 +160,7 @@ impl<X: Default> Default for OwnedText<X> {
         Self {
             text: String::new(),
             scale: PxScale::from(16.0),
-            font_id: <_>::default(),
+            fonts_id: Vec::default(),
             extra: <_>::default(),
         }
     }
@@ -168,7 +172,7 @@ impl<'a, X: Clone> From<&'a OwnedText<X>> for Text<'a, X> {
         Self {
             text: owned.text.as_str(),
             scale: owned.scale,
-            font_id: owned.font_id,
+            fonts_id: owned.fonts_id.clone(),
             extra: owned.extra.clone(),
         }
     }
@@ -180,7 +184,7 @@ impl<X: Clone> From<&Text<'_, X>> for OwnedText<X> {
         Self {
             text: s.text.into(),
             scale: s.scale,
-            font_id: s.font_id,
+            fonts_id: s.fonts_id.clone(),
             extra: s.extra.clone(),
         }
     }

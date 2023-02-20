@@ -19,7 +19,8 @@ pub struct GlyphBrushBuilder<F = FontArc, H = DefaultSectionHasher> {
     pub cache_glyph_positioning: bool,
     pub cache_redraws: bool,
     pub section_hasher: H,
-    pub draw_cache_builder: DrawCacheBuilder,
+    pub outline_draw_cache_builder: DrawCacheBuilder<OutlinedGlyph>,
+    pub emoji_draw_cache_builder: DrawCacheBuilder<ImageGlyph>,
 }
 
 impl GlyphBrushBuilder<()> {
@@ -41,10 +42,16 @@ impl GlyphBrushBuilder<()> {
             cache_glyph_positioning: true,
             cache_redraws: true,
             section_hasher: DefaultSectionHasher::default(),
-            draw_cache_builder: DrawCache::builder()
+            outline_draw_cache_builder: DrawCache::builder()
                 .dimensions(256, 256)
                 .scale_tolerance(0.5)
                 .position_tolerance(0.1)
+                .align_4x4(false),
+            emoji_draw_cache_builder: DrawCache::builder()
+                .dimensions(256, 256)
+                .scale_tolerance(0.5)
+                .position_tolerance(0.1)
+                .multithread(false)
                 .align_4x4(false),
         }
     }
@@ -88,7 +95,8 @@ impl<F, H> GlyphBrushBuilder<F, H> {
             cache_glyph_positioning: self.cache_glyph_positioning,
             cache_redraws: self.cache_redraws,
             section_hasher: self.section_hasher,
-            draw_cache_builder: self.draw_cache_builder,
+            outline_draw_cache_builder: self.outline_draw_cache_builder,
+            emoji_draw_cache_builder: self.emoji_draw_cache_builder,
         }
     }
 }
@@ -107,7 +115,8 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
     ///
     /// Defaults to `(256, 256)`
     pub fn initial_cache_size(mut self, (w, h): (u32, u32)) -> Self {
-        self.draw_cache_builder = self.draw_cache_builder.dimensions(w, h);
+        self.outline_draw_cache_builder = self.outline_draw_cache_builder.dimensions(w, h);
+        self.emoji_draw_cache_builder = self.emoji_draw_cache_builder.dimensions(w, h);
         self
     }
 
@@ -117,8 +126,13 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
     /// Defaults to `0.5`
     ///
     /// See docs for `glyph_brush_draw_cache::DrawCache`
-    pub fn draw_cache_scale_tolerance(mut self, tolerance: f32) -> Self {
-        self.draw_cache_builder = self.draw_cache_builder.scale_tolerance(tolerance);
+    pub fn outline_draw_cache_scale_tolerance(mut self, tolerance: f32) -> Self {
+        self.outline_draw_cache_builder = self.outline_draw_cache_builder.scale_tolerance(tolerance);
+        self
+    }
+
+    pub fn emoji_draw_cache_scale_tolerance(mut self, tolerance: f32) -> Self {
+        self.emoji_draw_cache_builder = self.emoji_draw_cache_builder.scale_tolerance(tolerance);
         self
     }
 
@@ -129,16 +143,25 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
     /// Defaults to `0.1`
     ///
     /// See docs for `glyph_brush_draw_cache::DrawCache`
-    pub fn draw_cache_position_tolerance(mut self, tolerance: f32) -> Self {
-        self.draw_cache_builder = self.draw_cache_builder.position_tolerance(tolerance);
+    pub fn outline_draw_cache_position_tolerance(mut self, tolerance: f32) -> Self {
+        self.outline_draw_cache_builder = self.outline_draw_cache_builder.position_tolerance(tolerance);
         self
     }
 
+    pub fn emoji_draw_cache_position_tolerance(mut self, tolerance: f32) -> Self {
+        self.emoji_draw_cache_builder = self.emoji_draw_cache_builder.position_tolerance(tolerance);
+        self
+    }
     /// When multiple CPU cores are available spread draw-cache work across all cores.
     ///
     /// Defaults to `true`.
-    pub fn multithread(mut self, multithread: bool) -> Self {
-        self.draw_cache_builder = self.draw_cache_builder.multithread(multithread);
+    pub fn outline_multithread(mut self, multithread: bool) -> Self {
+        self.outline_draw_cache_builder = self.outline_draw_cache_builder.multithread(multithread);
+        self
+    }
+
+    pub fn emoji_multithread(mut self, multithread: bool) -> Self {
+        self.emoji_draw_cache_builder = self.emoji_draw_cache_builder.multithread(multithread);
         self
     }
 
@@ -150,8 +173,13 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
     /// Defaults to `false`
     ///
     /// See docs for `glyph_brush_draw_cache::DrawCache`
-    pub fn draw_cache_align_4x4(mut self, align: bool) -> Self {
-        self.draw_cache_builder = self.draw_cache_builder.align_4x4(align);
+    pub fn outline_draw_cache_align_4x4(mut self, align: bool) -> Self {
+        self.outline_draw_cache_builder = self.outline_draw_cache_builder.align_4x4(align);
+        self
+    }
+
+    pub fn emoji_draw_cache_align_4x4(mut self, align: bool) -> Self {
+        self.emoji_draw_cache_builder = self.emoji_draw_cache_builder.align_4x4(align);
         self
     }
 
@@ -204,7 +232,8 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
             font_data: self.font_data,
             cache_glyph_positioning: self.cache_glyph_positioning,
             cache_redraws: self.cache_redraws,
-            draw_cache_builder: self.draw_cache_builder,
+            outline_draw_cache_builder: self.outline_draw_cache_builder,
+            emoji_draw_cache_builder: self.emoji_draw_cache_builder,
         }
     }
 
@@ -223,7 +252,8 @@ impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
     pub fn build<V, X>(self) -> GlyphBrush<V, X, F, H> {
         GlyphBrush {
             fonts: self.font_data,
-            texture_cache: self.draw_cache_builder.build(),
+            outline_cache: self.outline_draw_cache_builder.build(),
+            emoji_cache: self.emoji_draw_cache_builder.build(),
 
             last_draw: <_>::default(),
             section_buffer: <_>::default(),
@@ -339,8 +369,13 @@ macro_rules! delegate_glyph_brush_builder_fns {
         /// Defaults to `0.5`
         ///
         /// See docs for `glyph_brush_draw_cache::DrawCache`
-        pub fn draw_cache_scale_tolerance(mut self, tolerance: f32) -> Self {
-            self.$inner = self.$inner.draw_cache_scale_tolerance(tolerance);
+        pub fn outline_draw_cache_scale_tolerance(mut self, tolerance: f32) -> Self {
+            self.$inner = self.$inner.outline_draw_cache_scale_tolerance(tolerance);
+            self
+        }
+
+        pub fn emoji_draw_cache_scale_tolerance(mut self, tolerance: f32) -> Self {
+            self.$inner = self.$inner.emoji_draw_cache_scale_tolerance(tolerance);
             self
         }
 
@@ -351,8 +386,13 @@ macro_rules! delegate_glyph_brush_builder_fns {
         /// Defaults to `0.1`
         ///
         /// See docs for `glyph_brush_draw_cache::DrawCache`
-        pub fn draw_cache_position_tolerance(mut self, tolerance: f32) -> Self {
-            self.$inner = self.$inner.draw_cache_position_tolerance(tolerance);
+        pub fn outline_draw_cache_position_tolerance(mut self, tolerance: f32) -> Self {
+            self.$inner = self.$inner.outline_draw_cache_position_tolerance(tolerance);
+            self
+        }
+
+        pub fn emoji_draw_cache_position_tolerance(mut self, tolerance: f32) -> Self {
+            self.$inner = self.$inner.emoji_draw_cache_position_tolerance(tolerance);
             self
         }
 
@@ -364,8 +404,13 @@ macro_rules! delegate_glyph_brush_builder_fns {
         /// Defaults to `false`
         ///
         /// See docs for `glyph_brush_draw_cache::DrawCache`
-        pub fn draw_cache_align_4x4(mut self, b: bool) -> Self {
-            self.$inner = self.$inner.draw_cache_align_4x4(b);
+        pub fn outline_draw_cache_align_4x4(mut self, b: bool) -> Self {
+            self.$inner = self.$inner.outline_draw_cache_align_4x4(b);
+            self
+        }
+
+        pub fn emoji_draw_cache_align_4x4(mut self, b: bool) -> Self {
+            self.$inner = self.$inner.emoji_draw_cache_align_4x4(b);
             self
         }
 

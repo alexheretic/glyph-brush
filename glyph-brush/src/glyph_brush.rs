@@ -51,7 +51,10 @@ type SectionHash = u64;
 /// This behaviour can be adjusted with [`GlyphBrushBuilder::draw_cache_position_tolerance`].
 pub struct GlyphBrush<V, X = Extra, F = FontArc, H = DefaultSectionHasher> {
     fonts: Vec<F>,
-    texture_cache: DrawCache,
+
+    outline_cache: DrawCache<OutlinedGlyph>,
+    emoji_cache: DrawCache<ImageGlyph>,
+
     last_draw: LastDrawInfo,
 
     // cache of section-layout hash -> computed glyphs, this avoid repeated glyph computation
@@ -191,7 +194,9 @@ where
         let section = section.into();
         if cfg!(debug_assertions) {
             for text in &section.text {
-                assert!(self.fonts.len() > text.font_id.0, "Invalid font id");
+                for font in &text.fonts_id {
+                    assert!(self.fonts.len() > font.0, "Invalid font id");
+                }
             }
         }
         let section_hash = self.cache_glyphs(&section, custom_layout);
@@ -318,25 +323,41 @@ where
     /// # use glyph_brush::{ab_glyph::*, *};
     /// # let dejavu = FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf")).unwrap();
     /// # let mut glyph_brush: GlyphBrush<()> = GlyphBrushBuilder::using_font(dejavu).build();
-    /// glyph_brush.resize_texture(512, 512);
+    /// glyph_brush.resize_texture(512, 512, GlyphType::Outline);
     /// ```
-    pub fn resize_texture(&mut self, new_width: u32, new_height: u32) {
-        self.texture_cache
-            .to_builder()
-            .dimensions(new_width, new_height)
-            .rebuild(&mut self.texture_cache);
-
+    pub fn resize_texture(&mut self, new_width: u32, new_height: u32, types: GlyphType) {
+        match types {
+            GlyphType::Outline => {
+                self.outline_cache
+                    .to_builder()
+                    .dimensions(new_width, new_height)
+                    .rebuild(&mut self.outline_cache);
+            },
+            GlyphType::Emoji => {
+                self.emoji_cache
+                    .to_builder()
+                    .dimensions(new_width, new_height)
+                    .rebuild(&mut self.emoji_cache);
+            },
+        }
         self.last_draw = LastDrawInfo::default();
 
         // invalidate any previous cache position data
         for glyphed in self.calculate_glyph_cache.values_mut() {
-            glyphed.invalidate_texture_positions();
+            glyphed.invalidate_texture_positions(types);
         }
     }
 
     /// Returns the logical texture cache pixel dimensions `(width, height)`.
-    pub fn texture_dimensions(&self) -> (u32, u32) {
-        self.texture_cache.dimensions()
+    pub fn texture_dimensions(&self, types: GlyphType) -> (u32, u32) {
+        match types {
+            GlyphType::Outline => {
+                self.outline_cache.dimensions()
+            },
+            GlyphType::Emoji => {
+                self.emoji_cache.dimensions()
+            }
+        }
     }
 
     fn cleanup_frame(&mut self) {
@@ -380,7 +401,9 @@ where
         let section = section.into();
         if cfg!(debug_assertions) {
             for text in &section.text {
-                assert!(self.fonts.len() > text.font_id.0, "Invalid font id");
+                for font in &text.fonts_id {
+                    assert!(self.fonts.len() > font.0, "Invalid font id");
+                }
             }
         }
 
@@ -432,20 +455,25 @@ where
     /// # fn update_texture(_: Rectangle<u32>, _: &[u8]) {}
     /// # fn into_vertex(v: glyph_brush::GlyphVertex) { () }
     /// glyph_brush.process_queued(
-    ///     |rect, tex_data| update_texture(rect, tex_data),
+    ///     context,
+    ///     |rect, tex_data, context| update_texture(rect, tex_data),
+    ///     |rect, tex_data, context| update_emoji_texture(rect, tex_data),
     ///     |vertex_data| into_vertex(vertex_data),
     /// )?
     /// # ;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn process_queued<Up, VF>(
+    pub fn process_queued<Up, Up2, VF, C>(
         &mut self,
-        update_texture: Up,
+        context: &mut C,
+        update_outline_texture: Up,
+        update_emoji_texture: Up2,
         to_vertex: VF,
     ) -> Result<BrushAction<V>, BrushError>
     where
-        Up: FnMut(Rectangle<u32>, &[u8]),
+        Up: FnMut(Rectangle<u32>, &[<OutlinedGlyph as GlyphKind>::Element], &mut C),
+        Up2: FnMut(Rectangle<u32>, &[<ImageGlyph as GlyphKind>::Element], &mut C),
         VF: Fn(GlyphVertex<X>) -> V + Copy,
     {
         let draw_info = LastDrawInfo {
@@ -471,7 +499,9 @@ where
                     .iter()
                     .flat_map(|gs| &gs.positioned.glyphs)
                 {
-                    self.texture_cache
+                    self.outline_cache
+                        .queue_glyph(sg.font_id.0, sg.glyph.clone());
+                    self.emoji_cache
                         .queue_glyph(sg.font_id.0, sg.glyph.clone());
                     some_text = true;
                 }
@@ -482,23 +512,41 @@ where
                 .iter()
                 .flat_map(|p| &p.positioned.glyphs)
             {
-                self.texture_cache
+                self.outline_cache
+                    .queue_glyph(sg.font_id.0, sg.glyph.clone());
+                self.emoji_cache
                     .queue_glyph(sg.font_id.0, sg.glyph.clone());
                 some_text = true;
             }
 
             if some_text {
-                match self.texture_cache.cache_queued(&self.fonts, update_texture) {
+                match self.outline_cache.cache_queued(&self.fonts, context, update_outline_texture) {
                     Ok(CachedBy::Adding) => {}
                     Ok(CachedBy::Reordering) => {
                         for glyphed in self.calculate_glyph_cache.values_mut() {
-                            glyphed.invalidate_texture_positions();
+                            glyphed.invalidate_texture_positions(GlyphType::Outline);
                         }
                     }
                     Err(_) => {
-                        let (width, height) = self.texture_cache.dimensions();
+                        let (width, height) = self.outline_cache.dimensions();
                         return Err(BrushError::TextureTooSmall {
                             suggested: (width * 2, height * 2),
+                            types: GlyphType::Outline,
+                        });
+                    }
+                }
+                match self.emoji_cache.cache_queued(&self.fonts, context, update_emoji_texture) {
+                    Ok(CachedBy::Adding) => {}
+                    Ok(CachedBy::Reordering) => {
+                        for glyphed in self.calculate_glyph_cache.values_mut() {
+                            glyphed.invalidate_texture_positions(GlyphType::Emoji);
+                        }
+                    }
+                    Err(_) => {
+                        let (width, height) = self.emoji_cache.dimensions();
+                        return Err(BrushError::TextureTooSmall {
+                            suggested: (width * 2, height * 2),
+                            types: GlyphType::Emoji,
                         });
                     }
                 }
@@ -506,24 +554,30 @@ where
 
             self.last_draw = draw_info;
 
-            BrushAction::Draw({
-                let mut verts = Vec::new();
+            let mut outline_verts = Vec::new();
+            let mut emoji_verts = Vec::new();
 
-                for hash in &self.section_buffer {
-                    let glyphed = self.calculate_glyph_cache.get_mut(hash).unwrap();
-                    glyphed.ensure_vertices(&self.texture_cache, to_vertex);
-                    verts.extend(glyphed.vertices.iter().cloned());
-                }
+            for hash in &self.section_buffer {
+                let glyphed = self.calculate_glyph_cache.get_mut(hash).unwrap();
 
-                for glyphed in &mut self.pre_positioned {
-                    // pre-positioned glyph vertices can't be cached so
-                    // generate & move straight into draw vec
-                    glyphed.ensure_vertices(&self.texture_cache, to_vertex);
-                    verts.append(&mut glyphed.vertices);
-                }
+                glyphed.ensure_vertices(&self.outline_cache, to_vertex, GlyphType::Outline);
+                glyphed.ensure_vertices(&self.emoji_cache, to_vertex, GlyphType::Emoji);
 
-                verts
-            })
+                outline_verts.extend(glyphed.outline_vertices.iter().cloned());
+                emoji_verts.extend(glyphed.emoji_vertices.iter().cloned());
+            }
+
+            for glyphed in &mut self.pre_positioned {
+                // pre-positioned glyph vertices can't be cached so
+                // generate & move straight into draw vec
+                glyphed.ensure_vertices(&self.outline_cache, to_vertex, GlyphType::Outline);
+                glyphed.ensure_vertices(&self.emoji_cache, to_vertex, GlyphType::Emoji);
+
+                outline_verts.append(&mut glyphed.outline_vertices);
+                emoji_verts.append(&mut glyphed.emoji_vertices);
+            }
+
+            BrushAction::Draw(outline_verts, emoji_verts)
         } else {
             BrushAction::ReDraw
         };
@@ -538,7 +592,7 @@ where
     /// processed yet.
     #[inline]
     pub fn is_draw_cached(&self, font_id: FontId, glyph: &Glyph) -> bool {
-        self.texture_cache.rect_for(font_id.0, glyph).is_some()
+        self.outline_cache.rect_for(font_id.0, glyph).is_some() || self.emoji_cache.rect_for(font_id.0, glyph).is_some()
     }
 }
 
@@ -557,14 +611,15 @@ impl<F: Font + Clone, V, X, H: BuildHasher + Clone> GlyphBrush<V, X, F, H> {
     ///     .build();
     ///
     /// let new_brush: GlyphBrush<Vertex> = glyph_brush.to_builder().build();
-    /// assert_eq!(new_brush.texture_dimensions(), (128, 128));
+    /// assert_eq!(new_brush.texture_dimensions(GlyphType::Outline), (128, 128));
     /// ```
     pub fn to_builder(&self) -> GlyphBrushBuilder<F, H> {
         let mut builder = GlyphBrushBuilder::using_fonts(self.fonts.clone())
             .cache_glyph_positioning(self.cache_glyph_positioning)
             .cache_redraws(self.cache_redraws)
             .section_hasher(self.section_hasher.clone());
-        builder.draw_cache_builder = self.texture_cache.to_builder();
+        builder.outline_draw_cache_builder = self.outline_cache.to_builder();
+        builder.emoji_draw_cache_builder = self.emoji_cache.to_builder();
         builder
     }
 }
@@ -587,9 +642,23 @@ pub struct GlyphVertex<'x, X = Extra> {
 #[derive(Debug)]
 pub enum BrushAction<V> {
     /// Draw new/changed vertex data.
-    Draw(Vec<V>),
+    Draw(Vec<V>, Vec<V>),
     /// Re-draw last frame's vertices unmodified.
     ReDraw,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GlyphType {
+    Outline,
+    Emoji,
+}
+impl fmt::Display for GlyphType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Outline => write!(f, "Outline"),
+            Self::Emoji => write!(f, "Emoji"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -597,19 +666,27 @@ pub enum BrushError {
     /// Texture is too small to cache queued glyphs
     ///
     /// A larger suggested size is included.
-    TextureTooSmall { suggested: (u32, u32) },
+    TextureTooSmall {
+        types: GlyphType,
+        suggested: (u32, u32),
+    },
 }
 impl fmt::Display for BrushError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::TextureTooSmall { .. } => write!(f, "TextureTooSmall"),
+            Self::TextureTooSmall { types, .. } => write!(f, "{}TextureTooSmall", types),
         }
     }
 }
 impl std::error::Error for BrushError {
     fn description(&self) -> &str {
         match self {
-            BrushError::TextureTooSmall { .. } => "Texture is too small to cache queued glyphs",
+            BrushError::TextureTooSmall { types, .. } => {
+                match types {
+                    GlyphType::Outline => "Outline Texture is too small to cache queued glyphs",
+                    GlyphType::Emoji => "Emoji Texture is too small to cache queued glyphs",
+                }
+            }
         }
     }
 }
@@ -667,7 +744,8 @@ impl SectionHashDetail {
 /// Container for positioned glyphs which can generate and cache vertices
 struct Glyphed<V, X> {
     positioned: GlyphedSection<X>,
-    vertices: Vec<V>,
+    outline_vertices: Vec<V>,
+    emoji_vertices: Vec<V>,
 }
 
 impl<V, X: PartialEq> PartialEq for Glyphed<V, X> {
@@ -682,21 +760,35 @@ impl<V, X> Glyphed<V, X> {
     fn new(gs: GlyphedSection<X>) -> Self {
         Self {
             positioned: gs,
-            vertices: Vec::new(),
+            outline_vertices: Vec::new(),
+            emoji_vertices: Vec::new(),
         }
     }
 
     /// Mark previous texture positions as no longer valid (vertices require re-generation)
-    fn invalidate_texture_positions(&mut self) {
-        self.vertices.clear();
+    fn invalidate_texture_positions(&mut self, types: GlyphType) {
+        match types {
+            GlyphType::Outline => { self.outline_vertices.clear(); }
+            GlyphType::Emoji => { self.emoji_vertices.clear(); }
+        }
+
     }
 
-    /// Calculate vertices if not already done
-    fn ensure_vertices<F>(&mut self, texture_cache: &DrawCache, to_vertex: F)
+    /// Calculate outline vertices if not already done
+    fn ensure_vertices<F, K: GlyphKind + Send>(&mut self, texture_cache: &DrawCache<K>, to_vertex: F, types: GlyphType)
     where
         F: Fn(GlyphVertex<X>) -> V,
     {
-        if !self.vertices.is_empty() {
+        let mut vertices = match types {
+            GlyphType::Outline => {
+                &mut self.outline_vertices
+            },
+            GlyphType::Emoji => {
+                &mut self.emoji_vertices
+            },
+        };
+
+        if !vertices.is_empty() {
             return;
         }
 
@@ -706,8 +798,8 @@ impl<V, X> Glyphed<V, X> {
             ref glyphs,
         } = self.positioned;
 
-        self.vertices.reserve(glyphs.len());
-        self.vertices.extend(glyphs.iter().filter_map(|sg| {
+        vertices.reserve(glyphs.len());
+        vertices.extend(glyphs.iter().filter_map(|sg| {
             match texture_cache.rect_for(sg.font_id.0, &sg.glyph) {
                 None => None,
                 Some((tex_coords, pixel_coords)) => {
@@ -722,7 +814,7 @@ impl<V, X> Glyphed<V, X> {
                         Some(to_vertex(GlyphVertex {
                             tex_coords,
                             pixel_coords,
-                            bounds,
+                            bounds: bounds.clone(),
                             extra: &extra[sg.section_index],
                         }))
                     }
@@ -742,7 +834,7 @@ mod hash_diff_test {
                 Text {
                     text: "Hello, ",
                     scale: PxScale::from(20.0),
-                    font_id: FontId(0),
+                    fonts_id: vec![FontId(0)],
                     extra: Extra {
                         color: [1.0, 0.9, 0.8, 0.7],
                         z: 0.444,
@@ -751,7 +843,7 @@ mod hash_diff_test {
                 Text {
                     text: "World",
                     scale: PxScale::from(22.0),
-                    font_id: FontId(1),
+                    fonts_id: vec![FontId(1)],
                     extra: Extra {
                         color: [0.6, 0.5, 0.4, 0.3],
                         z: 0.444,
@@ -833,7 +925,7 @@ mod glyph_brush_test {
 
         let section = Section::default()
             .add_text(Text::new("a "))
-            .add_text(Text::new("b ").with_font_id(FontId(1)));
+            .add_text(Text::new("b ").with_fonts_id(vec![FontId(1)]));
 
         brush.queue(&section);
         let glyphs: Vec<_> = brush.glyphs(section).map(|sg| sg.glyph.clone()).collect();
@@ -847,7 +939,7 @@ mod glyph_brush_test {
         assert!(!brush.is_draw_cached(FontId(1), &glyphs[3]));
         assert!(!brush.is_draw_cached(FontId(0), &unqueued_glyph));
 
-        brush.process_queued(|_, _| {}, |_| ()).unwrap();
+        brush.process_queued(&mut (), |_, _, _| {}, |_, _, _| {}, |_| ()).unwrap();
 
         // visible glyphs that were queued have now been cached.
         assert!(brush.is_draw_cached(FontId(0), &glyphs[0]));

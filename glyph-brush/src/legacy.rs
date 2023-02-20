@@ -3,7 +3,7 @@ use ab_glyph::PxScale;
 use ordered_float::OrderedFloat;
 use std::{borrow::Cow, f32, hash::*};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SectionText<'a> {
     /// Text to render
     pub text: &'a str,
@@ -16,7 +16,7 @@ pub struct SectionText<'a> {
     /// It must be known to the `GlyphBrush` it is being used with,
     /// either `FontId::default()` or the return of
     /// [`add_font`](struct.GlyphBrushBuilder.html#method.add_font).
-    pub font_id: FontId,
+    pub fonts_id: Vec<FontId>,
 }
 
 impl Default for SectionText<'static> {
@@ -26,7 +26,7 @@ impl Default for SectionText<'static> {
             text: "",
             scale: PxScale::from(16.0),
             color: [0.0, 0.0, 0.0, 1.0],
-            font_id: <_>::default(),
+            fonts_id: Vec::default(),
         }
     }
 }
@@ -38,7 +38,7 @@ impl<'a> SectionText<'a> {
         crate::Text::new(self.text)
             .with_scale(self.scale)
             .with_color(self.color)
-            .with_font_id(self.font_id)
+            .with_fonts_id(self.fonts_id.clone())
             .with_z(z)
     }
 }
@@ -50,7 +50,7 @@ impl<'a> From<&crate::Text<'a>> for SectionText<'a> {
             text: t.text,
             scale: t.scale,
             color: t.extra.color,
-            font_id: t.font_id,
+            fonts_id: t.fonts_id.clone(),
         }
     }
 }
@@ -189,7 +189,7 @@ fn hash_section_text<H: Hasher>(state: &mut H, text: &[SectionText]) {
             text,
             scale,
             color,
-            font_id,
+            ref fonts_id,
         } = *t;
 
         let ord_floats: &[OrderedFloat<_>] = &[
@@ -201,7 +201,7 @@ fn hash_section_text<H: Hasher>(state: &mut H, text: &[SectionText]) {
             color[3].into(),
         ];
 
-        (text, font_id, ord_floats).hash(state);
+        (text, fonts_id, ord_floats).hash(state);
     }
 }
 
@@ -258,7 +258,7 @@ impl<'a> From<VariedSection<'a>> for crate::Section<'a> {
 ///     ..Section::default()
 /// };
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Section<'a> {
     /// Text to render
     pub text: &'a str,
@@ -280,7 +280,7 @@ pub struct Section<'a> {
     /// It must be known to the `GlyphBrush` it is being used with,
     /// either `FontId::default()` or the return of
     /// [`add_font`](struct.GlyphBrushBuilder.html#method.add_font).
-    pub font_id: FontId,
+    pub fonts_id: Vec<FontId>,
 }
 
 impl Default for Section<'static> {
@@ -294,7 +294,7 @@ impl Default for Section<'static> {
             color: [0.0, 0.0, 0.0, 1.0],
             z: 0.0,
             layout: Layout::default(),
-            font_id: FontId::default(),
+            fonts_id: Vec::default(),
         }
     }
 }
@@ -309,7 +309,7 @@ impl<'a> From<&Section<'a>> for VariedSection<'a> {
             bounds,
             z,
             layout,
-            font_id,
+            ref fonts_id,
         } = *s;
 
         VariedSection {
@@ -317,7 +317,7 @@ impl<'a> From<&Section<'a>> for VariedSection<'a> {
                 text,
                 scale,
                 color,
-                font_id,
+                fonts_id: fonts_id.to_vec(),
             }],
             screen_position,
             bounds,
@@ -355,7 +355,7 @@ impl<'a> From<&Section<'a>> for crate::Section<'a> {
             bounds,
             z,
             layout,
-            font_id,
+            ref fonts_id,
         } = *s;
 
         crate::Section::default()
@@ -364,7 +364,7 @@ impl<'a> From<&Section<'a>> for crate::Section<'a> {
                     .with_scale(scale)
                     .with_color(color)
                     .with_z(z)
-                    .with_font_id(font_id),
+                    .with_fonts_id(fonts_id.to_vec()),
             )
             .with_screen_position(screen_position)
             .with_bounds(bounds)
@@ -469,7 +469,7 @@ pub struct OwnedSectionText {
     /// It must be known to the `GlyphBrush` it is being used with,
     /// either `FontId::default()` or the return of
     /// [`add_font`](struct.GlyphBrushBuilder.html#method.add_font).
-    pub font_id: FontId,
+    pub fonts_id: Vec<FontId>,
 }
 
 impl Default for OwnedSectionText {
@@ -478,7 +478,7 @@ impl Default for OwnedSectionText {
             text: String::new(),
             scale: PxScale::from(16.0),
             color: [0.0, 0.0, 0.0, 1.0],
-            font_id: FontId::default(),
+            fonts_id: Vec::default(),
         }
     }
 }
@@ -489,7 +489,7 @@ impl<'a> From<&'a OwnedSectionText> for SectionText<'a> {
             text: owned.text.as_str(),
             scale: owned.scale,
             color: owned.color,
-            font_id: owned.font_id,
+            fonts_id: owned.fonts_id.clone(),
         }
     }
 }
@@ -500,7 +500,7 @@ impl From<&SectionText<'_>> for OwnedSectionText {
             text: st.text.into(),
             scale: st.scale,
             color: st.color,
-            font_id: st.font_id,
+            fonts_id: st.fonts_id.clone(),
         }
     }
 }
