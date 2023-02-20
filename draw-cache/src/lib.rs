@@ -217,7 +217,7 @@ impl<K: GlyphKind> Default for DrawCacheBuilder<K> {
             position_tolerance: 0.1,
             pad_glyphs: true,
             align_4x4: false,
-            multithread: true,
+            multithread: K::MULTI_THREAD,
             _maker: PhantomData,
         }
     }
@@ -584,7 +584,12 @@ impl<K: GlyphKind + Send> DrawCache<K> {
     /// Returns glyph info with accuracy according to the set tolerances.
     fn lossy_info_for(&self, font_id: usize, glyph: &Glyph) -> LossyGlyphInfo {
         let scale = glyph.scale;
-        let offset = normalised_offset_from_position(glyph.position);
+
+        let offset = if K::SUBPIXEL_ENABLE {
+            normalised_offset_from_position(glyph.position)
+        } else {
+            Point::default()
+        };
 
         LossyGlyphInfo {
             font_id,
@@ -1082,14 +1087,10 @@ fn draw_glyph(tex_coords: Rectangle<u32>, glyph: &OutlinedGlyph, pad_glyphs: boo
     pixels
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DrawFormat {
-    R8,
-    Rgba8,
-}
 
 pub trait GlyphKind {
-    const DRAW_FORMAT: DrawFormat;
+    const SUBPIXEL_ENABLE: bool;
+    const MULTI_THREAD: bool;
     type Element: Default + Send + Clone + Copy;
 
     #[inline]
@@ -1115,7 +1116,8 @@ pub struct ImageGlyph {
 }
 
 impl GlyphKind for ImageGlyph {
-    const DRAW_FORMAT: DrawFormat = DrawFormat::Rgba8;
+    const SUBPIXEL_ENABLE: bool = false;
+    const MULTI_THREAD: bool = false;
     type Element = u32;
 
     fn px_bounds(&self) -> Rect {
@@ -1207,7 +1209,8 @@ impl ImageGlyph {
 }
 
 impl GlyphKind for OutlinedGlyph {
-    const DRAW_FORMAT: DrawFormat = DrawFormat::R8;
+    const SUBPIXEL_ENABLE: bool = true;
+    const MULTI_THREAD: bool = true;
     type Element = u8;
 
     fn px_bounds(&self) -> Rect {
