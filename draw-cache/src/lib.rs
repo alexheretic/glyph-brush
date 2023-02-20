@@ -217,7 +217,7 @@ impl<K: GlyphKind> Default for DrawCacheBuilder<K> {
             position_tolerance: 0.1,
             pad_glyphs: true,
             align_4x4: false,
-            multithread: K::MULTI_THREAD,
+            multithread: true,
             _maker: PhantomData,
         }
     }
@@ -1090,7 +1090,6 @@ fn draw_glyph(tex_coords: Rectangle<u32>, glyph: &OutlinedGlyph, pad_glyphs: boo
 
 pub trait GlyphKind {
     const SUBPIXEL_ENABLE: bool;
-    const MULTI_THREAD: bool;
     type Element: Default + Send + Clone + Copy;
 
     #[inline]
@@ -1117,7 +1116,6 @@ pub struct ImageGlyph {
 
 impl GlyphKind for ImageGlyph {
     const SUBPIXEL_ENABLE: bool = false;
-    const MULTI_THREAD: bool = false;
     type Element = u32;
 
     fn px_bounds(&self) -> Rect {
@@ -1210,7 +1208,6 @@ impl ImageGlyph {
 
 impl GlyphKind for OutlinedGlyph {
     const SUBPIXEL_ENABLE: bool = true;
-    const MULTI_THREAD: bool = true;
     type Element = u8;
 
     fn px_bounds(&self) -> Rect {

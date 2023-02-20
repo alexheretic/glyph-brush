@@ -51,6 +51,7 @@ impl GlyphBrushBuilder<()> {
                 .dimensions(256, 256)
                 .scale_tolerance(0.5)
                 .position_tolerance(0.1)
+                .multithread(false)
                 .align_4x4(false),
         }
     }
