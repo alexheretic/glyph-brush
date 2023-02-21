@@ -1,7 +1,10 @@
+mod builder;
+
 use super::{owned_section::*, *};
 use ordered_float::OrderedFloat;
 use std::{borrow::Cow, f32, hash::*};
 
+pub use builder::SectionBuilder;
 pub type Color = [f32; 4];
 
 /// An object that contains all the info to render a varied section of text. That is one including
@@ -40,7 +43,8 @@ impl<X: Clone> Section<'_, X> {
     }
 }
 
-impl<X> Default for Section<'static, X> {
+impl Default for Section<'static, Extra> {
+    /// Note this only works for `X=Extra` for more flexible use see [`Section::builder`].
     #[inline]
     fn default() -> Self {
         Section::new()
@@ -50,12 +54,14 @@ impl<X> Default for Section<'static, X> {
 impl<'a, X> Section<'a, X> {
     #[inline]
     pub fn new() -> Self {
-        Self {
-            screen_position: (0.0, 0.0),
-            bounds: (f32::INFINITY, f32::INFINITY),
-            layout: Layout::default(),
-            text: vec![],
-        }
+        Section::builder().with_text(vec![])
+    }
+}
+
+impl Section<'_, ()> {
+    #[inline]
+    pub fn builder() -> SectionBuilder {
+        <_>::default()
     }
 }
 

@@ -831,8 +831,7 @@ mod glyph_brush_test {
         let font_b = FontRef::try_from_slice(include_bytes!("../../fonts/Exo2-Light.otf")).unwrap();
         let unqueued_glyph = font_a.glyph_id('c').with_scale(50.0);
 
-        let mut brush: GlyphBrush<_, (), _> =
-            GlyphBrushBuilder::using_fonts(vec![font_a, font_b]).build();
+        let mut brush = GlyphBrushBuilder::using_fonts(vec![font_a, font_b]).build();
 
         let section = Section::default()
             .add_text(Text::new("a "))
