@@ -209,6 +209,12 @@ impl<'a> Text<'a, Extra> {
     }
 
     #[inline]
+    pub fn with_outline_color<C: Into<Color>>(mut self, color: C) -> Self {
+        self.extra.outline_color = color.into();
+        self
+    }
+
+    #[inline]
     pub fn with_z<Z: Into<f32>>(mut self, z: Z) -> Self {
         self.extra.z = z.into();
         self
