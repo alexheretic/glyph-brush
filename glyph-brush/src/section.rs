@@ -59,9 +59,24 @@ impl<'a, X> Section<'a, X> {
 }
 
 impl Section<'_, ()> {
+    /// Return a `SectionBuilder` to fluently build up a `Section`.
     #[inline]
     pub fn builder() -> SectionBuilder {
         <_>::default()
+    }
+}
+
+impl<'a, X> From<Text<'a, X>> for Section<'a, X> {
+    #[inline]
+    fn from(text: Text<'a, X>) -> Self {
+        Section::builder().add_text(text)
+    }
+}
+
+impl<'a, X> From<Vec<Text<'a, X>>> for Section<'a, X> {
+    #[inline]
+    fn from(text: Vec<Text<'a, X>>) -> Self {
+        Section::builder().with_text(text)
     }
 }
 

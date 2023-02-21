@@ -2,6 +2,8 @@ use crate::{Section, Text};
 use glyph_brush_layout::{BuiltInLineBreaker, Layout};
 
 /// [`Section`] builder.
+///
+/// Usage can avoid generic `X` type issues as it's not mentioned until text is involved.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SectionBuilder {
     /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
