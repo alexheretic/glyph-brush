@@ -40,7 +40,7 @@ impl<X: Clone> Section<'_, X> {
     }
 }
 
-impl Default for Section<'static, Extra> {
+impl<X> Default for Section<'static, X> {
     #[inline]
     fn default() -> Self {
         Section::new()
@@ -196,12 +196,14 @@ impl<'a, X> Text<'a, X> {
     }
 }
 
-impl<'a> Text<'a, Extra> {
+impl<'a, X: Default> Text<'a, X> {
     #[inline]
     pub fn new(text: &'a str) -> Self {
         Text::default().with_text(text)
     }
+}
 
+impl<'a> Text<'a, Extra> {
     #[inline]
     pub fn with_color<C: Into<Color>>(mut self, color: C) -> Self {
         self.extra.color = color.into();

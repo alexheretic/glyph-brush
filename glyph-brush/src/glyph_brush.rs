@@ -371,8 +371,9 @@ where
     /// Should not generally be necessary, see [caching behaviour](#caching-behaviour).
     pub fn keep_cached_custom_layout<'a, S, G>(&mut self, section: S, custom_layout: &G)
     where
-        S: Into<Cow<'a, Section<'a>>>,
+        S: Into<Cow<'a, Section<'a, X>>>,
         G: GlyphPositioner,
+        X: 'a,
     {
         if !self.cache_glyph_positioning {
             return;
@@ -393,7 +394,8 @@ where
     /// Should not generally be necessary, see [caching behaviour](#caching-behaviour).
     pub fn keep_cached<'a, S>(&mut self, section: S)
     where
-        S: Into<Cow<'a, Section<'a>>>,
+        S: Into<Cow<'a, Section<'a, X>>>,
+        X: 'a,
     {
         let section = section.into();
         let layout = section.layout;
