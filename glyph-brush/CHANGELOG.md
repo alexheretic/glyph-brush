@@ -1,4 +1,8 @@
 # Unreleased (v0.7.7)
+* Allow `Text::new` to work with any `X` type. **This may break usage**, however it will hopefully be non-breaking in practice as the compiler should always be able to infer this.
+* Add `Section::builder` for more flexible `X`/"extra" type usage than `Section::default`.
+* Add more flexible `X` type usage to `GlyphBrush::keep_cached`.
+* Add `Section::from(text)` & `Section::from(vec![text])` conversions.
 * Update `GlyphCruncher::glyphs`, `GlyphCruncher::glyph_bounds` docs.
 
 # v0.7.6

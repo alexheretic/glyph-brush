@@ -354,7 +354,7 @@ impl<F: Font, H: BuildHasher> GlyphCalculatorBuilder<F, H> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct GlyphedSection<X = Extra> {
+pub(crate) struct GlyphedSection<X> {
     pub bounds: Rect,
     pub glyphs: Vec<SectionGlyph>,
     pub extra: Vec<X>,

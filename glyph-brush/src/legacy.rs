@@ -229,7 +229,7 @@ impl From<&VariedSection<'_>> for SectionGeometry {
 impl<'a> From<&VariedSection<'a>> for crate::Section<'a> {
     #[inline]
     fn from(s: &VariedSection<'a>) -> Self {
-        crate::Section::default()
+        crate::Section::builder()
             .with_layout(s.layout)
             .with_bounds(s.bounds)
             .with_screen_position(s.screen_position)

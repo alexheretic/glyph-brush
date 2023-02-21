@@ -1,7 +1,10 @@
+mod builder;
+
 use super::{owned_section::*, *};
 use ordered_float::OrderedFloat;
 use std::{borrow::Cow, f32, hash::*};
 
+pub use builder::SectionBuilder;
 pub type Color = [f32; 4];
 
 /// An object that contains all the info to render a varied section of text. That is one including
@@ -41,6 +44,7 @@ impl<X: Clone> Section<'_, X> {
 }
 
 impl Default for Section<'static, Extra> {
+    /// Note this only works for `X=Extra` for more flexible use see [`Section::builder`].
     #[inline]
     fn default() -> Self {
         Section::new()
@@ -50,12 +54,29 @@ impl Default for Section<'static, Extra> {
 impl<'a, X> Section<'a, X> {
     #[inline]
     pub fn new() -> Self {
-        Self {
-            screen_position: (0.0, 0.0),
-            bounds: (f32::INFINITY, f32::INFINITY),
-            layout: Layout::default(),
-            text: vec![],
-        }
+        Section::builder().with_text(vec![])
+    }
+}
+
+impl Section<'_, ()> {
+    /// Return a `SectionBuilder` to fluently build up a `Section`.
+    #[inline]
+    pub fn builder() -> SectionBuilder {
+        <_>::default()
+    }
+}
+
+impl<'a, X> From<Text<'a, X>> for Section<'a, X> {
+    #[inline]
+    fn from(text: Text<'a, X>) -> Self {
+        Section::builder().add_text(text)
+    }
+}
+
+impl<'a, X> From<Vec<Text<'a, X>>> for Section<'a, X> {
+    #[inline]
+    fn from(text: Vec<Text<'a, X>>) -> Self {
+        Section::builder().with_text(text)
     }
 }
 
@@ -196,12 +217,14 @@ impl<'a, X> Text<'a, X> {
     }
 }
 
-impl<'a> Text<'a, Extra> {
+impl<'a, X: Default> Text<'a, X> {
     #[inline]
     pub fn new(text: &'a str) -> Self {
         Text::default().with_text(text)
     }
+}
 
+impl<'a> Text<'a, Extra> {
     #[inline]
     pub fn with_color<C: Into<Color>>(mut self, color: C) -> Self {
         self.extra.color = color.into();
