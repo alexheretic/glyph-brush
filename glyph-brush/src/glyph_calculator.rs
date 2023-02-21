@@ -106,7 +106,7 @@ pub trait GlyphCruncher<F: Font = FontArc, X: Clone = Extra> {
 /// use glyph_brush::{ab_glyph::FontArc, GlyphCalculatorBuilder, GlyphCruncher, Section, Text};
 ///
 /// let dejavu = FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf")).unwrap();
-/// let glyphs = GlyphCalculatorBuilder::using_font(dejavu).build();
+/// let glyphs = GlyphCalculatorBuilder::using_font(dejavu).build::<()>();
 ///
 /// let section = Section::default().add_text(Text::new("Hello glyph_brush"));
 ///
@@ -354,7 +354,7 @@ impl<F: Font, H: BuildHasher> GlyphCalculatorBuilder<F, H> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct GlyphedSection<X = Extra> {
+pub(crate) struct GlyphedSection<X> {
     pub bounds: Rect,
     pub glyphs: Vec<SectionGlyph>,
     pub extra: Vec<X>,
@@ -383,7 +383,7 @@ mod test {
 
     #[test]
     fn glyph_bounds() {
-        let glyphs = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build();
+        let glyphs = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build::<Extra>();
         let mut glyphs = glyphs.cache_scope();
 
         let scale = PxScale::from(16.0);
@@ -411,7 +411,7 @@ mod test {
 
     #[test]
     fn glyph_bounds_respect_layout_bounds() {
-        let glyphs = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build();
+        let glyphs = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build::<Extra>();
         let mut glyphs = glyphs.cache_scope();
 
         let section = Section::default()
@@ -481,7 +481,7 @@ mod test {
     /// Issue #87
     #[test]
     fn glyph_bound_section_bound_consistency() {
-        let calc = GlyphCalculatorBuilder::using_font(OPEN_SANS_LIGHT.clone()).build();
+        let calc = GlyphCalculatorBuilder::using_font(OPEN_SANS_LIGHT.clone()).build::<()>();
         let mut calc = calc.cache_scope();
 
         let section =
@@ -506,7 +506,7 @@ mod test {
     /// Issue #87
     #[test]
     fn glyph_bound_section_bound_consistency_trailing_space() {
-        let calc = GlyphCalculatorBuilder::using_font(OPEN_SANS_LIGHT.clone()).build();
+        let calc = GlyphCalculatorBuilder::using_font(OPEN_SANS_LIGHT.clone()).build::<()>();
         let mut calc = calc.cache_scope();
 
         let section =
@@ -532,7 +532,7 @@ mod test {
     /// error between the calculated glyph_bounds bounds & those used during layout.
     #[test]
     fn glyph_bound_section_bound_consistency_floating_point() {
-        let calc = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build();
+        let calc = GlyphCalculatorBuilder::using_font(MONO_FONT.clone()).build::<()>();
         let mut calc = calc.cache_scope();
 
         let section = Section::default().add_text(Text::new("Eins Zwei Drei Vier Funf"));
