@@ -1,4 +1,4 @@
-use crate::{Section, Text};
+use crate::{OwnedSection, OwnedText, Section, Text};
 use glyph_brush_layout::{BuiltInLineBreaker, Layout};
 
 /// [`Section`] builder.
@@ -52,6 +52,21 @@ impl SectionBuilder {
     #[inline]
     pub fn with_text<X>(self, text: Vec<Text<'_, X>>) -> Section<'_, X> {
         Section {
+            text,
+            screen_position: self.screen_position,
+            bounds: self.bounds,
+            layout: self.layout,
+        }
+    }
+
+    #[inline]
+    pub fn add_owned_text<X>(self, text: OwnedText<X>) -> OwnedSection<X> {
+        self.with_owned_text(vec![text])
+    }
+
+    #[inline]
+    pub fn with_owned_text<X>(self, text: Vec<OwnedText<X>>) -> OwnedSection<X> {
+        OwnedSection {
             text,
             screen_position: self.screen_position,
             bounds: self.bounds,

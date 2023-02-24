@@ -1,6 +1,7 @@
-use crate::Color;
 use ordered_float::OrderedFloat;
 use std::hash::{Hash, Hasher};
+
+pub type Color = [f32; 4];
 
 /// Default `extra` field type. Non-layout data for vertex generation.
 #[derive(Debug, Clone, Copy)]

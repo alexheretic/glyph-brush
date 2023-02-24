@@ -1,4 +1,4 @@
-use super::*;
+use crate::*;
 use std::{borrow::Cow, f32};
 
 #[derive(Debug, Clone, PartialEq)]

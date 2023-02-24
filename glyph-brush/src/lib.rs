@@ -33,12 +33,11 @@
 mod extra;
 mod glyph_brush;
 mod glyph_calculator;
-mod owned_section;
 mod section;
 
 pub mod legacy;
 
-pub use crate::{extra::*, glyph_brush::*, glyph_calculator::*, owned_section::*, section::*};
+pub use crate::{extra::*, glyph_brush::*, glyph_calculator::*, section::*};
 pub use glyph_brush_draw_cache::Rectangle;
 pub use glyph_brush_layout::*;
 
