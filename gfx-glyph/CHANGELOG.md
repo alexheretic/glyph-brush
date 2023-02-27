@@ -1,3 +1,6 @@
+# Unreleased (0.17.2)
+* Up minimum _gfx_ version to `0.18.3`.
+
 # 0.17.1
 * Specify `#[repr(C)]` for vertex structs.
 

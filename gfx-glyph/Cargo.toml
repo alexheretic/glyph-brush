@@ -11,7 +11,7 @@ readme = "README.md"
 
 [dependencies]
 backtrace = "0.3"
-gfx = "0.18"
+gfx = "0.18.3"
 gfx_core = "0.9"
 glyph_brush = { version = "0.7", path = "../glyph-brush" }
 log = "0.4"

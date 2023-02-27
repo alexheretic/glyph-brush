@@ -51,7 +51,6 @@ impl<R: Resources> DataBind<R> for RawDepthTarget {
 }
 
 gfx_defines! {
-    #[repr(C)]
     vertex GlyphVertex {
         /// screen position
         left_top: [f32; 3] = "left_top",
