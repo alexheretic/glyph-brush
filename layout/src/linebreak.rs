@@ -32,21 +32,15 @@ pub trait LineBreaker: fmt::Debug + Copy + Hash {
 }
 
 /// Built-in linebreaking logic.
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum BuiltInLineBreaker {
     /// LineBreaker that follows Unicode Standard Annex #14. That effectively means it
     /// wraps words in a way that should work for most cases.
+    #[default]
     UnicodeLineBreaker,
     /// LineBreaker that soft breaks on any character, and hard breaks similarly to
     /// UnicodeLineBreaker.
     AnyCharLineBreaker,
-}
-
-impl Default for BuiltInLineBreaker {
-    #[inline]
-    fn default() -> Self {
-        BuiltInLineBreaker::UnicodeLineBreaker
-    }
 }
 
 // Iterator that indicates all characters are soft line breaks, except hard ones which are hard.

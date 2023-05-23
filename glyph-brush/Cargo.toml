@@ -23,7 +23,7 @@ features = ["std"]
 
 [dev-dependencies]
 approx = "0.5"
-criterion = "0.4"
+criterion = "0.5"
 env_logger = { version = "0.10", default-features = false }
 gl = "0.14"
 glutin = "0.30.3"
