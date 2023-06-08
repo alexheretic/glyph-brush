@@ -1,3 +1,6 @@
+# Unreleased (0.2.4)
+* Fix `SectionText::scale` docs.
+
 # 0.2.3
 * Default layouts: Keep word trailing space width if ending in a hard break or end of all glyphs _e.g. `"Foo  \n"`_ _(This particularly changes the layout of right & centre aligned text ending in spaces)_. 
 

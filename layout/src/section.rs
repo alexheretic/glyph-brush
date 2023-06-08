@@ -25,7 +25,7 @@ impl Default for SectionGeometry {
 pub struct SectionText<'a> {
     /// Text to render
     pub text: &'a str,
-    /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
+    /// Pixel scale of text. Defaults to 16.
     pub scale: PxScale,
     /// Font id to use for this section.
     ///

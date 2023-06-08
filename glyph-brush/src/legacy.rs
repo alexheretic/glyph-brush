@@ -7,7 +7,7 @@ use std::{borrow::Cow, f32, hash::*};
 pub struct SectionText<'a> {
     /// Text to render
     pub text: &'a str,
-    /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
+    /// Pixel scale of text. Defaults to 16.
     pub scale: PxScale,
     /// Rgba color of rendered text. Defaults to black.
     pub color: Color,
@@ -266,7 +266,7 @@ pub struct Section<'a> {
     pub screen_position: (f32, f32),
     /// Max (width, height) bounds, in pixels from top-left. Defaults to unbounded.
     pub bounds: (f32, f32),
-    /// Font scale. Defaults to 16
+    /// Pixel scale of text. Defaults to 16.
     pub scale: PxScale,
     /// Rgba color of rendered text. Defaults to black.
     pub color: [f32; 4],
@@ -460,7 +460,7 @@ impl<'a> From<&'a OwnedVariedSection> for Cow<'a, crate::Section<'a>> {
 pub struct OwnedSectionText {
     /// Text to render
     pub text: String,
-    /// Position on screen to render text, in pixels from top-left. Defaults to (0, 0).
+    /// Pixel scale of text. Defaults to 16.
     pub scale: PxScale,
     /// Rgba color of rendered text. Defaults to black.
     pub color: [f32; 4],
