@@ -4,7 +4,9 @@ use core::ops;
 /// Both field are in `[offset from left, offset from top]` format.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Rectangle<N> {
+    /// Min `[x, y]`.
     pub min: [N; 2],
+    /// Max `[x, y]`.
     pub max: [N; 2],
 }
 
