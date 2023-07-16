@@ -1,6 +1,7 @@
 use core::ops;
 
 /// A rectangle, with top-left corner at min, and bottom-right corner at max.
+/// Both field are in `[offset from left, offset from top]` format.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Rectangle<N> {
     pub min: [N; 2],
