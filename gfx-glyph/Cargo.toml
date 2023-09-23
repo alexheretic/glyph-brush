@@ -2,7 +2,7 @@
 name = "gfx_glyph"
 version = "0.17.1"
 authors = ["Alex Butler <alexheretic@gmail.com>"]
-edition = "2018"
+edition = "2021"
 description = "Fast GPU cached text rendering using gfx-rs & ab_glyph"
 repository = "https://github.com/alexheretic/glyph-brush"
 keywords = ["font", "ttf", "truetype", "gfx", "text"]

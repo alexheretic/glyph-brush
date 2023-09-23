@@ -2,7 +2,7 @@
 name = "glyph_brush"
 version = "0.7.7"
 authors = ["Alex Butler <alexheretic@gmail.com>"]
-edition = "2018"
+edition = "2021"
 description = "Fast cached text render library using ab_glyph"
 repository = "https://github.com/alexheretic/glyph-brush"
 keywords = ["font", "ttf", "truetype", "text"]
