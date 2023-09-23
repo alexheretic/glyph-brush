@@ -16,4 +16,4 @@ xi-unicode = "0.3"
 
 [dev-dependencies]
 once_cell = "1"
-ordered-float = "3"
+ordered-float = "4"

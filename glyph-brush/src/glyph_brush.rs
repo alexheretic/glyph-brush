@@ -274,7 +274,7 @@ where
                             match change {
                                 None => Some(old.positioned.glyphs),
                                 Some(change) => Some(layout.recalculate_glyphs(
-                                    old.positioned.glyphs.into_iter(),
+                                    old.positioned.glyphs,
                                     change,
                                     &self.fonts,
                                     &geometry,
@@ -800,7 +800,7 @@ mod hash_diff_test {
             &section.layout,
         ));
 
-        assert!(matches!(diff, None));
+        assert!(diff.is_none());
     }
 
     #[test]
