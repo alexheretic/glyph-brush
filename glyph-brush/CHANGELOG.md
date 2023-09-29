@@ -1,4 +1,4 @@
-# Unreleased (v0.7.8)
+# v0.7.8
 * Update _ordered-float_ to `4`.
 
 # v0.7.7
