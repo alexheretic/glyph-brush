@@ -612,7 +612,7 @@ mod layout_test {
             }],
         );
 
-        assert_glyph_order!(glyphs, "hello ");
+        assert_glyph_order!(glyphs, "hello");
         assert_relative_eq!(glyphs[0].glyph.position.x, 0.0);
         let last_glyph = &glyphs.last().unwrap().glyph;
         assert!(
@@ -634,7 +634,7 @@ mod layout_test {
             }],
         );
 
-        assert_glyph_order!(glyphs, "hello what's ");
+        assert_glyph_order!(glyphs, "hello what's");
         assert_relative_eq!(glyphs[0].glyph.position.x, 0.0);
         let last_glyph = &glyphs.last().unwrap().glyph;
         assert!(
@@ -834,7 +834,7 @@ mod layout_test {
             ],
         );
 
-        assert_glyph_order!(glyphs, "The moonlight");
+        assert_glyph_order!(glyphs, "Themoonlight");
 
         let y_ords: HashSet<OrderedFloat<f32>> = glyphs
             .iter()
@@ -1056,5 +1056,59 @@ mod layout_test {
             space_f.glyph.position.x,
             no_space_f.glyph.position.x,
         );
+    }
+
+    /// #167 - don't generate oob right-align spaces.
+    ///
+    /// Previously soft-wrapping spaces were ignored for layout but still preserved.
+    /// E.g. "foo    b r"
+    /// ```text
+    /// foo|___
+    /// b_r|
+    /// ```
+    ///
+    /// Now
+    /// ```text
+    /// foo|
+    /// b_r|
+    /// ```
+    #[test]
+    fn right_aligned_spaces() {
+        const TEXT: &str = "foo   b r";
+        const GLYPH_W: f32 = 8.275167;
+
+        let glyphs = Layout::default()
+            .h_align(HorizontalAlign::Right)
+            .calculate_glyphs(
+                &*FONT_MAP,
+                &SectionGeometry {
+                    screen_position: (0.0, 0.0),
+                    bounds: (GLYPH_W * 3.0, f32::MAX), // force soft-breaking
+                },
+                &[SectionText {
+                    text: TEXT,
+                    ..<_>::default()
+                }],
+            );
+
+        assert_eq!(glyphs.len(), 6);
+        // the trailing spaces that are ignored by layout are omitted
+        assert_glyph_order!(glyphs, "foob r");
+
+        const LINE_1_H: f32 = 12.758389;
+        assert_relative_eq!(glyphs[0].glyph.position.x, -GLYPH_W * 3.0);
+        assert_relative_eq!(glyphs[0].glyph.position.y, LINE_1_H);
+        assert_relative_eq!(glyphs[1].glyph.position.x, -GLYPH_W * 2.0);
+        assert_relative_eq!(glyphs[1].glyph.position.y, LINE_1_H);
+        assert_relative_eq!(glyphs[2].glyph.position.x, -GLYPH_W);
+        assert_relative_eq!(glyphs[2].glyph.position.y, LINE_1_H);
+
+        const LINE_2_H: f32 = 28.758389;
+        assert_relative_eq!(glyphs[3].glyph.position.x, -GLYPH_W * 3.0);
+        assert_relative_eq!(glyphs[3].glyph.position.y, LINE_2_H);
+        assert_relative_eq!(glyphs[4].glyph.position.x, -GLYPH_W * 2.0);
+        assert_relative_eq!(glyphs[4].glyph.position.y, LINE_2_H);
+        assert_relative_eq!(glyphs[5].glyph.position.x, -GLYPH_W);
+        assert_relative_eq!(glyphs[5].glyph.position.y, LINE_2_H);
     }
 }

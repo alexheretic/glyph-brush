@@ -17,6 +17,17 @@ impl Line {
         self.max_v_metrics.ascent - self.max_v_metrics.descent + self.max_v_metrics.line_gap
     }
 
+    /// Remove glyphs past the `rightmost` point, ie whitespace.
+    pub(crate) fn remove_trailing_glyphs(&mut self) {
+        for idx in (0..self.glyphs.len()).rev() {
+            if self.glyphs[idx].glyph.position.x >= self.rightmost {
+                self.glyphs.pop();
+            } else {
+                break;
+            }
+        }
+    }
+
     /// Returns line glyphs positioned on the screen and aligned.
     pub fn aligned_on_screen(
         mut self,
@@ -111,6 +122,8 @@ where
 
             // only if `progressed` means the first word is allowed to overlap the bounds
             if !word_in_bounds && progressed {
+                // remove trailing whitespace oob glyphs
+                line.remove_trailing_glyphs();
                 break;
             }
 

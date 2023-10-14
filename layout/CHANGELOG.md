@@ -1,4 +1,6 @@
 # Unreleased (0.2.4)
+* Default layouts: Whitespace `SectionGlyph`s ignored for purposes of positioning are now also omitted entirely
+  from `GlyphPositioner::calculate_glyphs`.
 * Fix `SectionText::scale` docs.
 
 # 0.2.3
