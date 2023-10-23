@@ -19,7 +19,7 @@
 use gl::types::*;
 use glutin::{
     display::GetGlDisplay,
-    prelude::{GlConfig, GlDisplay, NotCurrentGlContextSurfaceAccessor},
+    prelude::{GlConfig, GlDisplay, NotCurrentGlContext},
     surface::GlSurface,
 };
 use glutin_winit::GlWindow;
@@ -32,8 +32,9 @@ use std::{
     mem, ptr, str,
 };
 use winit::{
-    event::{ElementState, Event, KeyboardInput, MouseScrollDelta, VirtualKeyCode, WindowEvent},
+    event::{ElementState, Event, KeyEvent, MouseScrollDelta, WindowEvent},
     event_loop::ControlFlow,
+    keyboard::{Key, NamedKey},
 };
 
 const TITLE: &str = "glyph_brush opengl example - scroll to size, type to modify";
@@ -58,7 +59,8 @@ fn main() -> Res<()> {
         env::set_var("vblank_mode", "0");
     }
 
-    let events = winit::event_loop::EventLoop::new();
+    let events = winit::event_loop::EventLoop::new()?;
+    events.set_control_flow(ControlFlow::Poll);
 
     let (window, gl_config) = glutin_winit::DisplayBuilder::new()
         .with_window_builder(Some(
@@ -116,32 +118,30 @@ fn main() -> Res<()> {
     let mut vertex_count = 0;
     let mut vertex_max = vertex_count;
 
-    events.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Poll;
-
+    events.run(move |event, elwt| {
         match event {
+            Event::AboutToWait => window.request_redraw(),
             Event::WindowEvent { event, .. } => match event {
-                WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                WindowEvent::CloseRequested => elwt.exit(),
                 WindowEvent::KeyboardInput {
-                    input:
-                        KeyboardInput {
+                    event:
+                        KeyEvent {
+                            logical_key,
                             state: ElementState::Pressed,
-                            virtual_keycode: Some(keypress),
                             ..
                         },
                     ..
-                } => match keypress {
-                    VirtualKeyCode::Escape => *control_flow = ControlFlow::Exit,
-                    VirtualKeyCode::Back => {
+                } => match logical_key {
+                    Key::Named(NamedKey::Escape) => elwt.exit(),
+                    Key::Named(NamedKey::Backspace) => {
                         text.pop();
                     }
-                    _ => (),
-                },
-                WindowEvent::ReceivedCharacter(c) => {
-                    if c != '\u{7f}' && c != '\u{8}' {
-                        text.push(c);
+                    key => {
+                        if let Some(str) = key.to_text() {
+                            text.push_str(str);
+                        }
                     }
-                }
+                },
                 WindowEvent::MouseWheel {
                     delta: MouseScrollDelta::LineDelta(_, y),
                     ..
@@ -161,125 +161,126 @@ fn main() -> Res<()> {
                         let _ = io::stderr().flush();
                     }
                 }
-                _ => (),
-            },
-            Event::MainEventsCleared => {
-                // handle window size changes
-                let window_size = window.inner_size();
-                if dimensions != window_size {
-                    dimensions = window_size;
-                    window.resize_surface(&gl_surface, &gl_ctx);
-                    unsafe {
-                        gl::Viewport(0, 0, dimensions.width as _, dimensions.height as _);
+                WindowEvent::RedrawRequested => {
+                    // handle window size changes
+                    let window_size = window.inner_size();
+                    if dimensions != window_size {
+                        dimensions = window_size;
+                        window.resize_surface(&gl_surface, &gl_ctx);
+                        unsafe {
+                            gl::Viewport(0, 0, dimensions.width as _, dimensions.height as _);
+                        }
+                        text_pipe.update_geometry(window_size);
                     }
-                    text_pipe.update_geometry(window_size);
-                }
 
-                let width = dimensions.width as f32;
-                let height = dimensions.height as _;
-                let scale = (font_size * window.scale_factor() as f32).round();
-                let base_text = Text::new(&text).with_scale(scale);
+                    let width = dimensions.width as f32;
+                    let height = dimensions.height as _;
+                    let scale = (font_size * window.scale_factor() as f32).round();
+                    let base_text = Text::new(&text).with_scale(scale);
 
-                // Queue up all sections of text to be drawn
-                glyph_brush.queue(
-                    Section::default()
-                        .add_text(base_text.with_color([0.9, 0.3, 0.3, 1.0]))
-                        .with_bounds((width / 3.15, height)),
-                );
-
-                glyph_brush.queue(
-                    Section::default()
-                        .add_text(base_text.with_color([0.3, 0.9, 0.3, 1.0]))
-                        .with_screen_position((width / 2.0, height / 2.0))
-                        .with_bounds((width / 3.15, height))
-                        .with_layout(
-                            Layout::default()
-                                .h_align(HorizontalAlign::Center)
-                                .v_align(VerticalAlign::Center),
-                        ),
-                );
-
-                glyph_brush.queue(
-                    Section::default()
-                        .add_text(base_text.with_color([0.3, 0.3, 0.9, 1.0]))
-                        .with_screen_position((width, height))
-                        .with_bounds((width / 3.15, height))
-                        .with_layout(
-                            Layout::default()
-                                .h_align(HorizontalAlign::Right)
-                                .v_align(VerticalAlign::Bottom),
-                        ),
-                );
-
-                // Tell glyph_brush to process the queued text
-                let mut brush_action;
-                loop {
-                    brush_action = glyph_brush.process_queued(
-                        |rect, tex_data| unsafe {
-                            // Update part of gpu texture with new glyph alpha values
-                            gl::BindTexture(gl::TEXTURE_2D, texture.name);
-                            gl::TexSubImage2D(
-                                gl::TEXTURE_2D,
-                                0,
-                                rect.min[0] as _,
-                                rect.min[1] as _,
-                                rect.width() as _,
-                                rect.height() as _,
-                                gl::RED,
-                                gl::UNSIGNED_BYTE,
-                                tex_data.as_ptr() as _,
-                            );
-                            gl_assert_ok!();
-                        },
-                        to_vertex,
+                    // Queue up all sections of text to be drawn
+                    glyph_brush.queue(
+                        Section::default()
+                            .add_text(base_text.with_color([0.9, 0.3, 0.3, 1.0]))
+                            .with_bounds((width / 3.15, height)),
                     );
 
-                    // If the cache texture is too small to fit all the glyphs, resize and try again
-                    match brush_action {
-                        Ok(_) => break,
-                        Err(BrushError::TextureTooSmall { suggested, .. }) => {
-                            let (new_width, new_height) = if (suggested.0 > max_image_dimension
-                                || suggested.1 > max_image_dimension)
-                                && (glyph_brush.texture_dimensions().0 < max_image_dimension
-                                    || glyph_brush.texture_dimensions().1 < max_image_dimension)
-                            {
-                                (max_image_dimension, max_image_dimension)
-                            } else {
-                                suggested
-                            };
-                            eprint!("\r                            \r");
-                            eprintln!("Resizing glyph texture -> {new_width}x{new_height}");
+                    glyph_brush.queue(
+                        Section::default()
+                            .add_text(base_text.with_color([0.3, 0.9, 0.3, 1.0]))
+                            .with_screen_position((width / 2.0, height / 2.0))
+                            .with_bounds((width / 3.15, height))
+                            .with_layout(
+                                Layout::default()
+                                    .h_align(HorizontalAlign::Center)
+                                    .v_align(VerticalAlign::Center),
+                            ),
+                    );
 
-                            // Recreate texture as a larger size to fit more
-                            texture = GlGlyphTexture::new((new_width, new_height));
+                    glyph_brush.queue(
+                        Section::default()
+                            .add_text(base_text.with_color([0.3, 0.3, 0.9, 1.0]))
+                            .with_screen_position((width, height))
+                            .with_bounds((width / 3.15, height))
+                            .with_layout(
+                                Layout::default()
+                                    .h_align(HorizontalAlign::Right)
+                                    .v_align(VerticalAlign::Bottom),
+                            ),
+                    );
 
-                            glyph_brush.resize_texture(new_width, new_height);
+                    // Tell glyph_brush to process the queued text
+                    let mut brush_action;
+                    loop {
+                        brush_action = glyph_brush.process_queued(
+                            |rect, tex_data| unsafe {
+                                // Update part of gpu texture with new glyph alpha values
+                                gl::BindTexture(gl::TEXTURE_2D, texture.name);
+                                gl::TexSubImage2D(
+                                    gl::TEXTURE_2D,
+                                    0,
+                                    rect.min[0] as _,
+                                    rect.min[1] as _,
+                                    rect.width() as _,
+                                    rect.height() as _,
+                                    gl::RED,
+                                    gl::UNSIGNED_BYTE,
+                                    tex_data.as_ptr() as _,
+                                );
+                                gl_assert_ok!();
+                            },
+                            to_vertex,
+                        );
+
+                        // If the cache texture is too small to fit all the glyphs, resize and try again
+                        match brush_action {
+                            Ok(_) => break,
+                            Err(BrushError::TextureTooSmall { suggested, .. }) => {
+                                let (new_width, new_height) = if (suggested.0 > max_image_dimension
+                                    || suggested.1 > max_image_dimension)
+                                    && (glyph_brush.texture_dimensions().0 < max_image_dimension
+                                        || glyph_brush.texture_dimensions().1 < max_image_dimension)
+                                {
+                                    (max_image_dimension, max_image_dimension)
+                                } else {
+                                    suggested
+                                };
+                                eprint!("\r                            \r");
+                                eprintln!("Resizing glyph texture -> {new_width}x{new_height}");
+
+                                // Recreate texture as a larger size to fit more
+                                texture = GlGlyphTexture::new((new_width, new_height));
+
+                                glyph_brush.resize_texture(new_width, new_height);
+                            }
                         }
                     }
-                }
-                // If the text has changed from what was last drawn, upload the new vertices to GPU
-                match brush_action.unwrap() {
-                    BrushAction::Draw(vertices) => text_pipe.upload_vertices(&vertices),
-                    BrushAction::ReDraw => {}
-                }
+                    // If the text has changed from what was last drawn, upload the new vertices to GPU
+                    match brush_action.unwrap() {
+                        BrushAction::Draw(vertices) => text_pipe.upload_vertices(&vertices),
+                        BrushAction::ReDraw => {}
+                    }
 
-                // Draw the text to the screen
-                unsafe {
-                    gl::Clear(gl::COLOR_BUFFER_BIT);
-                }
-                text_pipe.draw();
+                    // Draw the text to the screen
+                    unsafe {
+                        gl::Clear(gl::COLOR_BUFFER_BIT);
+                    }
+                    text_pipe.draw();
 
-                gl_surface.swap_buffers(&gl_ctx).unwrap();
+                    gl_surface.swap_buffers(&gl_ctx).unwrap();
 
-                if let Some(rate) = loop_helper.report_rate() {
-                    window.set_title(&format!("{TITLE} {rate:.0} FPS"));
+                    if let Some(rate) = loop_helper.report_rate() {
+                        window.set_title(&format!("{TITLE} {rate:.0} FPS"));
+                    }
+                    loop_helper.loop_sleep();
+                    loop_helper.loop_start();
                 }
-                loop_helper.loop_sleep();
-                loop_helper.loop_start();
-            }
+                _ => (),
+            },
             _ => (),
         }
-    });
+    })?;
+    Ok(())
 }
 
 pub fn gl_err_to_str(err: u32) -> &'static str {

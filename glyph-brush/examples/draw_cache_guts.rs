@@ -5,7 +5,7 @@ use approx::relative_eq;
 use gl::types::*;
 use glutin::{
     display::GetGlDisplay,
-    prelude::{GlConfig, GlDisplay, NotCurrentGlContextSurfaceAccessor},
+    prelude::{GlConfig, GlDisplay, NotCurrentGlContext},
     surface::GlSurface,
 };
 use glutin_winit::GlWindow;
@@ -14,8 +14,9 @@ use opengl::{GlGlyphTexture, GlTextPipe, Res, Vertex};
 use raw_window_handle::HasRawWindowHandle;
 use std::{env, ffi::CString, mem};
 use winit::{
-    event::{ElementState, Event, KeyboardInput, MouseScrollDelta, VirtualKeyCode, WindowEvent},
+    event::{ElementState, Event, KeyEvent, MouseScrollDelta, WindowEvent},
     event_loop::ControlFlow,
+    keyboard::{Key, NamedKey},
 };
 
 /// `[left_top * 3, right_bottom * 2]`
@@ -36,7 +37,8 @@ fn main() -> Res<()> {
         env::set_var("vblank_mode", "0");
     }
 
-    let events = winit::event_loop::EventLoop::new();
+    let events = winit::event_loop::EventLoop::new()?;
+    events.set_control_flow(ControlFlow::Poll);
 
     let (window, gl_config) = glutin_winit::DisplayBuilder::new()
         .with_window_builder(Some(
@@ -119,33 +121,32 @@ fn main() -> Res<()> {
     let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(250.0);
     let mut fps = 0.0;
     let mut title = String::new();
-    let mut mods = winit::event::ModifiersState::default();
+    let mut mods = winit::event::Modifiers::default();
 
-    events.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Poll;
-
+    events.run(move |event, elwt| {
         match event {
+            Event::AboutToWait => window.request_redraw(),
             Event::WindowEvent { event, .. } => match event {
-                WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                WindowEvent::CloseRequested => elwt.exit(),
                 WindowEvent::KeyboardInput {
-                    input:
-                        KeyboardInput {
+                    event:
+                        KeyEvent {
+                            logical_key,
                             state: ElementState::Pressed,
-                            virtual_keycode: Some(keypress),
                             ..
                         },
                     ..
-                } => match keypress {
-                    VirtualKeyCode::Escape => *control_flow = ControlFlow::Exit,
-                    VirtualKeyCode::Back if mods.ctrl() => section.text.clear(),
-                    VirtualKeyCode::Back if !section.text.is_empty() => {
+                } => match logical_key {
+                    Key::Named(NamedKey::Escape) => elwt.exit(),
+                    Key::Named(NamedKey::Backspace) if mods.state().control_key() => section.text.clear(),
+                    Key::Named(NamedKey::Backspace) if !section.text.is_empty() => {
                         let mut end_text = section.text.remove(section.text.len() - 1);
                         end_text.text.pop();
                         if !end_text.text.is_empty() {
                             section.text.push(end_text);
                         }
                     }
-                    VirtualKeyCode::R if mods.ctrl() && mods.shift() => {
+                    Key::Character(r) if r == "R" && mods.state().control_key() && mods.state().shift_key() => {
                         // reset draw cache to 16x16 and let it resize up to the minimum required
                         eprintln!("Resetting draw cache");
                         texture = GlGlyphTexture::new((16, 16));
@@ -153,39 +154,38 @@ fn main() -> Res<()> {
                         glyph_brush.resize_texture(16, 16);
                         draw_cache_guts_pipe.update_geometry(dimensions, (16, 16));
                     }
-                    VirtualKeyCode::R if mods.ctrl() => {
+                    Key::Character(r) if r == "r" && mods.state().control_key() => {
                         // reset draw cache
                         eprintln!("Reordering draw cache - clear texture and reprocess current glyphs");
                         texture.clear();
                         let (tw, th) = glyph_brush.texture_dimensions();
                         glyph_brush.resize_texture(tw, th);
                     }
-                    _ => (),
-                },
-                WindowEvent::ReceivedCharacter(c) => {
-                    if c != '\u{7f}' && c != '\u{8}' {
-                        if section.text.is_empty() {
-                            section.text.push(
-                                OwnedText::default()
-                                    .with_scale(font_size)
-                                    .with_color(text_color),
-                            );
-                        }
-                        if let Some(t) = section
-                            .text
-                            .last_mut()
-                            .filter(|t| relative_eq!(t.scale.y, font_size))
-                        {
-                            t.text.push(c);
-                        } else {
-                            section.text.push(
-                                OwnedText::new(c.to_string())
-                                    .with_scale(font_size)
-                                    .with_color(text_color),
-                            );
+                    key => {
+                        if let Some(str) = key.to_text() {
+                            if section.text.is_empty() {
+                                section.text.push(
+                                    OwnedText::default()
+                                        .with_scale(font_size)
+                                        .with_color(text_color),
+                                );
+                            }
+                            if let Some(t) = section
+                                .text
+                                .last_mut()
+                                .filter(|t| relative_eq!(t.scale.y, font_size))
+                            {
+                                t.text.push_str(str);
+                            } else {
+                                section.text.push(
+                                    OwnedText::new(str)
+                                        .with_scale(font_size)
+                                        .with_color(text_color),
+                                );
+                            }
                         }
                     }
-                }
+                },
                 WindowEvent::ModifiersChanged(newmods) => mods = newmods,
                 WindowEvent::MouseWheel {
                     delta: MouseScrollDelta::LineDelta(_, y),
@@ -200,103 +200,105 @@ fn main() -> Res<()> {
                     };
                     font_size = (size.clamp(3.0, 2000.0) * 2.0).round() / 2.0;
                 }
-                _ => (),
-            },
-            Event::MainEventsCleared => {
-                // handle window size changes
-                let window_size = window.inner_size();
-                if dimensions != window_size {
-                    dimensions = window_size;
-                    window.resize_surface(&gl_surface, &gl_ctx);
-                    unsafe {
-                        gl::Viewport(0, 0, dimensions.width as _, dimensions.height as _);
+                WindowEvent::RedrawRequested => {
+
+                    // handle window size changes
+                    let window_size = window.inner_size();
+                    if dimensions != window_size {
+                        dimensions = window_size;
+                        window.resize_surface(&gl_surface, &gl_ctx);
+                        unsafe {
+                            gl::Viewport(0, 0, dimensions.width as _, dimensions.height as _);
+                        }
+
+                        section.bounds = (window_size.width as f32 * 0.5, window_size.height as _);
+                        section.screen_position.1 =  window_size.height as f32 * 0.5;
+
+                        text_pipe.update_geometry(dimensions);
+                        draw_cache_guts_pipe.update_geometry(dimensions, glyph_brush.texture_dimensions());
                     }
 
-                    section.bounds = (window_size.width as f32 * 0.5, window_size.height as _);
-                    section.screen_position.1 =  window_size.height as f32 * 0.5;
+                    glyph_brush.queue(&section);
 
-                    text_pipe.update_geometry(dimensions);
-                    draw_cache_guts_pipe.update_geometry(dimensions, glyph_brush.texture_dimensions());
-                }
+                    let mut brush_action;
+                    loop {
+                        brush_action = glyph_brush.process_queued(
+                            |rect, tex_data| unsafe {
+                                // Update part of gpu texture with new glyph alpha values
+                                gl::BindTexture(gl::TEXTURE_2D, texture.name);
+                                gl::TexSubImage2D(
+                                    gl::TEXTURE_2D,
+                                    0,
+                                    rect.min[0] as _,
+                                    rect.min[1] as _,
+                                    rect.width() as _,
+                                    rect.height() as _,
+                                    gl::RED,
+                                    gl::UNSIGNED_BYTE,
+                                    tex_data.as_ptr() as _,
+                                );
+                                gl_assert_ok!();
+                            },
+                            opengl::to_vertex,
+                        );
 
-                glyph_brush.queue(&section);
+                        match brush_action {
+                            Ok(_) => break,
+                            Err(BrushError::TextureTooSmall { suggested, .. }) => {
+                                let (new_width, new_height) = if (suggested.0 > max_image_dimension
+                                    || suggested.1 > max_image_dimension)
+                                    && (glyph_brush.texture_dimensions().0 < max_image_dimension
+                                        || glyph_brush.texture_dimensions().1 < max_image_dimension)
+                                {
+                                    (max_image_dimension, max_image_dimension)
+                                } else {
+                                    suggested
+                                };
 
-                let mut brush_action;
-                loop {
-                    brush_action = glyph_brush.process_queued(
-                        |rect, tex_data| unsafe {
-                            // Update part of gpu texture with new glyph alpha values
-                            gl::BindTexture(gl::TEXTURE_2D, texture.name);
-                            gl::TexSubImage2D(
-                                gl::TEXTURE_2D,
-                                0,
-                                rect.min[0] as _,
-                                rect.min[1] as _,
-                                rect.width() as _,
-                                rect.height() as _,
-                                gl::RED,
-                                gl::UNSIGNED_BYTE,
-                                tex_data.as_ptr() as _,
-                            );
-                            gl_assert_ok!();
-                        },
-                        opengl::to_vertex,
-                    );
-
-                    match brush_action {
-                        Ok(_) => break,
-                        Err(BrushError::TextureTooSmall { suggested, .. }) => {
-                            let (new_width, new_height) = if (suggested.0 > max_image_dimension
-                                || suggested.1 > max_image_dimension)
-                                && (glyph_brush.texture_dimensions().0 < max_image_dimension
-                                    || glyph_brush.texture_dimensions().1 < max_image_dimension)
-                            {
-                                (max_image_dimension, max_image_dimension)
-                            } else {
-                                suggested
-                            };
-
-                            // Recreate texture as a larger size to fit more
-                            texture = GlGlyphTexture::new((new_width, new_height));
-                            texture.clear();
-                            glyph_brush.resize_texture(new_width, new_height);
-                            draw_cache_guts_pipe.update_geometry(dimensions, (new_width, new_height));
-                            eprintln!(
-                                "Resizing texture -> {new_width}x{new_height} to fit glyphs");
+                                // Recreate texture as a larger size to fit more
+                                texture = GlGlyphTexture::new((new_width, new_height));
+                                texture.clear();
+                                glyph_brush.resize_texture(new_width, new_height);
+                                draw_cache_guts_pipe.update_geometry(dimensions, (new_width, new_height));
+                                eprintln!(
+                                    "Resizing texture -> {new_width}x{new_height} to fit glyphs");
+                            }
                         }
                     }
-                }
-                match brush_action.unwrap() {
-                    BrushAction::Draw(vertices) => text_pipe.upload_vertices(&vertices),
-                    BrushAction::ReDraw => {}
-                }
+                    match brush_action.unwrap() {
+                        BrushAction::Draw(vertices) => text_pipe.upload_vertices(&vertices),
+                        BrushAction::ReDraw => {}
+                    }
 
-                unsafe {
-                    gl::Clear(gl::COLOR_BUFFER_BIT);
+                    unsafe {
+                        gl::Clear(gl::COLOR_BUFFER_BIT);
+                    }
+                    text_pipe.draw();
+                    draw_cache_guts_pipe.draw();
+
+                    gl_surface.swap_buffers(&gl_ctx).unwrap();
+
+                    if let Some(rate) = loop_helper.report_rate() {
+                        fps = rate;
+                    }
+
+                    let (tw, th) = glyph_brush.texture_dimensions();
+                    let new_title =
+                        format!("draw cache example - typing size {font_size}, cache size {tw}x{th}, {fps:.0} FPS");
+                    if new_title != title {
+                        title = new_title;
+                        window.set_title(&title);
+                    }
+
+                    loop_helper.loop_sleep();
+                    loop_helper.loop_start();
                 }
-                text_pipe.draw();
-                draw_cache_guts_pipe.draw();
-
-                gl_surface.swap_buffers(&gl_ctx).unwrap();
-
-                if let Some(rate) = loop_helper.report_rate() {
-                    fps = rate;
-                }
-
-                let (tw, th) = glyph_brush.texture_dimensions();
-                let new_title =
-                    format!("draw cache example - typing size {font_size}, cache size {tw}x{th}, {fps:.0} FPS");
-                if new_title != title {
-                    title = new_title;
-                    window.set_title(&title);
-                }
-
-                loop_helper.loop_sleep();
-                loop_helper.loop_start();
-            }
+                _ => (),
+            },
             _ => (),
         }
-    });
+    })?;
+    Ok(())
 }
 
 pub struct GlDrawCacheGutsPipe {

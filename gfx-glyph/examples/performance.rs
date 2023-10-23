@@ -10,8 +10,9 @@ use glutin_winit::GlWindow;
 use init::init_example;
 use std::{env, error::Error};
 use winit::{
-    event::{ElementState, Event, KeyboardInput, MouseScrollDelta, VirtualKeyCode, WindowEvent},
+    event::{ElementState, Event, KeyEvent, MouseScrollDelta, WindowEvent},
     event_loop::ControlFlow,
+    keyboard::{Key, NamedKey},
 };
 
 const MAX_FONT_SIZE: f32 = 4000.0;
@@ -27,7 +28,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
 
-    let event_loop = winit::event_loop::EventLoop::new();
+    let event_loop = winit::event_loop::EventLoop::new()?;
+    event_loop.set_control_flow(ControlFlow::Poll);
     let title = "gfx_glyph rendering 30,000 glyphs - scroll to size, type to modify";
     let window_builder = winit::window::WindowBuilder::new()
         .with_title(title)
@@ -58,36 +60,30 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut loop_helper = spin_sleep::LoopHelper::builder().build_without_target_rate();
     let mut view_size = window.inner_size();
 
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Poll;
-
+    event_loop.run(move |event, elwt| {
         match event {
+            Event::AboutToWait => window.request_redraw(),
             Event::WindowEvent { event, .. } => match event {
+                WindowEvent::CloseRequested => elwt.exit(),
                 WindowEvent::KeyboardInput {
-                    input:
-                        KeyboardInput {
-                            virtual_keycode: Some(VirtualKeyCode::Escape),
-                            ..
-                        },
-                    ..
-                }
-                | WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                WindowEvent::KeyboardInput {
-                    input:
-                        KeyboardInput {
+                    event:
+                        KeyEvent {
+                            logical_key,
                             state: ElementState::Pressed,
-                            virtual_keycode: Some(VirtualKeyCode::Back),
                             ..
                         },
                     ..
-                } => {
-                    text.pop();
-                }
-                WindowEvent::ReceivedCharacter(c) => {
-                    if c != '\u{7f}' && c != '\u{8}' {
-                        text.push(c);
+                } => match logical_key {
+                    Key::Named(NamedKey::Escape) => elwt.exit(),
+                    Key::Named(NamedKey::Backspace) => {
+                        text.pop();
                     }
-                }
+                    key => {
+                        if let Some(str) = key.to_text() {
+                            text.push_str(str);
+                        }
+                    }
+                },
                 WindowEvent::MouseWheel {
                     delta: MouseScrollDelta::LineDelta(_, y),
                     ..
@@ -100,68 +96,69 @@ fn main() -> Result<(), Box<dyn Error>> {
                     };
                     font_size = font_size.clamp(1.0, MAX_FONT_SIZE);
                 }
+                WindowEvent::RedrawRequested => {
+                    // handle resizes
+                    let w_size = window.inner_size();
+                    if view_size != w_size {
+                        window.resize_surface(&gl_surface, &gl_context);
+                        old_school_gfx_glutin_ext::resize_views(
+                            w_size,
+                            &mut color_view,
+                            &mut depth_view,
+                        );
+                        view_size = w_size;
+                    }
+
+                    encoder.clear(&color_view, [0.02, 0.02, 0.02, 1.0]);
+
+                    let (width, height, ..) = color_view.get_dimensions();
+                    let (width, height) = (f32::from(width), f32::from(height));
+                    let scale = PxScale::from(font_size * window.scale_factor() as f32);
+
+                    // The section is all the info needed for the glyph brush to render a 'section' of text.
+                    let section = Section::default()
+                        .add_text(
+                            Text::new(&text)
+                                .with_scale(scale)
+                                .with_color([0.8, 0.8, 0.8, 1.0]),
+                        )
+                        .with_bounds((width, height))
+                        .with_layout(
+                            Layout::default().line_breaker(BuiltInLineBreaker::AnyCharLineBreaker),
+                        );
+
+                    // Adds a section & layout to the queue for the next call to `use_queue().draw(..)`,
+                    // this can be called multiple times for different sections that want to use the
+                    // same font and gpu cache.
+                    // This step computes the glyph positions, this is cached to avoid unnecessary
+                    // recalculation.
+                    glyph_brush.queue(&section);
+
+                    // Finally once per frame you want to actually draw all the sections you've
+                    // submitted with `queue` calls.
+                    //
+                    // Note: Drawing in the case the text is unchanged from the previous frame
+                    // (a common case) is essentially free as the vertices are reused &  gpu cache
+                    // updating interaction can be skipped.
+                    glyph_brush
+                        .use_queue()
+                        .draw(&mut encoder, &color_view)
+                        .unwrap();
+
+                    encoder.flush(&mut device);
+                    gl_surface.swap_buffers(&gl_context).unwrap();
+                    device.cleanup();
+
+                    if let Some(rate) = loop_helper.report_rate() {
+                        window.set_title(&format!("{title} - {rate:.0} FPS"));
+                    }
+
+                    loop_helper.loop_start();
+                }
                 _ => (),
             },
-            Event::MainEventsCleared => {
-                // handle resizes
-                let w_size = window.inner_size();
-                if view_size != w_size {
-                    window.resize_surface(&gl_surface, &gl_context);
-                    old_school_gfx_glutin_ext::resize_views(
-                        w_size,
-                        &mut color_view,
-                        &mut depth_view,
-                    );
-                    view_size = w_size;
-                }
-
-                encoder.clear(&color_view, [0.02, 0.02, 0.02, 1.0]);
-
-                let (width, height, ..) = color_view.get_dimensions();
-                let (width, height) = (f32::from(width), f32::from(height));
-                let scale = PxScale::from(font_size * window.scale_factor() as f32);
-
-                // The section is all the info needed for the glyph brush to render a 'section' of text.
-                let section = Section::default()
-                    .add_text(
-                        Text::new(&text)
-                            .with_scale(scale)
-                            .with_color([0.8, 0.8, 0.8, 1.0]),
-                    )
-                    .with_bounds((width, height))
-                    .with_layout(
-                        Layout::default().line_breaker(BuiltInLineBreaker::AnyCharLineBreaker),
-                    );
-
-                // Adds a section & layout to the queue for the next call to `use_queue().draw(..)`,
-                // this can be called multiple times for different sections that want to use the
-                // same font and gpu cache.
-                // This step computes the glyph positions, this is cached to avoid unnecessary
-                // recalculation.
-                glyph_brush.queue(&section);
-
-                // Finally once per frame you want to actually draw all the sections you've
-                // submitted with `queue` calls.
-                //
-                // Note: Drawing in the case the text is unchanged from the previous frame
-                // (a common case) is essentially free as the vertices are reused &  gpu cache
-                // updating interaction can be skipped.
-                glyph_brush
-                    .use_queue()
-                    .draw(&mut encoder, &color_view)
-                    .unwrap();
-
-                encoder.flush(&mut device);
-                gl_surface.swap_buffers(&gl_context).unwrap();
-                device.cleanup();
-
-                if let Some(rate) = loop_helper.report_rate() {
-                    window.set_title(&format!("{title} - {rate:.0} FPS"));
-                }
-
-                loop_helper.loop_start();
-            }
             _ => (),
         }
-    });
+    })?;
+    Ok(())
 }
