@@ -22,6 +22,6 @@ env_logger = { version = "0.10", default-features = false }
 gfx_device_gl = "0.16"
 glutin = "0.31"
 glutin-winit = "0.4"
-old_school_gfx_glutin_ext = { path = "../../old-school-gfx-glutin-ext" }
+old_school_gfx_glutin_ext = "0.32"
 spin_sleep = "1"
 winit = "0.29"
