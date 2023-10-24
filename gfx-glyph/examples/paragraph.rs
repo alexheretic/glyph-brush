@@ -23,11 +23,9 @@ use std::{
     io::{self, Write},
 };
 use winit::{
-    event::{
-        ElementState, Event, KeyboardInput, ModifiersState, MouseScrollDelta, VirtualKeyCode,
-        WindowEvent,
-    },
+    event::{ElementState, Event, KeyEvent, Modifiers, MouseScrollDelta, WindowEvent},
     event_loop::ControlFlow,
+    keyboard::{Key, NamedKey},
 };
 
 const MAX_FONT_SIZE: f32 = 2000.0;
@@ -35,7 +33,8 @@ const MAX_FONT_SIZE: f32 = 2000.0;
 fn main() -> Result<(), Box<dyn Error>> {
     init_example("paragraph");
 
-    let event_loop = winit::event_loop::EventLoop::new();
+    let event_loop = winit::event_loop::EventLoop::new()?;
+    event_loop.set_control_flow(ControlFlow::Poll);
     let title = "gfx_glyph example - scroll to size, type to modify, ctrl-scroll \
                  to gpu zoom, ctrl-shift-scroll to gpu rotate";
     let window_builder = winit::window::WindowBuilder::new()
@@ -70,45 +69,39 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(250.0);
     let mut view_size = window.inner_size();
 
-    let mut modifiers = ModifiersState::default();
+    let mut modifiers = Modifiers::default();
 
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Poll;
-
+    event_loop.run(move |event, elwt| {
         match event {
+            Event::AboutToWait => window.request_redraw(),
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::ModifiersChanged(new_mods) => modifiers = new_mods,
+                WindowEvent::CloseRequested => elwt.exit(),
                 WindowEvent::KeyboardInput {
-                    input:
-                        KeyboardInput {
-                            virtual_keycode: Some(VirtualKeyCode::Escape),
-                            ..
-                        },
-                    ..
-                }
-                | WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                WindowEvent::KeyboardInput {
-                    input:
-                        KeyboardInput {
+                    event:
+                        KeyEvent {
+                            logical_key,
                             state: ElementState::Pressed,
-                            virtual_keycode: Some(VirtualKeyCode::Back),
                             ..
                         },
                     ..
-                } => {
-                    text.pop();
-                }
-                WindowEvent::ReceivedCharacter(c) => {
-                    if c != '\u{7f}' && c != '\u{8}' {
-                        text.push(c);
+                } => match logical_key {
+                    Key::Named(NamedKey::Escape) => elwt.exit(),
+                    Key::Named(NamedKey::Backspace) => {
+                        text.pop();
                     }
-                }
+                    key => {
+                        if let Some(str) = key.to_text() {
+                            text.push_str(str);
+                        }
+                    }
+                },
                 WindowEvent::MouseWheel {
                     delta: MouseScrollDelta::LineDelta(_, y),
                     ..
                 } => {
-                    let ctrl = modifiers.ctrl();
-                    let shift = modifiers.shift();
+                    let ctrl = modifiers.state().control_key();
+                    let shift = modifiers.state().shift_key();
                     if ctrl && shift {
                         if y > 0.0 {
                             angle += 0.02 * PI32;
@@ -152,117 +145,117 @@ fn main() -> Result<(), Box<dyn Error>> {
                         }
                     }
                 }
+                WindowEvent::RedrawRequested => {
+                    // handle resizes
+                    let w_size = window.inner_size();
+                    if view_size != w_size {
+                        window.resize_surface(&gl_surface, &gl_context);
+                        old_school_gfx_glutin_ext::resize_views(
+                            w_size,
+                            &mut color_view,
+                            &mut depth_view,
+                        );
+                        view_size = w_size;
+                    }
+
+                    encoder.clear(&color_view, [0.02, 0.02, 0.02, 1.0]);
+
+                    let (width, height, ..) = color_view.get_dimensions();
+                    let (width, height) = (f32::from(width), f32::from(height));
+                    let scale = font_size * window.scale_factor() as f32;
+
+                    // The section is all the info needed for the glyph brush to render a 'section' of text.
+                    let section = gfx_glyph::Section::default()
+                        .add_text(
+                            Text::new(&text)
+                                .with_scale(scale)
+                                .with_color([0.9, 0.3, 0.3, 1.0]),
+                        )
+                        .with_bounds((width / 3.15, height));
+
+                    // Adds a section & layout to the queue for the next call to `use_queue().draw(..)`,
+                    // this can be called multiple times for different sections that want to use the
+                    // same font and gpu cache.
+                    // This step computes the glyph positions, this is cached to avoid unnecessary
+                    // recalculation.
+                    glyph_brush.queue(&section);
+
+                    use gfx_glyph::*;
+                    glyph_brush.queue(
+                        Section::default()
+                            .add_text(
+                                Text::new(&text)
+                                    .with_scale(scale)
+                                    .with_color([0.3, 0.9, 0.3, 1.0]),
+                            )
+                            .with_screen_position((width / 2.0, height / 2.0))
+                            .with_bounds((width / 3.15, height))
+                            .with_layout(
+                                Layout::default()
+                                    .h_align(HorizontalAlign::Center)
+                                    .v_align(VerticalAlign::Center),
+                            ),
+                    );
+
+                    glyph_brush.queue(
+                        Section::default()
+                            .add_text(
+                                Text::new(&text)
+                                    .with_scale(scale)
+                                    .with_color([0.3, 0.3, 0.9, 1.0]),
+                            )
+                            .with_screen_position((width, height))
+                            .with_bounds((width / 3.15, height))
+                            .with_layout(
+                                Layout::default()
+                                    .h_align(HorizontalAlign::Right)
+                                    .v_align(VerticalAlign::Bottom),
+                            ),
+                    );
+
+                    // Rotation
+                    let offset =
+                        Matrix4::from_translation(Vector3::new(-width / 2.0, -height / 2.0, 0.0));
+                    let rotation = offset.inverse_transform().unwrap()
+                        * Matrix4::from_angle_z(Rad(angle))
+                        * offset;
+
+                    // Default projection
+                    let projection: Matrix4<f32> = gfx_glyph::default_transform(&color_view).into();
+
+                    // Here an example transform is used as a cheap zoom out (controlled with ctrl-scroll)
+                    let zoom = Matrix4::from_scale(zoom);
+
+                    // Combined transform
+                    let transform = zoom * projection * rotation;
+
+                    // Finally once per frame you want to actually draw all the sections you've submitted
+                    // with `queue` calls.
+                    //
+                    // Note: Drawing in the case the text is unchanged from the previous frame (a common case)
+                    // is essentially free as the vertices are reused & gpu cache updating interaction
+                    // can be skipped.
+                    glyph_brush
+                        .use_queue()
+                        .transform(transform)
+                        .draw(&mut encoder, &color_view)
+                        .unwrap();
+
+                    encoder.flush(&mut device);
+                    gl_surface.swap_buffers(&gl_context).unwrap();
+                    device.cleanup();
+
+                    if let Some(rate) = loop_helper.report_rate() {
+                        window.set_title(&format!("{title} - {rate:.0} FPS"));
+                    }
+
+                    loop_helper.loop_sleep();
+                    loop_helper.loop_start();
+                }
                 _ => (),
             },
-            Event::MainEventsCleared => {
-                // handle resizes
-                let w_size = window.inner_size();
-                if view_size != w_size {
-                    window.resize_surface(&gl_surface, &gl_context);
-                    old_school_gfx_glutin_ext::resize_views(
-                        w_size,
-                        &mut color_view,
-                        &mut depth_view,
-                    );
-                    view_size = w_size;
-                }
-
-                encoder.clear(&color_view, [0.02, 0.02, 0.02, 1.0]);
-
-                let (width, height, ..) = color_view.get_dimensions();
-                let (width, height) = (f32::from(width), f32::from(height));
-                let scale = font_size * window.scale_factor() as f32;
-
-                // The section is all the info needed for the glyph brush to render a 'section' of text.
-                let section = gfx_glyph::Section::default()
-                    .add_text(
-                        Text::new(&text)
-                            .with_scale(scale)
-                            .with_color([0.9, 0.3, 0.3, 1.0]),
-                    )
-                    .with_bounds((width / 3.15, height));
-
-                // Adds a section & layout to the queue for the next call to `use_queue().draw(..)`,
-                // this can be called multiple times for different sections that want to use the
-                // same font and gpu cache.
-                // This step computes the glyph positions, this is cached to avoid unnecessary
-                // recalculation.
-                glyph_brush.queue(&section);
-
-                use gfx_glyph::*;
-                glyph_brush.queue(
-                    Section::default()
-                        .add_text(
-                            Text::new(&text)
-                                .with_scale(scale)
-                                .with_color([0.3, 0.9, 0.3, 1.0]),
-                        )
-                        .with_screen_position((width / 2.0, height / 2.0))
-                        .with_bounds((width / 3.15, height))
-                        .with_layout(
-                            Layout::default()
-                                .h_align(HorizontalAlign::Center)
-                                .v_align(VerticalAlign::Center),
-                        ),
-                );
-
-                glyph_brush.queue(
-                    Section::default()
-                        .add_text(
-                            Text::new(&text)
-                                .with_scale(scale)
-                                .with_color([0.3, 0.3, 0.9, 1.0]),
-                        )
-                        .with_screen_position((width, height))
-                        .with_bounds((width / 3.15, height))
-                        .with_layout(
-                            Layout::default()
-                                .h_align(HorizontalAlign::Right)
-                                .v_align(VerticalAlign::Bottom),
-                        ),
-                );
-
-                // Rotation
-                let offset =
-                    Matrix4::from_translation(Vector3::new(-width / 2.0, -height / 2.0, 0.0));
-                let rotation = offset.inverse_transform().unwrap()
-                    * Matrix4::from_angle_z(Rad(angle))
-                    * offset;
-
-                // Default projection
-                let projection: Matrix4<f32> = gfx_glyph::default_transform(&color_view).into();
-
-                // Here an example transform is used as a cheap zoom out (controlled with ctrl-scroll)
-                let zoom = Matrix4::from_scale(zoom);
-
-                // Combined transform
-                let transform = zoom * projection * rotation;
-
-                // Finally once per frame you want to actually draw all the sections you've submitted
-                // with `queue` calls.
-                //
-                // Note: Drawing in the case the text is unchanged from the previous frame (a common case)
-                // is essentially free as the vertices are reused & gpu cache updating interaction
-                // can be skipped.
-                glyph_brush
-                    .use_queue()
-                    .transform(transform)
-                    .draw(&mut encoder, &color_view)
-                    .unwrap();
-
-                encoder.flush(&mut device);
-                gl_surface.swap_buffers(&gl_context).unwrap();
-                device.cleanup();
-
-                if let Some(rate) = loop_helper.report_rate() {
-                    window.set_title(&format!("{title} - {rate:.0} FPS"));
-                }
-
-                loop_helper.loop_sleep();
-                loop_helper.loop_start();
-            }
-            Event::LoopDestroyed => println!(),
             _ => (),
         }
-    });
+    })?;
+    Ok(())
 }

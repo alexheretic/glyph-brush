@@ -11,14 +11,16 @@ use glutin_winit::GlWindow;
 use init::init_example;
 use std::error::Error;
 use winit::{
-    event::{Event, KeyboardInput, VirtualKeyCode, WindowEvent},
+    event::{Event, KeyEvent, WindowEvent},
     event_loop::ControlFlow,
+    keyboard::{Key, NamedKey},
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
     init_example("pre_positioned");
 
-    let event_loop = winit::event_loop::EventLoop::new();
+    let event_loop = winit::event_loop::EventLoop::new()?;
+    event_loop.set_control_flow(ControlFlow::Poll);
     let title = "gfx_glyph example";
     let window_builder = winit::window::WindowBuilder::new()
         .with_title(title)
@@ -64,63 +66,63 @@ fn main() -> Result<(), Box<dyn Error>> {
         }],
     );
 
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Poll;
-
+    event_loop.run(move |event, elwt| {
         match event {
+            Event::AboutToWait => window.request_redraw(),
             Event::WindowEvent { event, .. } => match event {
-                WindowEvent::KeyboardInput {
-                    input:
-                        KeyboardInput {
-                            virtual_keycode: Some(VirtualKeyCode::Escape),
+                WindowEvent::CloseRequested
+                | WindowEvent::KeyboardInput {
+                    event:
+                        KeyEvent {
+                            logical_key: Key::Named(NamedKey::Escape),
                             ..
                         },
                     ..
+                } => elwt.exit(),
+                WindowEvent::RedrawRequested => {
+                    // handle resizes
+                    let w_size = window.inner_size();
+                    if view_size != w_size {
+                        window.resize_surface(&gl_surface, &gl_context);
+                        old_school_gfx_glutin_ext::resize_views(
+                            w_size,
+                            &mut color_view,
+                            &mut depth_view,
+                        );
+                        view_size = w_size;
+                    }
+
+                    encoder.clear(&color_view, [0.02, 0.02, 0.02, 1.0]);
+
+                    glyph_brush.queue_pre_positioned(
+                        glyphs.clone(),
+                        vec![Extra { color, z: 0.0 }],
+                        Rect {
+                            min: point(0.0, 0.0),
+                            max: point(width, height),
+                        },
+                    );
+
+                    glyph_brush
+                        .use_queue()
+                        .draw(&mut encoder, &color_view)
+                        .unwrap();
+
+                    encoder.flush(&mut device);
+                    gl_surface.swap_buffers(&gl_context).unwrap();
+                    device.cleanup();
+
+                    if let Some(rate) = loop_helper.report_rate() {
+                        window.set_title(&format!("{title} - {rate:.0} FPS"));
+                    }
+
+                    loop_helper.loop_sleep();
+                    loop_helper.loop_start();
                 }
-                | WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                 _ => (),
             },
-            Event::MainEventsCleared => {
-                // handle resizes
-                let w_size = window.inner_size();
-                if view_size != w_size {
-                    window.resize_surface(&gl_surface, &gl_context);
-                    old_school_gfx_glutin_ext::resize_views(
-                        w_size,
-                        &mut color_view,
-                        &mut depth_view,
-                    );
-                    view_size = w_size;
-                }
-
-                encoder.clear(&color_view, [0.02, 0.02, 0.02, 1.0]);
-
-                glyph_brush.queue_pre_positioned(
-                    glyphs.clone(),
-                    vec![Extra { color, z: 0.0 }],
-                    Rect {
-                        min: point(0.0, 0.0),
-                        max: point(width, height),
-                    },
-                );
-
-                glyph_brush
-                    .use_queue()
-                    .draw(&mut encoder, &color_view)
-                    .unwrap();
-
-                encoder.flush(&mut device);
-                gl_surface.swap_buffers(&gl_context).unwrap();
-                device.cleanup();
-
-                if let Some(rate) = loop_helper.report_rate() {
-                    window.set_title(&format!("{title} - {rate:.0} FPS"));
-                }
-
-                loop_helper.loop_sleep();
-                loop_helper.loop_start();
-            }
             _ => (),
         }
-    });
+    })?;
+    Ok(())
 }
