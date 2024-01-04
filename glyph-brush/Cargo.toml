@@ -30,7 +30,7 @@ glutin = "0.31"
 glutin-winit = "0.4"
 once_cell = "1.3"
 raw-window-handle = "0.5"
-spin_sleep = "1"
+spin_sleep_util = "0.1"
 winit = "0.29"
 
 [[bench]]

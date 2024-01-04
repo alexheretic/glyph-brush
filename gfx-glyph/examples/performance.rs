@@ -8,7 +8,7 @@ use gfx_glyph::{ab_glyph::*, *};
 use glutin::surface::GlSurface;
 use glutin_winit::GlWindow;
 use init::init_example;
-use std::{env, error::Error};
+use std::{env, error::Error, time::Duration};
 use winit::{
     event::{ElementState, Event, KeyEvent, MouseScrollDelta, WindowEvent},
     event_loop::ControlFlow,
@@ -57,7 +57,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
 
     let mut font_size: f32 = 25.0;
-    let mut loop_helper = spin_sleep::LoopHelper::builder().build_without_target_rate();
+    let mut interval = spin_sleep_util::interval(Duration::from_secs(1) / 250);
+    let mut reporter = spin_sleep_util::RateReporter::new(Duration::from_secs(1));
     let mut view_size = window.inner_size();
 
     event_loop.run(move |event, elwt| {
@@ -149,11 +150,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                     gl_surface.swap_buffers(&gl_context).unwrap();
                     device.cleanup();
 
-                    if let Some(rate) = loop_helper.report_rate() {
+                    if let Some(rate) = reporter.increment_and_report() {
                         window.set_title(&format!("{title} - {rate:.0} FPS"));
                     }
-
-                    loop_helper.loop_start();
+                    interval.tick();
                 }
                 _ => (),
             },

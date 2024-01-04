@@ -12,7 +12,7 @@ use glutin_winit::GlWindow;
 use glyph_brush::{ab_glyph::*, *};
 use opengl::{GlGlyphTexture, GlTextPipe, Res, Vertex};
 use raw_window_handle::HasRawWindowHandle;
-use std::{env, ffi::CString, mem};
+use std::{env, ffi::CString, mem, time::Duration};
 use winit::{
     event::{ElementState, Event, KeyEvent, MouseScrollDelta, WindowEvent},
     event_loop::ControlFlow,
@@ -118,7 +118,8 @@ fn main() -> Res<()> {
         .with_screen_position((0.0, dimensions.height as f32 * 0.5))
         .to_owned();
 
-    let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(250.0);
+    let mut interval = spin_sleep_util::interval(Duration::from_secs(1) / 250);
+    let mut reporter = spin_sleep_util::RateReporter::new(Duration::from_secs(1));
     let mut fps = 0.0;
     let mut title = String::new();
     let mut mods = winit::event::Modifiers::default();
@@ -278,7 +279,7 @@ fn main() -> Res<()> {
 
                     gl_surface.swap_buffers(&gl_ctx).unwrap();
 
-                    if let Some(rate) = loop_helper.report_rate() {
+                    if let Some(rate) = reporter.increment_and_report() {
                         fps = rate;
                     }
 
@@ -290,8 +291,7 @@ fn main() -> Res<()> {
                         window.set_title(&title);
                     }
 
-                    loop_helper.loop_sleep();
-                    loop_helper.loop_start();
+                    interval.tick();
                 }
                 _ => (),
             },
