@@ -18,7 +18,7 @@ log = "0.4"
 
 [dev-dependencies]
 cgmath = "0.18"
-env_logger = { version = "0.10", default-features = false }
+env_logger = { version = "0.11", default-features = false }
 gfx_device_gl = "0.16"
 glutin = "0.31"
 glutin-winit = "0.4"
