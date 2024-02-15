@@ -63,12 +63,13 @@ impl ToSectionText for &SectionText<'_> {
     }
 }
 
-/// A positioned glyph with info relating to the `SectionText` from which it was derived.
+/// A positioned glyph with info relating to the [`SectionText`] (or glyph_brush `Section::text`)
+/// from which it was derived.
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct SectionGlyph {
-    /// The `SectionText` index.
+    /// The index of the [`SectionText`] source for this glyph.
     pub section_index: usize,
-    /// The character byte index from the `SectionText` text.
+    /// The exact character byte index from the [`SectionText::text`] source for this glyph.
     pub byte_index: usize,
     /// A positioned glyph.
     pub glyph: Glyph,

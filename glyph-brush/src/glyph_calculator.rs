@@ -23,7 +23,8 @@ pub type SectionGlyphIter<'a> = slice::Iter<'a, SectionGlyph>;
 /// let default_font = glyph_brush.fonts()[0];
 /// ```
 pub trait GlyphCruncher<F: Font = FontArc, X: Clone = Extra> {
-    /// Returns an iterator over the `PositionedGlyph`s of the given section with a custom layout.
+    /// Returns an iterator over the positioned [`SectionGlyph`]s of the given section with a
+    /// custom layout.
     ///
     /// Benefits from caching, see [caching behaviour](#caching-behaviour).
     fn glyphs_custom_layout<'a, 'b, S, L>(
@@ -36,9 +37,35 @@ pub trait GlyphCruncher<F: Font = FontArc, X: Clone = Extra> {
         L: GlyphPositioner + Hash,
         S: Into<Cow<'a, Section<'a, X>>>;
 
-    /// Returns an iterator over the `PositionedGlyph`s of the given section.
+    /// Returns an iterator over the positioned [`SectionGlyph`]s of the given section.
     ///
     /// Benefits from caching, see [caching behaviour](#caching-behaviour).
+    ///
+    /// # Example
+    /// Use `section_index` & `byte_index` to lookup the source [`Section::text`] & [`char`] from
+    /// which a positioned glyph was derived.
+    /// ```
+    /// # use glyph_brush::{*, ab_glyph::*};
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let dejavu = FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf"))?;
+    /// # let mut glyph_brush = GlyphBrushBuilder::using_font(dejavu).build::<(), _>();
+    /// # let some_other_section = Section::default();
+    /// let section = Section::default()
+    ///     .add_text(Text::new("it").with_color([0.3, 0.3, 0.9, 1.0]))
+    ///     .add_text(Text::new("s").with_color([0.9, 0.3, 0.3, 1.0]));
+    ///
+    /// for g in glyph_brush.glyphs(&section) {
+    ///     let txt = section.text[g.section_index];
+    ///     let char = txt.text[g.byte_index..].chars().next().unwrap();
+    ///     println!("'{char}' {:?} color={:?}", g.glyph.id, txt.extra.color);
+    /// }
+    /// // prints:
+    /// // 'i' GlyphId(76) color=[0.3, 0.3, 0.9, 1.0]
+    /// // 't' GlyphId(87) color=[0.3, 0.3, 0.9, 1.0]
+    /// // 's' GlyphId(86) color=[0.9, 0.3, 0.3, 1.0]
+    /// # Ok(())
+    /// # }
+    /// ```
     #[inline]
     fn glyphs<'a, 'b, S>(&'b mut self, section: S) -> SectionGlyphIter<'b>
     where

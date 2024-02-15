@@ -1,3 +1,6 @@
+# Unreleased
+* Add `GlyphCruncher::glyphs` doc example of using `section_index` & `byte_index`.
+
 # v0.7.8
 * Update _ordered-float_ to `4`.
 
