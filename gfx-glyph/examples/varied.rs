@@ -153,7 +153,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 },
                             },
                             Text {
-                                text: "Eu facilities maluisset eos.",
+                                text: "Eu facilisi maluisset eos.",
                                 scale: PxScale::from(55.0),
                                 font_id: sans_font,
                                 extra: Extra {
