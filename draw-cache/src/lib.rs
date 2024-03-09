@@ -145,7 +145,7 @@ struct GlyphTexInfo {
     tex_coords: Rectangle<u32>,
     /// Used to calculate the bounds/texture pixel location for a similar glyph.
     ///
-    /// Each ordinate is calculated: `(bounds_ord - positon_ord) / g.scale`
+    /// Each ordinate is calculated: `(bounds_ord - position_ord) / g.scale`
     bounds_minus_position_over_scale: Rect,
 }
 
@@ -990,7 +990,7 @@ impl DrawCache {
     /// glyph that is deemed close enough to the requested glyph as specified by
     /// the cache tolerance parameters.
     ///
-    /// A sucessful result is `Some` if the glyph is not an empty glyph (no
+    /// A successful result is `Some` if the glyph is not an empty glyph (no
     /// shape, and thus no rect to return).
     ///
     /// Ensure that `font_id` matches the `font_id` that was passed to

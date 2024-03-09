@@ -101,7 +101,7 @@ pub fn default_transform<D: IntoDimensions>(d: D) -> [[f32; 4]; 4] {
     ]
 }
 
-/// Object allowing glyph drawing, containing cache state. Manages glyph positioning cacheing,
+/// Object allowing glyph drawing, containing cache state. Manages glyph positioning caching,
 /// glyph draw caching & efficient GPU texture cache updating and re-sizing on demand.
 ///
 /// Build using a [`GlyphBrushBuilder`](struct.GlyphBrushBuilder.html).

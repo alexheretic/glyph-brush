@@ -15,7 +15,7 @@ use std::{
 /// A hash of `Section` data
 type SectionHash = u64;
 
-/// Object allowing glyph drawing, containing cache state. Manages glyph positioning cacheing,
+/// Object allowing glyph drawing, containing cache state. Manages glyph positioning caching,
 /// glyph draw caching & efficient GPU texture cache updating.
 ///
 /// Build using a [`GlyphBrushBuilder`].
@@ -61,11 +61,11 @@ pub struct GlyphBrush<V, X = Extra, F = FontArc, H = DefaultSectionHasher> {
     last_frame_seq_id_sections: Vec<SectionHashDetail>,
     frame_seq_id_sections: Vec<SectionHashDetail>,
 
-    // buffer of section-layout hashs (that must exist in the calculate_glyph_cache)
+    // buffer of section-layout hashes (that must exist in the calculate_glyph_cache)
     // to be used on the next `process_queued` call
     section_buffer: Vec<SectionHash>,
 
-    // Set of section hashs to keep in the glyph cache this frame even if they haven't been drawn
+    // Set of section hashes to keep in the glyph cache this frame even if they haven't been drawn
     keep_in_cache: FxHashSet<SectionHash>,
 
     // config
