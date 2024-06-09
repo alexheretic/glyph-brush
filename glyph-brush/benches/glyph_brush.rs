@@ -277,7 +277,7 @@ fn continually_modify_end_text_of_1_of_3(c: &mut Criterion) {
     let mut brush = GlyphBrushBuilder::using_font(font).build();
     let text = LIPSUM;
 
-    let string_variants = vec![
+    let string_variants = [
         text.to_owned(),
         text.to_owned() + "a",
         text.to_owned() + "ab",
@@ -318,7 +318,7 @@ fn continually_modify_start_text_of_1_of_3(c: &mut Criterion) {
     let mut brush = GlyphBrushBuilder::using_font(font).build();
     let text = LIPSUM;
 
-    let string_variants = vec![
+    let string_variants = [
         text.to_owned(),
         "a".to_owned() + text,
         "ab".to_owned() + text,
@@ -364,7 +364,7 @@ fn continually_modify_middle_text_of_1_of_3(c: &mut Criterion) {
         ci.next().unwrap().0
     };
 
-    let string_variants = vec![
+    let string_variants = [
         text.to_owned(),
         text[..middle_index].to_owned() + "a" + &text[middle_index..],
         text[..middle_index].to_owned() + "ab" + &text[middle_index..],

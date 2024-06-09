@@ -24,7 +24,7 @@ use glutin::{
 };
 use glutin_winit::GlWindow;
 use glyph_brush::{ab_glyph::*, *};
-use raw_window_handle::HasRawWindowHandle;
+use raw_window_handle::HasWindowHandle;
 use std::{
     env,
     ffi::CString,
@@ -64,8 +64,8 @@ fn main() -> Res<()> {
     events.set_control_flow(ControlFlow::Poll);
 
     let (window, gl_config) = glutin_winit::DisplayBuilder::new()
-        .with_window_builder(Some(
-            winit::window::WindowBuilder::new()
+        .with_window_attributes(Some(
+            winit::window::Window::default_attributes()
                 .with_inner_size(winit::dpi::PhysicalSize::new(1024, 576))
                 .with_title(TITLE),
         ))
@@ -76,7 +76,7 @@ fn main() -> Res<()> {
         })?;
 
     let window = window.unwrap(); // set in display builder
-    let raw_window_handle = window.raw_window_handle();
+    let window_handle = window.window_handle()?;
     let gl_display = gl_config.display();
 
     let context_attributes = glutin::context::ContextAttributesBuilder::new()
@@ -84,12 +84,12 @@ fn main() -> Res<()> {
         .with_context_api(glutin::context::ContextApi::OpenGl(Some(
             glutin::context::Version::new(3, 2),
         )))
-        .build(Some(raw_window_handle));
+        .build(Some(window_handle.as_raw()));
 
     let mut dimensions = window.inner_size();
 
     let (gl_surface, gl_ctx) = {
-        let attrs = window.build_surface_attributes(<_>::default());
+        let attrs = window.build_surface_attributes(<_>::default())?;
         let surface = unsafe { gl_display.create_window_surface(&gl_config, &attrs)? };
         let context = unsafe { gl_display.create_context(&gl_config, &context_attributes)? }
             .make_current(&surface)?;

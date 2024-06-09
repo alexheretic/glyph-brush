@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     event_loop.set_control_flow(ControlFlow::Poll);
     let title = "gfx_glyph example - scroll to size, type to modify, ctrl-scroll \
                  to gpu zoom, ctrl-shift-scroll to gpu rotate";
-    let window_builder = winit::window::WindowBuilder::new()
+    let window_attrs = winit::window::Window::default_attributes()
         .with_title(title)
         .with_inner_size(winit::dpi::PhysicalSize::new(1024, 576));
 
@@ -51,7 +51,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         mut color_view,
         mut depth_view,
         ..
-    } = old_school_gfx_glutin_ext::window_builder(&event_loop, window_builder)
+    } = old_school_gfx_glutin_ext::window_builder(&event_loop, window_attrs)
         .build::<Srgba8, Depth>()?;
 
     let font = ab_glyph::FontArc::try_from_slice(include_bytes!("../../fonts/OpenSans-Light.ttf"))?;

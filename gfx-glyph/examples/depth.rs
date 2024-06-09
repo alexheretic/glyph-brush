@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let event_loop = winit::event_loop::EventLoop::new()?;
     event_loop.set_control_flow(ControlFlow::Poll);
     let title = "gfx_glyph example - resize to see multi-text layout";
-    let window_builder = winit::window::WindowBuilder::new()
+    let window_attrs = winit::window::Window::default_attributes()
         .with_title(title)
         .with_inner_size(winit::dpi::PhysicalSize::new(1024, 576));
 
@@ -34,7 +34,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         mut color_view,
         mut depth_view,
         ..
-    } = old_school_gfx_glutin_ext::window_builder(&event_loop, window_builder)
+    } = old_school_gfx_glutin_ext::window_builder(&event_loop, window_attrs)
         .build::<Srgba8, Depth>()?;
 
     let fonts = vec![
