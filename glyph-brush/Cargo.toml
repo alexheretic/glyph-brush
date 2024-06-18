@@ -13,7 +13,7 @@ readme = "README.md"
 glyph_brush_draw_cache = { version = "0.1.1", path = "../draw-cache" }
 glyph_brush_layout = { version = "0.2.3", path = "../layout" }
 ordered-float = "4"
-rustc-hash = "1"
+rustc-hash = "2"
 twox-hash = { version = "1.6.1", default-features = false }
 
 # enable twox-hash rand/std everywhere except wasm

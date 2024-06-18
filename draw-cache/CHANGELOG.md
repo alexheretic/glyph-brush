@@ -1,5 +1,6 @@
 # Unreleased
 * Clarify `Rectangle` docs.
+* Update _rustc-hash_ to `2`.
 
 # 0.1.5
 * Micro-optimise avoid `.round()` during glyph drawing when converting pixel coverage to `u8`.

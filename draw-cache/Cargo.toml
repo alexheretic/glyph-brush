@@ -12,7 +12,7 @@ readme = "README.md"
 [dependencies]
 ab_glyph = "0.2.2"
 linked-hash-map = "0.5.4"
-rustc-hash = "1"
+rustc-hash = "2"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 crossbeam-channel = "0.5"
