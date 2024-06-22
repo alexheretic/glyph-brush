@@ -1,6 +1,6 @@
 [package]
 name = "glyph_brush_layout"
-version = "0.2.3"
+version = "0.2.4"
 authors = ["Alex Butler <alexheretic@gmail.com>"]
 edition = "2021"
 description = "Text layout for ab_glyph"

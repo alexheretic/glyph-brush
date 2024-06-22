@@ -1,4 +1,4 @@
-# Unreleased
+# 0.1.6
 * Clarify `Rectangle` docs.
 * Update _rustc-hash_ to `2`.
 

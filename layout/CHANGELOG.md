@@ -1,4 +1,4 @@
-# Unreleased (0.2.4)
+# 0.2.4
 * Fix `SectionText::scale` docs.
 * Improve `SectionGlyph` docs.
 
