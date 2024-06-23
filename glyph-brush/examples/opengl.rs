@@ -18,9 +18,10 @@
 
 use gl::types::*;
 use glutin::{
+    context::PossiblyCurrentContext,
     display::GetGlDisplay,
     prelude::{GlConfig, GlDisplay, NotCurrentGlContext},
-    surface::GlSurface,
+    surface::{GlSurface, Surface, WindowSurface},
 };
 use glutin_winit::GlWindow;
 use glyph_brush::{ab_glyph::*, *};
@@ -33,9 +34,11 @@ use std::{
     time::Duration,
 };
 use winit::{
-    event::{ElementState, Event, KeyEvent, MouseScrollDelta, WindowEvent},
-    event_loop::ControlFlow,
+    dpi::PhysicalSize,
+    event::{ElementState, KeyEvent, MouseScrollDelta, WindowEvent},
+    event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     keyboard::{Key, NamedKey},
+    window::Window,
 };
 
 const TITLE: &str = "glyph_brush opengl example - scroll to size, type to modify";
@@ -60,228 +63,307 @@ fn main() -> Res<()> {
         env::set_var("vblank_mode", "0");
     }
 
-    let events = winit::event_loop::EventLoop::new()?;
-    events.set_control_flow(ControlFlow::Poll);
+    EventLoop::new()?.run_app(&mut WinitApp::None)?;
+    Ok(())
+}
 
-    let (window, gl_config) = glutin_winit::DisplayBuilder::new()
-        .with_window_attributes(Some(
-            winit::window::Window::default_attributes()
-                .with_inner_size(winit::dpi::PhysicalSize::new(1024, 576))
-                .with_title(TITLE),
-        ))
-        .build(&events, <_>::default(), |mut configs| {
-            configs
-                .find(|c| c.srgb_capable() && c.num_samples() == 0)
-                .unwrap()
-        })?;
+enum WinitApp {
+    None,
+    Resumed(App),
+}
 
-    let window = window.unwrap(); // set in display builder
-    let window_handle = window.window_handle()?;
-    let gl_display = gl_config.display();
+impl winit::application::ApplicationHandler for WinitApp {
+    fn resumed(&mut self, events: &ActiveEventLoop) {
+        events.set_control_flow(ControlFlow::Poll);
+        *self = Self::Resumed(App::new(events));
+    }
 
-    let context_attributes = glutin::context::ContextAttributesBuilder::new()
-        .with_profile(glutin::context::GlProfile::Core)
-        .with_context_api(glutin::context::ContextApi::OpenGl(Some(
-            glutin::context::Version::new(3, 2),
-        )))
-        .build(Some(window_handle.as_raw()));
+    fn window_event(
+        &mut self,
+        events: &ActiveEventLoop,
+        _: winit::window::WindowId,
+        event: WindowEvent,
+    ) {
+        if let Self::Resumed(app) = self {
+            app.window_event(events, event);
+        }
+    }
 
-    let mut dimensions = window.inner_size();
+    fn about_to_wait(&mut self, _events: &ActiveEventLoop) {
+        if let Self::Resumed(App { window, .. }) = self {
+            window.request_redraw();
+        };
+    }
+}
 
-    let (gl_surface, gl_ctx) = {
-        let attrs = window.build_surface_attributes(<_>::default())?;
-        let surface = unsafe { gl_display.create_window_surface(&gl_config, &attrs)? };
-        let context = unsafe { gl_display.create_context(&gl_config, &context_attributes)? }
-            .make_current(&surface)?;
-        (surface, context)
-    };
+struct App {
+    window: Window,
+    gl_surface: Surface<WindowSurface>,
+    gl_ctx: PossiblyCurrentContext,
+    glyph_brush: GlyphBrush<Vertex, Extra, FontRef<'static>>,
+    texture: GlGlyphTexture,
+    text_pipe: GlTextPipe,
+    text: String,
+    font_size: f32,
+    interval: spin_sleep_util::Interval,
+    reporter: spin_sleep_util::RateReporter,
+    max_image_dimension: u32,
+    dimensions: PhysicalSize<u32>,
+}
 
-    // Load the OpenGL function pointers
-    gl::load_with(|symbol| gl_display.get_proc_address(&CString::new(symbol).unwrap()) as _);
+impl App {
+    fn new(events: &ActiveEventLoop) -> Self {
+        let (window, gl_config) = glutin_winit::DisplayBuilder::new()
+            .with_window_attributes(Some(
+                winit::window::Window::default_attributes()
+                    .with_inner_size(winit::dpi::PhysicalSize::new(1024, 576))
+                    .with_title(TITLE),
+            ))
+            .build(events, <_>::default(), |mut configs| {
+                configs
+                    .find(|c| c.srgb_capable() && c.num_samples() == 0)
+                    .unwrap()
+            })
+            .unwrap();
 
-    let max_image_dimension = {
-        let mut value = 0;
-        unsafe { gl::GetIntegerv(gl::MAX_TEXTURE_SIZE, &mut value) };
-        value as u32
-    };
+        let window = window.unwrap(); // set in display builder
+        let window_handle = window.window_handle().unwrap();
+        let gl_display = gl_config.display();
 
-    let sans = FontRef::try_from_slice(include_bytes!("../../fonts/OpenSans-Light.ttf"))?;
-    let mut glyph_brush = GlyphBrushBuilder::using_font(sans).build();
+        let context_attributes = glutin::context::ContextAttributesBuilder::new()
+            .with_profile(glutin::context::GlProfile::Core)
+            .with_context_api(glutin::context::ContextApi::OpenGl(Some(
+                glutin::context::Version::new(3, 2),
+            )))
+            .build(Some(window_handle.as_raw()));
 
-    let mut texture = GlGlyphTexture::new(glyph_brush.texture_dimensions());
+        let dimensions = window.inner_size();
 
-    let mut text_pipe = GlTextPipe::new(dimensions)?;
+        let (gl_surface, gl_ctx) = {
+            let attrs = window.build_surface_attributes(<_>::default()).unwrap();
+            let surface = unsafe {
+                gl_display
+                    .create_window_surface(&gl_config, &attrs)
+                    .unwrap()
+            };
+            let context = unsafe {
+                gl_display
+                    .create_context(&gl_config, &context_attributes)
+                    .unwrap()
+            }
+            .make_current(&surface)
+            .unwrap();
+            (surface, context)
+        };
 
-    let mut text: String = include_str!("text/lipsum.txt").into();
-    let mut font_size: f32 = 18.0;
+        // Load the OpenGL function pointers
+        gl::load_with(|symbol| gl_display.get_proc_address(&CString::new(symbol).unwrap()) as _);
 
-    let mut interval = spin_sleep_util::interval(Duration::from_secs(1) / 250);
-    let mut reporter = spin_sleep_util::RateReporter::new(Duration::from_secs(1));
-    let mut vertex_count = 0;
-    let mut vertex_max = vertex_count;
+        let max_image_dimension = {
+            let mut value = 0;
+            unsafe { gl::GetIntegerv(gl::MAX_TEXTURE_SIZE, &mut value) };
+            value as u32
+        };
 
-    events.run(move |event, elwt| {
+        let sans =
+            FontRef::try_from_slice(include_bytes!("../../fonts/OpenSans-Light.ttf")).unwrap();
+        let glyph_brush = GlyphBrushBuilder::using_font(sans).build();
+
+        let texture = GlGlyphTexture::new(glyph_brush.texture_dimensions());
+
+        let text_pipe = GlTextPipe::new(dimensions).unwrap();
+
+        Self {
+            window,
+            gl_surface,
+            gl_ctx,
+            glyph_brush,
+            texture,
+            text_pipe,
+            text: include_str!("text/lipsum.txt").into(),
+            font_size: 18.0,
+            interval: spin_sleep_util::interval(Duration::from_secs(1) / 250),
+            reporter: spin_sleep_util::RateReporter::new(Duration::from_secs(1)),
+            max_image_dimension,
+            dimensions,
+        }
+    }
+
+    fn window_event(&mut self, events: &ActiveEventLoop, event: WindowEvent) {
         match event {
-            Event::AboutToWait => window.request_redraw(),
-            Event::WindowEvent { event, .. } => match event {
-                WindowEvent::CloseRequested => elwt.exit(),
-                WindowEvent::KeyboardInput {
-                    event:
-                        KeyEvent {
-                            logical_key,
-                            state: ElementState::Pressed,
-                            ..
-                        },
-                    ..
-                } => match logical_key {
-                    Key::Named(NamedKey::Escape) => elwt.exit(),
-                    Key::Named(NamedKey::Backspace) => {
-                        text.pop();
-                    }
-                    key => {
-                        if let Some(str) = key.to_text() {
-                            text.push_str(str);
-                        }
-                    }
-                },
-                WindowEvent::MouseWheel {
-                    delta: MouseScrollDelta::LineDelta(_, y),
-                    ..
-                } => {
-                    // increase/decrease font size
-                    let old_size = font_size;
-                    let mut size = font_size;
-                    if y > 0.0 {
-                        size += (size / 4.0).max(2.0)
-                    } else {
-                        size *= 4.0 / 5.0
-                    };
-                    font_size = size.clamp(1.0, 2000.0);
-                    if (font_size - old_size).abs() > 1e-2 {
-                        eprint!("\r                            \r");
-                        eprint!("font-size -> {font_size:.1}");
-                        let _ = io::stderr().flush();
+            WindowEvent::CloseRequested => events.exit(),
+            WindowEvent::KeyboardInput {
+                event:
+                    KeyEvent {
+                        logical_key,
+                        state: ElementState::Pressed,
+                        ..
+                    },
+                ..
+            } => match logical_key {
+                Key::Named(NamedKey::Escape) => events.exit(),
+                Key::Named(NamedKey::Backspace) => {
+                    self.text.pop();
+                }
+                key => {
+                    if let Some(str) = key.to_text() {
+                        self.text.push_str(str);
                     }
                 }
-                WindowEvent::RedrawRequested => {
-                    // handle window size changes
-                    let window_size = window.inner_size();
-                    if dimensions != window_size {
-                        dimensions = window_size;
-                        window.resize_surface(&gl_surface, &gl_ctx);
-                        unsafe {
-                            gl::Viewport(0, 0, dimensions.width as _, dimensions.height as _);
-                        }
-                        text_pipe.update_geometry(window_size);
-                    }
-
-                    let width = dimensions.width as f32;
-                    let height = dimensions.height as _;
-                    let scale = (font_size * window.scale_factor() as f32).round();
-                    let base_text = Text::new(&text).with_scale(scale);
-
-                    // Queue up all sections of text to be drawn
-                    glyph_brush.queue(
-                        Section::default()
-                            .add_text(base_text.with_color([0.9, 0.3, 0.3, 1.0]))
-                            .with_bounds((width / 3.15, height)),
-                    );
-
-                    glyph_brush.queue(
-                        Section::default()
-                            .add_text(base_text.with_color([0.3, 0.9, 0.3, 1.0]))
-                            .with_screen_position((width / 2.0, height / 2.0))
-                            .with_bounds((width / 3.15, height))
-                            .with_layout(
-                                Layout::default()
-                                    .h_align(HorizontalAlign::Center)
-                                    .v_align(VerticalAlign::Center),
-                            ),
-                    );
-
-                    glyph_brush.queue(
-                        Section::default()
-                            .add_text(base_text.with_color([0.3, 0.3, 0.9, 1.0]))
-                            .with_screen_position((width, height))
-                            .with_bounds((width / 3.15, height))
-                            .with_layout(
-                                Layout::default()
-                                    .h_align(HorizontalAlign::Right)
-                                    .v_align(VerticalAlign::Bottom),
-                            ),
-                    );
-
-                    // Tell glyph_brush to process the queued text
-                    let mut brush_action;
-                    loop {
-                        brush_action = glyph_brush.process_queued(
-                            |rect, tex_data| unsafe {
-                                // Update part of gpu texture with new glyph alpha values
-                                gl::BindTexture(gl::TEXTURE_2D, texture.name);
-                                gl::TexSubImage2D(
-                                    gl::TEXTURE_2D,
-                                    0,
-                                    rect.min[0] as _,
-                                    rect.min[1] as _,
-                                    rect.width() as _,
-                                    rect.height() as _,
-                                    gl::RED,
-                                    gl::UNSIGNED_BYTE,
-                                    tex_data.as_ptr() as _,
-                                );
-                                gl_assert_ok!();
-                            },
-                            to_vertex,
-                        );
-
-                        // If the cache texture is too small to fit all the glyphs, resize and try again
-                        match brush_action {
-                            Ok(_) => break,
-                            Err(BrushError::TextureTooSmall { suggested, .. }) => {
-                                let (new_width, new_height) = if (suggested.0 > max_image_dimension
-                                    || suggested.1 > max_image_dimension)
-                                    && (glyph_brush.texture_dimensions().0 < max_image_dimension
-                                        || glyph_brush.texture_dimensions().1 < max_image_dimension)
-                                {
-                                    (max_image_dimension, max_image_dimension)
-                                } else {
-                                    suggested
-                                };
-                                eprint!("\r                            \r");
-                                eprintln!("Resizing glyph texture -> {new_width}x{new_height}");
-
-                                // Recreate texture as a larger size to fit more
-                                texture = GlGlyphTexture::new((new_width, new_height));
-
-                                glyph_brush.resize_texture(new_width, new_height);
-                            }
-                        }
-                    }
-                    // If the text has changed from what was last drawn, upload the new vertices to GPU
-                    match brush_action.unwrap() {
-                        BrushAction::Draw(vertices) => text_pipe.upload_vertices(&vertices),
-                        BrushAction::ReDraw => {}
-                    }
-
-                    // Draw the text to the screen
-                    unsafe {
-                        gl::Clear(gl::COLOR_BUFFER_BIT);
-                    }
-                    text_pipe.draw();
-
-                    gl_surface.swap_buffers(&gl_ctx).unwrap();
-
-                    if let Some(rate) = reporter.increment_and_report() {
-                        window.set_title(&format!("{TITLE} {rate:.0} FPS"));
-                    }
-                    interval.tick();
-                }
-                _ => (),
             },
+            WindowEvent::MouseWheel {
+                delta: MouseScrollDelta::LineDelta(_, y),
+                ..
+            } => {
+                // increase/decrease font size
+                let old_size = self.font_size;
+                let mut size = self.font_size;
+                if y > 0.0 {
+                    size += (size / 4.0).max(2.0)
+                } else {
+                    size *= 4.0 / 5.0
+                };
+                self.font_size = size.clamp(1.0, 2000.0);
+                if (self.font_size - old_size).abs() > 1e-2 {
+                    eprint!("\r                            \r");
+                    eprint!("font-size -> {:.1}", self.font_size);
+                    let _ = io::stderr().flush();
+                }
+            }
+            WindowEvent::RedrawRequested => self.draw(),
             _ => (),
         }
-    })?;
-    Ok(())
+    }
+
+    fn draw(&mut self) {
+        let Self {
+            window,
+            gl_surface,
+            gl_ctx,
+            glyph_brush,
+            texture,
+            text_pipe,
+            text,
+            font_size,
+            interval,
+            reporter,
+            max_image_dimension,
+            dimensions,
+        } = self;
+
+        // handle window size changes
+        let window_size = window.inner_size();
+        if *dimensions != window_size {
+            *dimensions = window_size;
+            window.resize_surface(gl_surface, gl_ctx);
+            unsafe {
+                gl::Viewport(0, 0, dimensions.width as _, dimensions.height as _);
+            }
+            text_pipe.update_geometry(window_size);
+        }
+
+        let width = dimensions.width as f32;
+        let height = dimensions.height as _;
+        let scale = (*font_size * window.scale_factor() as f32).round();
+        let base_text = Text::new(text).with_scale(scale);
+
+        // Queue up all sections of text to be drawn
+        glyph_brush.queue(
+            Section::default()
+                .add_text(base_text.with_color([0.9, 0.3, 0.3, 1.0]))
+                .with_bounds((width / 3.15, height)),
+        );
+
+        glyph_brush.queue(
+            Section::default()
+                .add_text(base_text.with_color([0.3, 0.9, 0.3, 1.0]))
+                .with_screen_position((width / 2.0, height / 2.0))
+                .with_bounds((width / 3.15, height))
+                .with_layout(
+                    Layout::default()
+                        .h_align(HorizontalAlign::Center)
+                        .v_align(VerticalAlign::Center),
+                ),
+        );
+
+        glyph_brush.queue(
+            Section::default()
+                .add_text(base_text.with_color([0.3, 0.3, 0.9, 1.0]))
+                .with_screen_position((width, height))
+                .with_bounds((width / 3.15, height))
+                .with_layout(
+                    Layout::default()
+                        .h_align(HorizontalAlign::Right)
+                        .v_align(VerticalAlign::Bottom),
+                ),
+        );
+
+        // Tell glyph_brush to process the queued text
+        let mut brush_action;
+        loop {
+            brush_action = glyph_brush.process_queued(
+                |rect, tex_data| unsafe {
+                    // Update part of gpu texture with new glyph alpha values
+                    gl::BindTexture(gl::TEXTURE_2D, texture.name);
+                    gl::TexSubImage2D(
+                        gl::TEXTURE_2D,
+                        0,
+                        rect.min[0] as _,
+                        rect.min[1] as _,
+                        rect.width() as _,
+                        rect.height() as _,
+                        gl::RED,
+                        gl::UNSIGNED_BYTE,
+                        tex_data.as_ptr() as _,
+                    );
+                    gl_assert_ok!();
+                },
+                to_vertex,
+            );
+
+            // If the cache texture is too small to fit all the glyphs, resize and try again
+            match brush_action {
+                Ok(_) => break,
+                Err(BrushError::TextureTooSmall { suggested, .. }) => {
+                    let (new_width, new_height) = if (suggested.0 > *max_image_dimension
+                        || suggested.1 > *max_image_dimension)
+                        && (glyph_brush.texture_dimensions().0 < *max_image_dimension
+                            || glyph_brush.texture_dimensions().1 < *max_image_dimension)
+                    {
+                        (*max_image_dimension, *max_image_dimension)
+                    } else {
+                        suggested
+                    };
+                    eprint!("\r                            \r");
+                    eprintln!("Resizing glyph texture -> {new_width}x{new_height}");
+
+                    // Recreate texture as a larger size to fit more
+                    *texture = GlGlyphTexture::new((new_width, new_height));
+
+                    glyph_brush.resize_texture(new_width, new_height);
+                }
+            }
+        }
+        // If the text has changed from what was last drawn, upload the new vertices to GPU
+        match brush_action.unwrap() {
+            BrushAction::Draw(vertices) => text_pipe.upload_vertices(&vertices),
+            BrushAction::ReDraw => {}
+        }
+
+        // Draw the text to the screen
+        unsafe {
+            gl::ClearColor(0.02, 0.02, 0.02, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+        }
+        text_pipe.draw();
+
+        gl_surface.swap_buffers(gl_ctx).unwrap();
+
+        if let Some(rate) = reporter.increment_and_report() {
+            window.set_title(&format!("{TITLE} {rate:.0} FPS"));
+        }
+        interval.tick();
+    }
 }
 
 pub fn gl_err_to_str(err: u32) -> &'static str {
@@ -547,13 +629,6 @@ impl GlTextPipe {
 
                 offset += float_count * 4;
             }
-
-            // Enabled alpha blending
-            gl::Enable(gl::BLEND);
-            gl::BlendFunc(gl::SRC_ALPHA, gl::ONE);
-            // Use srgb for consistency with other examples
-            gl::Enable(gl::FRAMEBUFFER_SRGB);
-            gl::ClearColor(0.02, 0.02, 0.02, 1.0);
             gl_assert_ok!();
 
             uniform
@@ -610,6 +685,12 @@ impl GlTextPipe {
 
     pub fn draw(&self) {
         unsafe {
+            // Enabled alpha blending
+            gl::Enable(gl::BLEND);
+            gl::BlendFunc(gl::SRC_ALPHA, gl::ONE);
+            // Use srgb for consistency with other examples
+            gl::Enable(gl::FRAMEBUFFER_SRGB);
+
             gl::UseProgram(self.program);
             gl::BindVertexArray(self.vao);
             // If implementing this yourself, make sure to set VertexAttribDivisor as well
