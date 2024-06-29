@@ -69,9 +69,6 @@ impl winit::application::ApplicationHandler for WinitApp {
 }
 
 struct App {
-    window: winit::window::Window,
-    gl_surface: glutin::surface::Surface<glutin::surface::WindowSurface>,
-    gl_context: glutin::context::PossiblyCurrentContext,
     device: gfx_device_gl::Device,
     encoder: gfx::Encoder<gfx_device_gl::Resources, gfx_device_gl::CommandBuffer>,
     color_view: gfx::handle::RenderTargetView<gfx_device_gl::Resources, Srgba8>,
@@ -85,6 +82,9 @@ struct App {
     font_size: f32,
     zoom: f32,
     angle: f32,
+    gl_surface: glutin::surface::Surface<glutin::surface::WindowSurface>,
+    gl_context: glutin::context::PossiblyCurrentContext,
+    window: winit::window::Window,
 }
 
 impl App {

@@ -97,9 +97,6 @@ impl winit::application::ApplicationHandler for WinitApp {
 }
 
 struct App {
-    window: Window,
-    gl_surface: Surface<WindowSurface>,
-    gl_ctx: PossiblyCurrentContext,
     glyph_brush: GlyphBrush<Vertex, Extra, FontRef<'static>>,
     texture: GlGlyphTexture,
     text_pipe: GlTextPipe,
@@ -109,6 +106,9 @@ struct App {
     reporter: spin_sleep_util::RateReporter,
     max_image_dimension: u32,
     dimensions: PhysicalSize<u32>,
+    gl_surface: Surface<WindowSurface>,
+    gl_ctx: PossiblyCurrentContext,
+    window: Window,
 }
 
 impl App {
