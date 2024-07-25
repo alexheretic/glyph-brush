@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, measurement::WallTime, Bencher, Criterion};
 use glyph_brush_draw_cache::*;
 use glyph_brush_layout::ab_glyph::*;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 /// Simple paragraph layout for glyphs into `target`.
 ///
@@ -46,7 +46,7 @@ pub fn layout_paragraph<F, SF>(
     }
 }
 
-static DEJA_VU_SANS: Lazy<FontRef<'static>> = Lazy::new(|| {
+static DEJA_VU_SANS: LazyLock<FontRef<'static>> = LazyLock::new(|| {
     FontRef::try_from_slice(include_bytes!("../../fonts/DejaVuSans.ttf") as &[u8]).unwrap()
 });
 

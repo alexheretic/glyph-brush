@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use glyph_brush_draw_cache::*;
 use glyph_brush_layout::ab_glyph::*;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 fn mock_gpu_upload_4us(_region: Rectangle<u32>, _bytes: &[u8]) {
     use std::time::{Duration, Instant};
@@ -68,7 +68,7 @@ pub fn layout_paragraph<F, SF>(
     }
 }
 
-static FONTS: Lazy<Vec<FontRef<'static>>> = Lazy::new(|| {
+static FONTS: LazyLock<Vec<FontRef<'static>>> = LazyLock::new(|| {
     vec![
         include_bytes!("../../fonts/WenQuanYiMicroHei.ttf") as &[u8],
         include_bytes!("../../fonts/OpenSans-Italic.ttf") as &[u8],

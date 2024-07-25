@@ -10,9 +10,9 @@
 //! Makes use of three kinds of caching to optimise frame performance.
 //!
 //! * Caching of glyph positioning output to avoid repeated cost of identical text
-//! rendering on sequential frames.
+//!   rendering on sequential frames.
 //! * Caches draw calculations to avoid repeated cost of identical text rendering on
-//! sequential frames.
+//!   sequential frames.
 //! * GPU cache logic to dynamically maintain a GPU texture of rendered glyphs.
 //!
 //! # Example

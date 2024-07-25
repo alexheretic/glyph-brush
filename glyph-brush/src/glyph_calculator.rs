@@ -398,13 +398,12 @@ impl<X> GlyphedSection<X> {
 mod test {
     use super::*;
     use approx::*;
-    use once_cell::sync::Lazy;
-    use std::f32;
+    use std::{f32, sync::LazyLock};
 
-    static MONO_FONT: Lazy<FontArc> = Lazy::new(|| {
+    static MONO_FONT: LazyLock<FontArc> = LazyLock::new(|| {
         FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSansMono.ttf") as &[u8]).unwrap()
     });
-    static OPEN_SANS_LIGHT: Lazy<FontArc> = Lazy::new(|| {
+    static OPEN_SANS_LIGHT: LazyLock<FontArc> = LazyLock::new(|| {
         FontArc::try_from_slice(include_bytes!("../../fonts/OpenSans-Light.ttf") as &[u8]).unwrap()
     });
 

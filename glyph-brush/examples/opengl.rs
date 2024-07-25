@@ -11,11 +11,11 @@
 //! * Load a font
 //! * Initialize the brush
 //! * Set up the glyph cache texture
+//!
 //! Per frame:
 //! * Queue up Sections of text, containing per-glyph colors and layout information
 //! * Process the text into vertices, increasing glyph cache size if necessary
 //! * Upload the vertices to the GPU if they've changed, and draw to the screen
-
 use gl::types::*;
 use glutin::{
     context::PossiblyCurrentContext,

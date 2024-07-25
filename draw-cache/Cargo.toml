@@ -23,7 +23,6 @@ rayon = "1.3"
 approx = "0.5"
 criterion = "0.5"
 glyph_brush_layout = { version = "0.2", path = "../layout" }
-once_cell = "1.3"
 
 [[bench]]
 name = "draw_cache"
