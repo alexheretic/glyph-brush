@@ -1,3 +1,6 @@
+# Unreleased (0.7.10)
+* Fix conversions from OwnedSection -> Section with non-default extra type.
+
 # 0.7.9
 * Add `GlyphCruncher::glyphs` doc example of using `section_index` & `byte_index`.
 * Update _rustc-hash_ to `2`.

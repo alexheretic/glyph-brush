@@ -73,14 +73,26 @@ impl<X: Clone> OwnedSection<X> {
     }
 }
 
-impl<'a> From<&'a OwnedSection> for Section<'a> {
-    fn from(owned: &'a OwnedSection) -> Self {
+impl<'a, X: Clone> From<&'a OwnedSection<X>> for Section<'a, X> {
+    /// ```
+    /// use glyph_brush::{OwnedSection, OwnedText, Section};
+    ///
+    /// let section = OwnedSection::default().add_text(OwnedText::new("foo").with_extra(1usize));
+    /// let cow: Section<'_, usize> = (&section).into();
+    /// ```
+    fn from(owned: &'a OwnedSection<X>) -> Self {
         owned.to_borrowed()
     }
 }
 
-impl<'a> From<&'a OwnedSection> for Cow<'a, Section<'a>> {
-    fn from(owned: &'a OwnedSection) -> Self {
+impl<'a, X: Clone> From<&'a OwnedSection<X>> for Cow<'a, Section<'a, X>> {
+    /// ```
+    /// use glyph_brush::{OwnedSection, OwnedText, Section};
+    ///
+    /// let section = OwnedSection::default().add_text(OwnedText::new("foo").with_extra(1usize));
+    /// let cow: std::borrow::Cow<'_, Section<'_, usize>> = (&section).into();
+    /// ```
+    fn from(owned: &'a OwnedSection<X>) -> Self {
         Cow::Owned(owned.to_borrowed())
     }
 }
