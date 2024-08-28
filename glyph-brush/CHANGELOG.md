@@ -1,4 +1,4 @@
-# Unreleased (0.7.10)
+# 0.7.10
 * Fix conversions from OwnedSection -> Section with non-default extra type.
 
 # 0.7.9
