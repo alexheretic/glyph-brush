@@ -14,11 +14,11 @@ glyph_brush_draw_cache = { version = "0.1.1", path = "../draw-cache" }
 glyph_brush_layout = { version = "0.2.3", path = "../layout" }
 ordered-float = "4"
 rustc-hash = "2"
-twox-hash = { version = "2.0.0", default-features = false, features = ["xxhash64"] }
+twox-hash = { version = "2", default-features = false, features = ["xxhash64"] }
 
 # enable twox-hash rand everywhere except wasm
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.twox-hash]
-version = "2.0.0"
+version = "2"
 default-features = false
 features = ["random"]
 

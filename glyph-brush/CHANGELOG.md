@@ -1,12 +1,15 @@
+# Unreleased (v0.7.11)
+* Update _twox-hash_ to 2.
+
 # 0.7.10
 * Fix conversions from OwnedSection -> Section with non-default extra type.
 
 # 0.7.9
 * Add `GlyphCruncher::glyphs` doc example of using `section_index` & `byte_index`.
-* Update _rustc-hash_ to `2`.
+* Update _rustc-hash_ to 2.
 
 # v0.7.8
-* Update _ordered-float_ to `4`.
+* Update _ordered-float_ to 4.
 
 # v0.7.7
 * Allow `Text::new` to work with any `X` type. **This may break usage**, however it will hopefully be non-breaking in practice as the compiler should always be able to infer this.
@@ -22,7 +25,7 @@
 * Implement `Eq` for `BrushError`.
 
 # 0.7.4
-* Update _ordered-float_ to `3`.
+* Update _ordered-float_ to 3.
 
 # 0.7.3
 * Add documentation of `GlyphBrush` generic types & workarounds when `.build()` type inference fails.
@@ -32,7 +35,7 @@
 * Add `GlyphBrushBuilder::multithread` to allow setting the (default on) draw-cache multithreading.
 
 # 0.7.1
-* Update _ordered-float_ to `2`.
+* Update _ordered-float_ to 2.
 
 # 0.7
 * **OpenType (.otf) fonts are now supported** in addition to .ttf fonts. They're just as fast as .ttf fonts too.
@@ -86,14 +89,14 @@
 * Add `GlyphBrushBuilder::without_fonts()` for creating a brush without any fonts.
 
 # 0.6.1
-* Require `glyph_brush_layout` `0.1.8` to help ensure `rusttype` dependency convergence.
+* Require _glyph_brush_layout_ 0.1.8 to help ensure _rusttype_ dependency convergence.
 
 # 0.6
 * `GlyphBrushBuilder` removed `initial_cache_size`, `gpu_cache_scale_tolerance`, `gpu_cache_position_tolerance`, `gpu_cache_align_4x4` public fields replaced by `gpu_cache_builder` field. This change allows the following changes.
 * Add `GlyphBrush::to_builder` method to construct `GlyphBrushBuilder`s from `GlyphBrush`.
 * Add `GlyphBrushBuilder::replace_fonts`, `GlyphBrushBuilder::rebuild` methods. Along with `to_builder` these may be used to rebuild a `GlyphBrush` with different fonts more conveniently.
 * Replace `hashbrown` with `rustc-hash` + `std::collections` these are the same in 1.36.
-* Update rusttype -> `0.8`. _Compatible with rusttype `0.6.5` & `0.7.9`._
+* Update _rusttype_ -> `0.8`. _Compatible with rusttype `0.6.5` & `0.7.9`._
 
 # 0.5.4
 * Semver trick re-export glyph_brush `0.6` without `GlyphBrushBuilder`.
