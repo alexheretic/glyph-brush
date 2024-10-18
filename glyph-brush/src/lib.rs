@@ -45,10 +45,10 @@ use glyph_brush_layout::ab_glyph::*;
 
 /// A "practically collision free" `Section` hasher
 #[cfg(not(target_arch = "wasm32"))]
-pub type DefaultSectionHasher = twox_hash::RandomXxHashBuilder;
+pub type DefaultSectionHasher = twox_hash::xxhash64::RandomState;
 // Work around for rand issues in wasm #61
 #[cfg(target_arch = "wasm32")]
-pub type DefaultSectionHasher = std::hash::BuildHasherDefault<twox_hash::XxHash>;
+pub type DefaultSectionHasher = std::hash::BuildHasherDefault<twox_hash::XxHash64>;
 
 #[test]
 fn default_section_hasher() {
