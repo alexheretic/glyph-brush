@@ -1,4 +1,4 @@
-# Unreleased (v0.7.11)
+# 0.7.11
 * Update _twox-hash_ to 2.
 
 # 0.7.10
