@@ -205,7 +205,7 @@ fn hash_section_text<H: Hasher>(state: &mut H, text: &[SectionText]) {
     }
 }
 
-impl<'text> VariedSection<'text> {
+impl VariedSection<'_> {
     pub fn to_owned(&self) -> OwnedVariedSection {
         OwnedVariedSection {
             screen_position: self.screen_position,

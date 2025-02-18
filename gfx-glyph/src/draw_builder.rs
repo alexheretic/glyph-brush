@@ -95,7 +95,7 @@ where
     }
 }
 
-impl<'a, F, R, GF, H, DV> DrawBuilder<'a, F, R, GF, H, DV>
+impl<F, R, GF, H, DV> DrawBuilder<'_, F, R, GF, H, DV>
 where
     F: Font + Sync,
     R: gfx::Resources,
@@ -163,7 +163,7 @@ impl<R: gfx::Resources> RawAndFormat for NoDepth<R> {
     }
 }
 
-impl<'a, F, R, GF, H> DrawBuilder<'a, F, R, GF, H, ()>
+impl<F, R, GF, H> DrawBuilder<'_, F, R, GF, H, ()>
 where
     F: Font + Sync,
     R: gfx::Resources,

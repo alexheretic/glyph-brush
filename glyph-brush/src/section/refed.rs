@@ -46,7 +46,7 @@ impl Default for Section<'static, Extra> {
     }
 }
 
-impl<'a, X> Section<'a, X> {
+impl<X> Section<'_, X> {
     #[inline]
     pub fn new() -> Self {
         Section::builder().with_text(vec![])
@@ -219,7 +219,7 @@ impl<'a, X: Default> Text<'a, X> {
     }
 }
 
-impl<'a> Text<'a, Extra> {
+impl Text<'_, Extra> {
     #[inline]
     pub fn with_color<C: Into<Color>>(mut self, color: C) -> Self {
         self.extra.color = color.into();
@@ -260,7 +260,7 @@ fn hash_section_text<X: Hash, H: Hasher>(state: &mut H, text: &[Text<'_, X>]) {
     }
 }
 
-impl<'text, X: Clone> Section<'text, X> {
+impl<X: Clone> Section<'_, X> {
     pub fn to_owned(&self) -> OwnedSection<X> {
         OwnedSection {
             screen_position: self.screen_position,

@@ -1,3 +1,6 @@
+# Unreleased (0.7.12)
+* Update _ordered-float_ to 5.
+
 # 0.7.11
 * Update _twox-hash_ to 2.
 

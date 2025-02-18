@@ -15,4 +15,4 @@ approx = "0.5"
 xi-unicode = "0.3"
 
 [dev-dependencies]
-ordered-float = "4"
+ordered-float = "5"

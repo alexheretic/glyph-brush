@@ -12,7 +12,7 @@ readme = "README.md"
 [dependencies]
 glyph_brush_draw_cache = { version = "0.1.1", path = "../draw-cache" }
 glyph_brush_layout = { version = "0.2.3", path = "../layout" }
-ordered-float = "4"
+ordered-float = "5"
 rustc-hash = "2"
 twox-hash = { version = "2", default-features = false, features = ["xxhash64"] }
 

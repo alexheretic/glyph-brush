@@ -1225,7 +1225,7 @@ mod test {
         let fontmap = &[&font];
 
         let mut cache = DrawCache::builder()
-            .dimensions(30, 25)
+            .dimensions(31, 25)
             .scale_tolerance(0.1)
             .position_tolerance(0.1)
             .build();
