@@ -24,18 +24,15 @@ const TITLE: &str = "gfx_glyph example - resize to see multi-text layout";
 
 fn main() -> Result<(), Box<dyn Error>> {
     init_example("varied");
-    Ok(EventLoop::new()?.run_app(&mut WinitApp::None)?)
+    Ok(EventLoop::new()?.run_app(&mut WinitApp(None))?)
 }
 
-enum WinitApp {
-    None,
-    Resumed(App),
-}
+struct WinitApp(Option<App>);
 
 impl winit::application::ApplicationHandler for WinitApp {
     fn resumed(&mut self, events: &ActiveEventLoop) {
         events.set_control_flow(ControlFlow::Poll);
-        *self = Self::Resumed(App::new(events).unwrap());
+        *self = Self(Some(App::new(events).unwrap()));
     }
 
     fn window_event(
@@ -44,13 +41,13 @@ impl winit::application::ApplicationHandler for WinitApp {
         _: winit::window::WindowId,
         event: WindowEvent,
     ) {
-        if let Self::Resumed(app) = self {
+        if let Self(Some(app)) = self {
             app.window_event(events, event);
         }
     }
 
     fn about_to_wait(&mut self, _events: &ActiveEventLoop) {
-        if let Self::Resumed(App { window, .. }) = self {
+        if let Self(Some(App { window, .. })) = self {
             window.request_redraw();
         };
     }
