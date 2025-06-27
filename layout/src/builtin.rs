@@ -471,7 +471,7 @@ mod layout_test {
                 }],
             );
 
-        assert!(glyphs.is_empty(), "{:?}", glyphs);
+        assert!(glyphs.is_empty(), "{glyphs:?}");
     }
 
     #[test]
@@ -488,7 +488,7 @@ mod layout_test {
                 }],
             );
 
-        assert!(glyphs.is_empty(), "{:?}", glyphs);
+        assert!(glyphs.is_empty(), "{glyphs:?}");
     }
 
     #[test]
