@@ -21,7 +21,7 @@ rayon = "1.3"
 
 [dev-dependencies]
 approx = "0.5"
-criterion = "0.7"
+criterion = "0.8"
 glyph_brush_layout = { version = "0.2", path = "../layout" }
 
 [[bench]]
