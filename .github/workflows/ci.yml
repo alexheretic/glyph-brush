@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - run: rustup update stable
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - run: cargo test
     - run: cargo test --benches
 
@@ -22,7 +22,7 @@ jobs:
   #   - run: rustup update stable
   #   - run: sudo apt update && sudo apt install -yq gcc-multilib musl-tools
   #   - run: rustup target add i686-unknown-linux-musl
-  #   - uses: actions/checkout@v4
+  #   - uses: actions/checkout@v6
   #   - run: cargo test --target i686-unknown-linux-musl
 
   check_wasm:
@@ -30,12 +30,12 @@ jobs:
     steps:
     - run: rustup update stable
     - run: rustup target add wasm32-unknown-unknown
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - run: cargo check --target wasm32-unknown-unknown
 
   rustfmt:
     runs-on: ubuntu-latest
     steps:
     - run: rustup update stable
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - run: cargo fmt -- --check
