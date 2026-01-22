@@ -57,8 +57,8 @@ impl Iterator for AnyCharLineBreakerIter<'_> {
     fn next(&mut self) -> Option<LineBreak> {
         let (b_index, c) = self.chars.next()?;
         let c_len = c.len_utf8();
-        while self.current_break.is_some() {
-            if self.current_break.as_ref().unwrap().0 < b_index + c_len {
+        while let Some((idx, _)) = self.current_break {
+            if idx < b_index + c_len {
                 self.current_break = self.breaks.next();
             } else {
                 break;
