@@ -523,7 +523,7 @@ mod test {
 
         assert_eq!(glyphs.len(), bounded_glyphs.len());
 
-        for (sg, bounded_sg) in glyphs.iter().zip(bounded_glyphs.into_iter()) {
+        for (sg, bounded_sg) in glyphs.iter().zip(bounded_glyphs) {
             assert_relative_eq!(sg.glyph.position.x, bounded_sg.glyph.position.x);
             assert_relative_eq!(sg.glyph.position.y, bounded_sg.glyph.position.y);
         }
@@ -548,7 +548,7 @@ mod test {
 
         assert_eq!(glyphs.len(), bounded_glyphs.len());
 
-        for (sg, bounded_sg) in glyphs.iter().zip(bounded_glyphs.into_iter()) {
+        for (sg, bounded_sg) in glyphs.iter().zip(bounded_glyphs) {
             assert_relative_eq!(sg.glyph.position.x, bounded_sg.glyph.position.x);
             assert_relative_eq!(sg.glyph.position.y, bounded_sg.glyph.position.y);
         }
@@ -572,7 +572,7 @@ mod test {
 
         assert_eq!(glyphs.len(), bounded_glyphs.len());
 
-        for (sg, bounded_sg) in glyphs.iter().zip(bounded_glyphs.into_iter()) {
+        for (sg, bounded_sg) in glyphs.iter().zip(bounded_glyphs) {
             assert_relative_eq!(sg.glyph.position.x, bounded_sg.glyph.position.x);
             assert_relative_eq!(sg.glyph.position.y, bounded_sg.glyph.position.y);
         }
