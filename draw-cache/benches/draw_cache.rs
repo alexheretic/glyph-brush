@@ -95,8 +95,8 @@ fn bench_high_position_tolerance(c: &mut Criterion) {
         let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
         let mut cache = DrawCache::builder()
             .dimensions(1024, 1024)
-            .scale_tolerance(0.1)
-            .position_tolerance(1.0)
+            .scale_tolerance(0.1_f32)
+            .position_tolerance(1.0_f32)
             .build();
 
         {
@@ -368,8 +368,8 @@ fn bench_moving_text(c: &mut Criterion) {
 
     let mut cache = DrawCache::builder()
         .dimensions(1500, 1500)
-        .scale_tolerance(0.1)
-        .position_tolerance(0.1)
+        .scale_tolerance(0.1_f32)
+        .position_tolerance(0.1_f32)
         .build();
 
     {
@@ -510,8 +510,8 @@ fn bench_moving_text_thrashing(c: &mut Criterion) {
     // re-ordering, re-rasterization & re-uploading has to occur.
     let mut cache = DrawCache::builder()
         .dimensions(320, 320)
-        .scale_tolerance(0.1)
-        .position_tolerance(0.1)
+        .scale_tolerance(0.1_f32)
+        .position_tolerance(0.1_f32)
         .build();
 
     c.bench_function("moving_text_thrashing_v2", |b| {

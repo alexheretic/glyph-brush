@@ -43,8 +43,8 @@ impl GlyphBrushBuilder<()> {
             section_hasher: DefaultSectionHasher::default(),
             draw_cache_builder: DrawCache::builder()
                 .dimensions(256, 256)
-                .scale_tolerance(0.5)
-                .position_tolerance(0.1)
+                .scale_tolerance(0.5_f32)
+                .position_tolerance(0.1_f32)
                 .align_4x4(false),
         }
     }

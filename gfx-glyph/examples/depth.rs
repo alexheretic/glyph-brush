@@ -157,7 +157,7 @@ impl App {
                             Text::new("On top")
                                 .with_scale(95.0)
                                 .with_color([0.8, 0.8, 0.8, 1.0])
-                                .with_z(0.2)
+                                .with_z(0.2_f32)
                                 .with_font_id(ITALIC_FONT),
                         )
                         .with_screen_position((width / 2.0, 100.0))
@@ -173,7 +173,7 @@ impl App {
                             Text::new(&include_str!("lipsum.txt").replace("\n\n", "").repeat(10))
                                 .with_scale(30.0)
                                 .with_color([0.05, 0.05, 0.1, 1.0])
-                                .with_z(1.0),
+                                .with_z(1.0_f32),
                         )
                         .with_bounds((width, height)),
                 );

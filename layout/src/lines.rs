@@ -145,7 +145,7 @@ where
             }
         }
 
-        Some(line).filter(|_| progressed)
+        progressed.then_some(line)
     }
 }
 

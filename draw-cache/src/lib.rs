@@ -1064,8 +1064,8 @@ mod test {
 
         let mut cache = DrawCache::builder()
             .dimensions(32, 32)
-            .scale_tolerance(0.1)
-            .position_tolerance(0.1)
+            .scale_tolerance(0.1_f32)
+            .position_tolerance(0.1_f32)
             .pad_glyphs(false)
             .build();
         let strings = [
@@ -1107,8 +1107,8 @@ mod test {
 
         let mut cache = DrawCache::builder()
             .dimensions(32, 32)
-            .scale_tolerance(0.1)
-            .position_tolerance(0.1)
+            .scale_tolerance(0.1_f32)
+            .position_tolerance(0.1_f32)
             .pad_glyphs(false)
             .build();
 
@@ -1130,8 +1130,8 @@ mod test {
         let gid = font.glyph_id('l');
 
         let cache = DrawCache::builder()
-            .scale_tolerance(0.2)
-            .position_tolerance(0.5)
+            .scale_tolerance(0.2_f32)
+            .position_tolerance(0.5_f32)
             .build();
 
         let small = gid.with_scale_and_position(9.91, point(0.0, 0.0));
@@ -1180,8 +1180,8 @@ mod test {
     fn builder_rebuild() {
         let mut cache = DrawCache::builder()
             .dimensions(32, 64)
-            .scale_tolerance(0.2)
-            .position_tolerance(0.3)
+            .scale_tolerance(0.2_f32)
+            .position_tolerance(0.3_f32)
             .pad_glyphs(false)
             .align_4x4(true)
             .multithread(true)
@@ -1195,8 +1195,8 @@ mod test {
 
         DrawCache::builder()
             .dimensions(64, 128)
-            .scale_tolerance(0.05)
-            .position_tolerance(0.15)
+            .scale_tolerance(0.05_f32)
+            .position_tolerance(0.15_f32)
             .pad_glyphs(true)
             .align_4x4(false)
             .multithread(false)
@@ -1226,8 +1226,8 @@ mod test {
 
         let mut cache = DrawCache::builder()
             .dimensions(31, 25)
-            .scale_tolerance(0.1)
-            .position_tolerance(0.1)
+            .scale_tolerance(0.1_f32)
+            .position_tolerance(0.1_f32)
             .build();
 
         let glyphs = glyph_brush_layout::Layout::default_single_line().calculate_glyphs(
