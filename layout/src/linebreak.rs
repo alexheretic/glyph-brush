@@ -77,26 +77,6 @@ impl Iterator for AnyCharLineBreakerIter<'_> {
 
 impl FusedIterator for AnyCharLineBreakerIter<'_> {}
 
-struct HardOnlyLineBreakerIter<'a> {
-    breaks: xi_unicode::LineBreakIterator<'a>,
-}
-
-impl Iterator for HardOnlyLineBreakerIter<'_> {
-    type Item = LineBreak;
-
-    #[inline]
-    fn next(&mut self) -> Option<LineBreak> {
-        while let Some((offset, hard)) = self.breaks.next() {
-            if hard {
-                return Some(LineBreak::Hard(offset));
-            }
-        }
-        None
-    }
-}
-
-impl FusedIterator for HardOnlyLineBreakerIter<'_> {}
-
 impl LineBreaker for BuiltInLineBreaker {
     #[inline]
     fn line_breaks<'a>(&self, text: &'a str) -> Box<dyn Iterator<Item = LineBreak> + 'a> {
@@ -120,9 +100,15 @@ impl LineBreaker for BuiltInLineBreaker {
                     current_break,
                 })
             }
-            BuiltInLineBreaker::HardOnlyLineBreaker => Box::new(HardOnlyLineBreakerIter {
-                breaks: xi_unicode::LineBreakIterator::new(text),
-            }),
+            BuiltInLineBreaker::HardOnlyLineBreaker => Box::new(
+                xi_unicode::LineBreakIterator::new(text).filter_map(|(offset, hard)| {
+                    if hard {
+                        Some(LineBreak::Hard(offset))
+                    } else {
+                        None
+                    }
+                }),
+            ),
         }
     }
 }
