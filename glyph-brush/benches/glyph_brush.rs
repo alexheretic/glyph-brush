@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 use glyph_brush::{ab_glyph::*, *};
-use std::{borrow::Cow, f32};
+use std::borrow::Cow;
 
 const TEST_FONT: &[u8] = include_bytes!("../../fonts/DejaVuSansMono.ttf");
 const TEST_OTF_FONT: &[u8] = include_bytes!("../../fonts/Exo2-Light.otf");

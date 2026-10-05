@@ -1,5 +1,5 @@
 use crate::*;
-use std::{borrow::Cow, f32};
+use std::borrow::Cow;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct OwnedSection<X = Extra> {

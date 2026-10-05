@@ -398,7 +398,7 @@ impl<X> GlyphedSection<X> {
 mod test {
     use super::*;
     use approx::*;
-    use std::{f32, sync::LazyLock};
+    use std::sync::LazyLock;
 
     static MONO_FONT: LazyLock<FontArc> = LazyLock::new(|| {
         FontArc::try_from_slice(include_bytes!("../../fonts/DejaVuSansMono.ttf") as &[u8]).unwrap()

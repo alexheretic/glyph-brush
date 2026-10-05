@@ -381,7 +381,7 @@ mod layout_test {
     use crate::{BuiltInLineBreaker::*, FontId, SectionText};
     use approx::assert_relative_eq;
     use ordered_float::OrderedFloat;
-    use std::{collections::*, f32, sync::LazyLock};
+    use std::{collections::*, sync::LazyLock};
 
     static A_FONT: LazyLock<FontRef<'static>> = LazyLock::new(|| {
         FontRef::try_from_slice(include_bytes!("../../fonts/DejaVuSansMono.ttf")).unwrap()

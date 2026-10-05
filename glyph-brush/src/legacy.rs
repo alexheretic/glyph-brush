@@ -1,7 +1,7 @@
 use super::*;
 use ab_glyph::PxScale;
 use ordered_float::OrderedFloat;
-use std::{borrow::Cow, f32, hash::*};
+use std::{borrow::Cow, hash::*};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SectionText<'a> {

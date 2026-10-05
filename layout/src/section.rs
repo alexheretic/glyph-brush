@@ -1,6 +1,5 @@
 use crate::FontId;
 use ab_glyph::*;
-use std::f32;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SectionGeometry {
