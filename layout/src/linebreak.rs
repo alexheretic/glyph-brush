@@ -41,6 +41,8 @@ pub enum BuiltInLineBreaker {
     /// LineBreaker that soft breaks on any character, and hard breaks similarly to
     /// UnicodeLineBreaker.
     AnyCharLineBreaker,
+    /// LineBreaker that ignores soft breaks and breaks only on hard ones
+    HardOnlyLineBreaker,
 }
 
 // Iterator that indicates all characters are soft line breaks, except hard ones which are hard.
@@ -98,6 +100,15 @@ impl LineBreaker for BuiltInLineBreaker {
                     current_break,
                 })
             }
+            BuiltInLineBreaker::HardOnlyLineBreaker => Box::new(
+                xi_unicode::LineBreakIterator::new(text).filter_map(|(offset, hard)| {
+                    if hard {
+                        Some(LineBreak::Hard(offset))
+                    } else {
+                        None
+                    }
+                }),
+            ),
         }
     }
 }
